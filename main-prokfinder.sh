@@ -292,7 +292,6 @@ is_known_option() { [[ -n "$(option_section "$1")" ]]; }
 PROKFINDER_DIR="prokfinder-results"
 REFDB_DIR="${HOME}/prokfinder-refdb"
 THREADS=4
-THREADS_GIVEN=0
 MEMORY=""
 CHECK_DEPS=0
 FORCE_REFDB=0
@@ -492,7 +491,7 @@ while [[ $# -gt 0 ]]; do
         # Global
         -o|--results-dir)             PROKFINDER_DIR="${VAL%/}" ;;
         --refdb-dir)                  REFDB_DIR="${VAL%/}" ;;
-        -p|--threads)                 THREADS="${VAL}"; THREADS_GIVEN=1 ;;
+        -p|--threads)                 THREADS="${VAL}" ;;
         --memory)                     MEMORY="${VAL}" ;;
         --check)                      CHECK_DEPS=1 ;;
         # setup
@@ -565,8 +564,8 @@ RUN_FILE="$(pf_run_file "${PROKFINDER_DIR}")"
 run_file_field() { sed -n "s/^$1=//p" "${RUN_FILE}" 2>/dev/null | awk 'NR == 1'; }
 
 find_active_runs() {
-    local JOB REST STATE HOST PID RUN_JOB
-    local JOBS_FILE="${PROKFINDER_DIR}/PBS-JOBS/$(pf_pbs_jobs_file_name)"
+    local JOB REST STATE HOST PID RUN_JOB JOBS_FILE
+    JOBS_FILE="${PROKFINDER_DIR}/PBS-JOBS/$(pf_pbs_jobs_file_name)"
     local -A SEEN=()
     ACTIVE_JOBS=()
     ACTIVE_PROCESS=""
@@ -950,7 +949,8 @@ fi
 if [[ -n "${RUN[run-on-cluster]:-}" ]]; then
     PBS_STATUS=0
     if [[ "${PBS_ARGS[*]:-}" == *--test* ]]; then
-        bash "${MODULES_DIR}/submit-prokfinder-pbs.sh" ${PBS_ARGS[@]+"${PBS_ARGS[@]}"} || PBS_STATUS=$?
+        # (only the results folder is passed: the .pbs script and the job log go to its PBS-JOBS folder)
+        bash "${MODULES_DIR}/submit-prokfinder-pbs.sh" ${PBS_ARGS[@]+"${PBS_ARGS[@]}"} -- -o "${PROKFINDER_DIR}" || PBS_STATUS=$?
     else
         bash "${MODULES_DIR}/submit-prokfinder-pbs.sh" ${PBS_ARGS[@]+"${PBS_ARGS[@]}"} -- "${JOB_ARGS[@]}" || PBS_STATUS=$?
     fi

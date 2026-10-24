@@ -1,0 +1,27 @@
+name: Tests
+
+# Runs tests/run-tests.sh (levels unit, cli and module: no network besides installing bats, no reference database)
+# on every push and pull request; the result is shown as a check mark on each commit
+on:
+  push:
+    branches: [ "main", "restructure-pipeline", "docker" ]
+  pull_request:
+  workflow_dispatch:                           # manual run (Actions tab)
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # bats-core pinned to the version used locally; shellcheck and python3 come with the runner
+      - name: Install bats-core
+        run: |
+          git clone --quiet --depth 1 --branch v1.11.1 https://github.com/bats-core/bats-core.git "${RUNNER_TEMP}/bats-core"
+          sudo "${RUNNER_TEMP}/bats-core/install.sh" /usr/local
+          bats --version
+          shellcheck --version | awk 'NR == 2'
+
+      - name: Run the tests
+        run: tests/run-tests.sh

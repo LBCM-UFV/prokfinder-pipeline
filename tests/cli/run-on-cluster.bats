@@ -57,7 +57,6 @@ pbs_file() {
 }
 
 @test "--test --dry-run writes the job in the folder of -o" {
-    skip "known bug: with --test, -o is not passed to submit-prokfinder-pbs.sh (the job goes to ./prokfinder-results)"
     run bash "${PF_MAIN}" -o results run-on-cluster --test --dry-run
     assert_success
     pbs_file results

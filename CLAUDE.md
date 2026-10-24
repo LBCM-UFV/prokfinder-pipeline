@@ -85,7 +85,8 @@ downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values conv
 ## Testing
 
 Automated tests with bats-core in `tests/` (how to run and write them: `tests/README.md`). Before committing, run
-`tests/run-tests.sh` (levels unit, cli and module: seconds to minutes, no network, no real database):
+`tests/run-tests.sh` (levels unit, cli and module: seconds to minutes, no network, no real database; GitHub Actions
+runs it on every push and pull request, `.github/workflows/tests.yml`):
 
 1. **unit** (`tests/unit/`): functions of `lib/common.sh`. A new shared function or rule gets a test here.
 2. **cli** (`tests/cli/`): command line (help, errors, AND/OR, resources), `run-on-cluster --dry-run`, `bash -n`,

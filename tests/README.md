@@ -19,6 +19,9 @@ tests/run-tests.sh --update-expected    # reescreve tests/expected/ com os resul
 | module | `module/` | cada módulo sobre a fixture de `data/` (recortes das tabelas de referência, poucos genomas, programas falsos em `bin/`) | `data/` | sempre (sem rede) |
 | e2e | `e2e/` | execuções reais: `setup` das fontes, `download-wf` com CheckM2, BUSCO, GTDB-Tk | bancos reais, rede | só quando pedido (`--level e2e`), no cluster |
 
+No GitHub, `.github/workflows/tests.yml` roda `tests/run-tests.sh` a cada push (`main`, `restructure-pipeline`,
+`docker`) e pull request; o resultado aparece como ✓/✗ em cada commit (aba Actions).
+
 Os níveis unit, cli e module nunca usam a rede nem os bancos de referência reais: cada teste roda numa pasta
 temporária própria, com `HOME` apontando para dentro dela.
 

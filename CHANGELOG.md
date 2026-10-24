@@ -29,7 +29,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - Docker image with every program (`docker/`), published to Docker Hub by a GitHub Actions workflow.
 - NCBI domain of each genome (`GENOME_DOMAIN_NCBI`).
 - Automated tests (`tests/run-tests.sh`, bats-core): shared functions and command line, without network or
-  reference databases; real runs only with `--level e2e`.
+  reference databases; real runs only with `--level e2e`. GitHub Actions runs them on every push and pull request
+  (`.github/workflows/tests.yml`).
 - One run per results folder: active PBS jobs or processes are detected and can be cancelled.
 - GPL-3.0 license, `CITATION.cff`, `CLAUDE.md`, `AGENTS.md`, `llms.txt` and the generated `catalog.json`.
 
@@ -52,6 +53,7 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - Genome download: the NCBI `fetch.txt` lines end with CRLF, so no genome was downloaded.
 - BUSCO failed on the cluster with "No module named 'busco'" (python3 of another module first in the PATH).
 - `GTDB_TYPE_MATERIAL` values such as "not used as type" are now NULL.
+- `run-on-cluster --test` ignored `-o`: the test job is now written to `<results_dir>/PBS-JOBS`.
 
 ## [0.4.0] - 2026-10-18
 
