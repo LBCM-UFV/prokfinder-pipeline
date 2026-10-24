@@ -28,6 +28,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
   column, original value, rule, occurrences).
 - Docker image with every program (`docker/`), published to Docker Hub by a GitHub Actions workflow.
 - NCBI domain of each genome (`GENOME_DOMAIN_NCBI`).
+- Automated tests (`tests/run-tests.sh`, bats-core): shared functions and command line, without network or
+  reference databases; real runs only with `--level e2e`.
 - One run per results folder: active PBS jobs or processes are detected and can be cancelled.
 - GPL-3.0 license, `CITATION.cff`, `CLAUDE.md`, `AGENTS.md`, `llms.txt` and the generated `catalog.json`.
 

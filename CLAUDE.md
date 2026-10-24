@@ -44,6 +44,7 @@ modules/                    one script per step; each one runs alone too (-h sho
 docker/                     Dockerfile (micromamba; CheckM2, BUSCO and GTDB-Tk in their own environments) and
                             prokfinder-docker.sh; image published by .github/workflows/docker-publish.yml
 tools/build-catalog.py      writes catalog.json
+tests/                      bats-core tests (run-tests.sh; levels unit, cli, module, e2e; see "Testing")
 ```
 
 Data flow: every step adds columns to one table, `OUTPUT/GENOME-METADATA/genome-metadata.tsv` (one row per genome,
@@ -83,16 +84,21 @@ downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values conv
 
 ## Testing
 
-There is no automated test suite yet. Before committing:
+Automated tests with bats-core in `tests/` (how to run and write them: `tests/README.md`). Before committing, run
+`tests/run-tests.sh` (levels unit, cli and module: seconds to minutes, no network, no real database):
 
-1. `for f in main-prokfinder.sh lib/common.sh modules/*.sh docker/*.sh; do bash -n "$f"; done` and
-   `shellcheck -S warning <changed files>`.
-2. Command-line checks need no databases: invalid options, `run-on-cluster --dry-run`, `--check`, `<sub-command> -h`.
-3. Behaviour checks use a small fixture: real slices of the reference tables (e.g., the rows of Thermus and
-   Pyrococcus of the NCBI, GTDB and BacDive tables) in a folder given with `--refdb-dir`, and fake programs in the
-   PATH (shell scripts named `gtdbtk`, `checkm2`, `datasets`... that write the files the module reads).
-4. Real runs are made on the UFV cluster (PBS) with `run-on-cluster`; the login node kills commands > 10 min.
-5. `python3 tools/build-catalog.py --check` must pass (regenerate the catalog after changing options or modules).
+1. **unit** (`tests/unit/`): functions of `lib/common.sh`. A new shared function or rule gets a test here.
+2. **cli** (`tests/cli/`): command line (help, errors, AND/OR, resources), `run-on-cluster --dry-run`, `bash -n`,
+   `shellcheck -S warning`, module headers, `-h` of every module, `tools/build-catalog.py --check`. A new option or
+   error message gets a test here.
+3. **module** (`tests/module/`): each module on a small fixture in `tests/data/` (real slices of the reference
+   tables, e.g. Thermus and Pyrococcus, and a few genomes) with fake programs in `tests/bin/` (`gtdbtk`, `checkm2`,
+   `datasets`... that write the files the module reads). Tables are compared with `tests/expected/`; after an
+   intended change of an output, `tests/run-tests.sh --update-expected` and review the `git diff`.
+4. **e2e** (`tests/e2e/`, only with `--level e2e`): real runs on the UFV cluster (PBS) with `run-on-cluster`; the
+   login node kills commands > 10 min.
+
+A known problem not fixed yet is a test with `skip "known bug: ..."`, never a deleted test.
 
 ## Git
 

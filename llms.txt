@@ -23,6 +23,7 @@ Command line: `main-prokfinder.sh <sub-command> [options]` with the sub-commands
 - [lib/common.sh](https://github.com/LBCM-UFV/prokfinder-pipeline/blob/main/lib/common.sh): shared functions (logging, TSV helpers, caches, NULL rule, reference database paths and formats)
 - [modules/](https://github.com/LBCM-UFV/prokfinder-pipeline/tree/main/modules): one script per step (setup, search, download, contigs, structure, genes, completeness, taxonomy, hierarchy, dereplication, summary, PBS)
 - [docker/](https://github.com/LBCM-UFV/prokfinder-pipeline/tree/main/docker): container image (Docker Hub: jprocha2005/prokfinder)
+- [tests/](https://github.com/LBCM-UFV/prokfinder-pipeline/tree/main/tests): bats-core tests (`tests/run-tests.sh`; levels unit, cli, module, e2e)
 
 ## Optional
 

@@ -43,10 +43,11 @@ folder). Keep it short.
 ## 6. Before committing
 
 ```bash
-for f in main-prokfinder.sh lib/common.sh modules/*.sh docker/*.sh; do bash -n "$f"; done
-shellcheck -S warning <changed .sh files>
-chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py
+tests/run-tests.sh      # syntax (bash -n), shellcheck -S warning, catalog --check, command line, shared functions
+chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py tests/run-tests.sh
 ```
+
+A new option, error message or shared function gets a test in `tests/` (see `tests/README.md`).
 
 Commit the code, `catalog.json`, `CHANGELOG.md` and the documentation together.
 
