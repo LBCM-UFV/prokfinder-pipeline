@@ -200,6 +200,35 @@ null_rules() {
     assert_failure
 }
 
+@test "Zenodo registry: host, record and the package of a database and format" {
+    printf '# comment
+HOST	h.test
+RECORD	42
+PACKAGE	GTDB	3	old.tar.gz	aaa
+PACKAGE	GTDB	4	new.tar.gz	bbb
+' > registry.tsv
+    run pf_eval 'pf_registry_value registry.tsv HOST; pf_registry_value registry.tsv RECORD'
+    assert_output_equals $'h.test
+42'
+    run pf_eval 'pf_registry_package registry.tsv GTDB 4'
+    assert_output_equals $'new.tar.gz	bbb'
+    run pf_eval 'pf_registry_package registry.tsv GTDB 5'
+    assert_output_equals ""
+}
+
+@test "pf_refdb_from_package: only checkpoints with a package line" {
+    mkdir -p a b
+    printf 'format=3
+' > a/COMPLETED-DOWNLOAD.txt
+    printf 'format=3
+package=zenodo:1:x.tar.gz
+' > b/COMPLETED-DOWNLOAD.txt
+    run pf_eval 'pf_refdb_from_package a'
+    assert_failure 1
+    run pf_eval 'pf_refdb_from_package b'
+    assert_success
+}
+
 @test "reference database paths" {
     run pf_eval 'pf_gtdb_taxonomy_table G ARCHAEA; pf_gtdb_metadata_table G BACTERIA; pf_ncbi_metadata_table N BACTERIA genbank'
     assert_success

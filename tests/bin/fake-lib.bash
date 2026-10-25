@@ -1,4 +1,4 @@
-# fake-lib.bash - sourced by the fake programs of tests/bin (datasets, checkm2, busco, gtdbtk, skder, cidder)
+# fake-lib.bash - sourced by the fake programs of tests/bin (datasets, checkm2, busco, gtdbtk, skder, cidder, curl)
 #
 # The fake programs write the files that the Prokfinder modules read, in the format of the real programs (copied from
 # real runs on the UFV cluster), with results taken from the tables of tests/data/fake-programs. They never use the
@@ -7,6 +7,7 @@
 #   PF_FAKE_DATA       folder of the result tables (default: tests/data/fake-programs)
 #   PF_FAKE_GENOMES    folder of the genomes copied by the fake "datasets rehydrate" (default: tests/data/genomes)
 #   PF_FAKE_FAIL       space-separated list of programs that must fail (exit 1), e.g. "checkm2"
+#   PF_FAKE_PACKAGES   folder of the Zenodo packages served by the fake curl
 
 FAKE_BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Used by the programs that source this file

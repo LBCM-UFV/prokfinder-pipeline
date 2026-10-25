@@ -528,3 +528,56 @@ PF_REFDB_FORMAT_GTDB=4      # 3: status of each genome in GTDB (species represen
 pf_refdb_format_ok() {
     grep -qx "format=$2" "$(pf_completed_marker "$1")" 2>/dev/null
 }
+
+# Reference databases packaged on Zenodo (registry: refdb-zenodo.tsv; format in its header)
+# Prints the value of a HOST or RECORD line
+# Usage: pf_registry_value <registry> HOST|RECORD
+pf_registry_value() {
+    awk -F'\t' -v key="$2" '$1 == key { print $2; exit }' "$1"
+}
+
+# Prints "<file><TAB><md5>" of the package of a database with the given table format (nothing if there is none)
+# Usage: pf_registry_package <registry> <DB> <format>
+pf_registry_package() {
+    awk -F'\t' -v db="$2" -v fmt="$3" '$1 == "PACKAGE" && $2 == db && $3 == fmt { print $4 "\t" $5; exit }' "$1"
+}
+
+# Returns 0 if <db_dir> was installed from a Zenodo package (so it has no raw files to rebuild the tables from)
+# Usage: pf_refdb_from_package <db_dir>
+pf_refdb_from_package() {
+    grep -q '^package=' "$(pf_completed_marker "$1")" 2>/dev/null
+}
+
+# Downloads the Zenodo package of a database, checks its MD5 and extracts it into <target_dir> (which must be empty or
+# new). The package must record the table format the code expects. Stops with an error otherwise.
+# Usage: pf_install_refdb_package <registry> <DB> <format> <target_dir> <download_dir>
+pf_install_refdb_package() {
+    local REGISTRY="$1" DB="$2" FORMAT="$3" TARGET="$4" WORK="$5"
+    local HOST RECORD ENTRY FILE MD5 URL
+    [[ -f "${REGISTRY}" ]] || die "Registry of the Zenodo packages not found: ${REGISTRY}."
+    HOST="$(pf_registry_value "${REGISTRY}" HOST)"
+    RECORD="$(pf_registry_value "${REGISTRY}" RECORD)"
+    ENTRY="$(pf_registry_package "${REGISTRY}" "${DB}" "${FORMAT}")"
+    if [[ -z "${HOST}" || -z "${RECORD}" || -z "${ENTRY}" ]]; then
+        die "No Zenodo package with the ${DB} table format ${FORMAT} that this version of Prokfinder reads (registry ${REGISTRY}). Use setup --from-source to build the database from its sources."
+    fi
+    FILE="${ENTRY%%$'\t'*}"
+    MD5="${ENTRY#*$'\t'}"
+    URL="https://${HOST}/records/${RECORD}/files/${FILE}?download=1"
+
+    mkdir -p "${WORK}" "${TARGET}"
+    if [[ -f "${WORK}/${FILE}" && "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" == "${MD5}" ]]; then
+        log "message" "${DB}: package ${FILE} already downloaded."
+    else
+        log "message" "${DB}: downloading ${FILE} from Zenodo (record ${RECORD} on ${HOST})..."
+        rm -f "${WORK}/${FILE}"
+        curl -fL --retry 3 --retry-delay 10 -o "${WORK}/${FILE}" "${URL}" \
+            || die "Download of ${URL} failed. Check the connection and run setup again."
+        [[ "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" == "${MD5}" ]] \
+            || { rm -f "${WORK}/${FILE}"; die "MD5 of ${FILE} differs from the registry (${MD5}); the file was removed. Run setup again."; }
+    fi
+    tar -xzf "${WORK}/${FILE}" -C "${TARGET}" --strip-components=1 || die "Could not extract ${WORK}/${FILE}."
+    pf_refdb_format_ok "${TARGET}" "${FORMAT}" || die "The package ${FILE} does not record the table format ${FORMAT}."
+    echo "package=zenodo:${RECORD}:${FILE}" >> "$(pf_completed_marker "${TARGET}")"
+    rm -f "${WORK}/${FILE}"
+}

@@ -173,7 +173,7 @@ assert_cli_error() {
     printf 'format=1\n' > refdb/GTDB/COMPLETED-DOWNLOAD.txt
     run bash "${PF_MAIN}" --refdb-dir refdb search-genomes --gtdb-taxon g__Thermus
     assert_cli_error "The reference databases in refdb were installed by an older version of Prokfinder (tables to update: GTDB)."
-    assert_output_contains "nothing is downloaded again"
+    assert_output_contains "rebuilt from the files already downloaded"
 }
 
 @test "download-wf needs the genomes selected by search-genomes" {

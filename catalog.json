@@ -83,6 +83,17 @@
       "description": "RAM the programs may use: 16gb, 16000mb or the number in GB (default: the RAM of the computer; with run-on-cluster, the RAM of the job)"
     },
     {
+      "name": "--from-source",
+      "aliases": [
+        "--from-source"
+      ],
+      "section": "setup",
+      "kind": "option",
+      "takes_value": false,
+      "argument": "",
+      "description": "Build the databases from the NCBI, BacDive and GTDB sources instead of downloading the Zenodo packages (a database installed from a Zenodo package that is out of date is replaced by the new package, never rebuilt)"
+    },
+    {
       "name": "--force-refdb",
       "aliases": [
         "--force-refdb"
@@ -91,7 +102,7 @@
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Download and install the databases again (the current ones are kept until the new ones are complete)"
+      "description": "Install the databases again (the current ones are kept until the new ones are complete)"
     },
     {
       "name": "--ncbi-complete-metadata",
@@ -102,7 +113,18 @@
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Also write a table with every NCBI metadata field (slow; not used by the search)"
+      "description": "Also write a table with every NCBI metadata field (slow; not used by the search; needs --from-source)"
+    },
+    {
+      "name": "--refdb-registry",
+      "aliases": [
+        "--refdb-registry"
+      ],
+      "section": "setup",
+      "kind": "option",
+      "takes_value": true,
+      "argument": "",
+      "description": "List of Zenodo packages to use instead of the one of Prokfinder (refdb-zenodo.tsv)"
     },
     {
       "name": "--force-selection",
@@ -1037,6 +1059,26 @@
       "name": "pf_refdb_format_ok",
       "summary": "Returns 0 if the checkpoint of <db_dir> exists and records the table format <version>",
       "usage": "Usage: pf_refdb_format_ok <db_dir> <version>"
+    },
+    {
+      "name": "pf_registry_value",
+      "summary": "Reference databases packaged on Zenodo (registry: refdb-zenodo.tsv; format in its header) Prints the value of a HOST or RECORD line",
+      "usage": "Usage: pf_registry_value <registry> HOST|RECORD"
+    },
+    {
+      "name": "pf_registry_package",
+      "summary": "Prints \"<file><TAB><md5>\" of the package of a database with the given table format (nothing if there is none)",
+      "usage": "Usage: pf_registry_package <registry> <DB> <format>"
+    },
+    {
+      "name": "pf_refdb_from_package",
+      "summary": "Returns 0 if <db_dir> was installed from a Zenodo package (so it has no raw files to rebuild the tables from)",
+      "usage": "Usage: pf_refdb_from_package <db_dir>"
+    },
+    {
+      "name": "pf_install_refdb_package",
+      "summary": "Downloads the Zenodo package of a database, checks its MD5 and extracts it into <target_dir> (which must be empty or new). The package must record the table format the code expects. Stops with an error otherwise.",
+      "usage": "Usage: pf_install_refdb_package <registry> <DB> <format> <target_dir> <download_dir>"
     }
   ],
   "reference_database_formats": {

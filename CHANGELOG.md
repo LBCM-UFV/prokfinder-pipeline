@@ -28,6 +28,10 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
   column, original value, rule, occurrences).
 - Docker image with every program (`docker/`), published to Docker Hub by a GitHub Actions workflow.
 - NCBI domain of each genome (`GENOME_DOMAIN_NCBI`).
+- `setup` downloads the ready-made reference databases from Zenodo (one package per database, MD5 checked; registry in
+  `refdb-zenodo.tsv`, another one with `--refdb-registry`). `setup --from-source` builds them from the NCBI, BacDive
+  and GTDB sources, as `setup` did before. A database installed from a package whose format is out of date is
+  replaced by the new package. `--ncbi-complete-metadata` needs `--from-source`.
 - Automated tests (`tests/run-tests.sh`, bats-core): shared functions, command line, genome search, the rebuild
   of the reference tables by `setup` and every `download-wf` step (with re-execution), on a small fixture of the
   reference databases and a few genomes (`tests/data`), with real seqkit and Pyrodigal and fake CheckM2, BUSCO,

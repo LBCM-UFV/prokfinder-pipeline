@@ -93,7 +93,7 @@ incompatíveis), chamados por pequenos *wrappers*.
 ## Dependências
 
 Não é preciso instalar tudo: para **buscar genomas** (`setup` e `search-genomes`) bastam o NCBI Datasets e o
-taxonkit (usado pelo `setup`). Os programas de análise de genomas só são necessários para o `download-wf`.
+taxonkit (o `setup` padrão só baixa os pacotes do Zenodo; o NCBI Datasets e o taxonkit são usados por `setup --from-source`). Os programas de análise de genomas só são necessários para o `download-wf`.
 
 `./main-prokfinder.sh --check` mostra o que está instalado (com a versão), o que falta (com o comando de instalação)
 e o estado dos bancos de referência, separando as dependências da busca e as do pipeline completo.
@@ -136,13 +136,21 @@ de uma vez. No cluster, o job de `run-on-cluster` carrega só os módulos `ncbi_
 ## setup: bancos de referência
 
 ```bash
-./main-prokfinder.sh setup                 # instala (ou atualiza) os bancos em ~/prokfinder-refdb
-./main-prokfinder.sh setup --force-refdb   # baixa e instala tudo de novo
-./main-prokfinder.sh setup --ncbi-complete-metadata   # opcional: também converte todos os metadados do NCBI para TSV
+./main-prokfinder.sh setup                 # baixa os bancos prontos do Zenodo para ~/prokfinder-refdb (minutos)
+./main-prokfinder.sh setup --from-source   # monta os bancos a partir do NCBI, BacDive e GTDB (horas)
+./main-prokfinder.sh setup --force-refdb   # instala tudo de novo
+./main-prokfinder.sh setup --from-source --ncbi-complete-metadata   # opcional: também converte todos os metadados do NCBI para TSV
 ```
 
-- Os bancos são baixados **uma única vez** e compartilhados por todas as execuções e pastas de resultados. O download
-  leva horas; no cluster, use `run-on-cluster setup`.
+- Por padrão o `setup` baixa os três bancos já formatados, publicados no **Zenodo** (um pacote `.tar.gz` por banco,
+  com o MD5 conferido). O registro usado (servidor, número do registro e MD5 de cada pacote) está em
+  [`refdb-zenodo.tsv`](refdb-zenodo.tsv); `--refdb-registry ARQUIVO` usa outro. Cada pacote tem o formato de tabela
+  que o código lê (`format=` em `COMPLETED-DOWNLOAD.txt`): se o registro não tiver o formato certo, o `setup` pede
+  `--from-source`. Os bancos do Zenodo não trazem os arquivos brutos; quando o formato mudar, o `setup` baixa o pacote
+  novo (um banco montado com `--from-source` continua sendo atualizado a partir dos seus arquivos brutos).
+- `--from-source` monta os bancos como as versões anteriores faziam: NCBI Datasets, API do BacDive e GTDB. Leva
+  horas; no cluster, use `run-on-cluster setup --from-source`.
+- Os bancos são instalados **uma única vez** e compartilhados por todas as execuções e pastas de resultados.
 - `search-genomes` e `download-wf` **não rodam sem o `setup`**: se os bancos não forem encontrados, o Prokfinder
   para com o erro `Reference databases not found in ~/prokfinder-refdb` e pede o `setup` (que pode vir no mesmo
   comando: `setup search-genomes ...`).
@@ -155,7 +163,7 @@ de uma vez. No cluster, o job de `run-on-cluster` carrega só os módulos `ncbi_
   `setup`: ele **atualiza** as tabelas a partir dos arquivos já baixados, **sem baixar nada de novo** (a versão do
   formato fica registrada em `COMPLETED-DOWNLOAD.txt`, linha `format=`).
 - Se duas execuções precisarem instalar os bancos ao mesmo tempo, a segunda espera a primeira terminar.
-- `--ncbi-complete-metadata` (opcional): converte **todos** os campos dos metadados do NCBI (o
+- `--ncbi-complete-metadata` (opcional; exige `--from-source`): converte **todos** os campos dos metadados do NCBI (o
   `assembly_data_report.jsonl` inteiro, ~180 colunas) para TSV em `NCBI/<DOMÍNIO>-NCBI-METADATA/complete-metadata.tsv`.
   É lento (mais de 15 h só para Bacteria) e a busca não usa essa tabela; por isso fica desligado por padrão. Com os
   bancos já instalados, só essa tabela é gravada, a partir do JSONL já baixado.

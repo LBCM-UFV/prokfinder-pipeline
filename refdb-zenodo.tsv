@@ -1,0 +1,10 @@
+# Reference databases published on Zenodo, read by "main-prokfinder.sh setup" (lib/common.sh: pf_registry_*).
+# TAB-separated. HOST and RECORD give the URL https://<HOST>/records/<RECORD>/files/<FILE>?download=1.
+# PACKAGE: database, table format (PF_REFDB_FORMAT_<DB> of the code that reads it), file name, MD5.
+# Test record on the Zenodo sandbox (it has no definitive DOI and can be deleted): when the databases are published on
+# zenodo.org, change only HOST, RECORD and the MD5 of the packages.
+HOST	sandbox.zenodo.org
+RECORD	624829
+PACKAGE	NCBI	3	prokfinder-refdb-ncbi-format3-2026-10-16.tar.gz	2f01fa299f4fa9c40e1b69001bdc65a6
+PACKAGE	BACDIVE	3	prokfinder-refdb-bacdive-format3-2026-10-16.tar.gz	87f87fe79c5432b39d16053232c3064d
+PACKAGE	GTDB	4	prokfinder-refdb-gtdb-format4-r232.tar.gz	531dba7e6a117b1769147f9ef6d0674c

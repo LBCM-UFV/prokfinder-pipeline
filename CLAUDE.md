@@ -21,7 +21,7 @@ Index files kept in the repository:
 ```
 main-prokfinder.sh          controller: reads the command line, checks the dependencies and the reference
                             databases, then calls the modules in order. Sub-commands (run in this order):
-                              setup           reference databases (NCBI, BacDive, GTDB)
+                              setup           reference databases (Zenodo packages, or --from-source: NCBI, BacDive, GTDB)
                               search-genomes  genome selection (filters joined with AND/OR)
                               download-wf     download -> curation -> taxonomy -> dereplication -> summary
                               run-on-cluster  writes a PBS job that runs the other sub-commands
@@ -43,6 +43,7 @@ modules/                    one script per step; each one runs alone too (-h sho
   submit-prokfinder-pbs.sh                       run-on-cluster
 docker/                     Dockerfile (micromamba; CheckM2, BUSCO and GTDB-Tk in their own environments) and
                             prokfinder-docker.sh; image published by .github/workflows/docker-publish.yml
+refdb-zenodo.tsv            Zenodo record and MD5 of the reference database packages downloaded by setup
 tools/build-catalog.py      writes catalog.json
 tests/                      bats-core tests (run-tests.sh; levels unit, cli, module, e2e; see "Testing")
 ```
@@ -81,7 +82,7 @@ downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values conv
   (tools/build-catalog.py reads them).
 - After editing from Windows (`\\wsl.localhost` paths) the executable bit is lost: run
   `chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py
-  tests/run-tests.sh tests/data/*.sh tests/bin/{datasets,checkm2,busco,gtdbtk,skder}` (commit from WSL: `tests/bin/cidder`
+  tests/run-tests.sh tests/data/*.sh tests/bin/{datasets,checkm2,busco,gtdbtk,skder,curl}` (commit from WSL: `tests/bin/cidder`
   is a symbolic link).
 
 ## Testing
@@ -98,7 +99,7 @@ runs it on every push and pull request, `.github/workflows/tests.yml`):
    few controls copied from the real tables by `tests/data/make-fixture.sh`) and `tests/data/refdb-raw` (their raw
    files: `setup` must rebuild from them the same tables). download-wf runs whole on the genomes of
    `tests/data/genomes` with real seqkit and Pyrodigal and fake programs in `tests/bin/` (`datasets`, `checkm2`,
-   `busco`, `gtdbtk`, `skder`, `cidder`: they write the files the modules read, in the format of the real programs,
+   `busco`, `gtdbtk`, `skder`, `cidder`, `curl` (serves Zenodo packages): they write the files the modules read, in the format of the real programs,
    with the results of `tests/data/fake-programs`, and log every call to `$PF_FAKE_LOG`, which the re-execution tests
    count). A change of what a module reads from a program's output needs the fake program changed too. Tables are compared with `tests/expected/`; after
    an intended change of an output, `tests/run-tests.sh --update-expected` and review the `git diff`. A change of
