@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# skder - fake skDER of the tests: greedy dereplication with the ANI of the pairs of genomes in
+# tests/data/fake-programs/pairwise-ani.tsv (pairs that are not there are below any cutoff). The genomes are taken in
+# the order of their accessions; a genome is redundant when its ANI to a representative already chosen is >= the
+# cutoff. Writes <output-directory>/Dereplicated_Representative_Genomes/ (links with --symlink) and skDER_Results.txt.
+# The cidder of tests/bin is this same program; like the real CiDDER 1.3.6, it fails when only --proteomes is given.
+
+set -euo pipefail
+# shellcheck source=fake-lib.bash
+source "$(dirname "${BASH_SOURCE[0]}")/fake-lib.bash"
+PROGRAM="$(basename "$0")"
+fake_start "${PROGRAM}" "$@"
+
+if [[ "${1:-}" == "--version" ]]; then
+    [[ "${PROGRAM}" == "cidder" ]] && echo "CiDDER v1.3.6" || echo "skDER v1.3.6"
+    exit 0
+fi
+
+OUT="$(fake_option --output-directory "$@")"
+CUTOFF="$(fake_option --percent-identity-cutoff "$@")"
+CUTOFF="${CUTOFF:-99.0}"
+if [[ "${PROGRAM}" == "cidder" && " $* " != *" --genomes "* ]]; then
+    echo "fake cidder: no genome file given (CiDDER 1.3.6 does not dereplicate proteomes alone)" >&2
+    exit 1
+fi
+mapfile -t FILES < <(fake_option_list --genomes "$@" | awk 'NF')
+[[ "${#FILES[@]}" -gt 0 ]] || { echo "fake ${PROGRAM}: no input genome" >&2; exit 1; }
+mkdir -p "${OUT}/Dereplicated_Representative_Genomes"
+
+for FILE in "${FILES[@]}"; do
+    printf '%s\t%s\n' "$(fake_accession "${FILE}")" "${FILE}"
+done | LC_ALL=C sort -k1,1 \
+    | awk -F'\t' -v cutoff="${CUTOFF}" '
+        NR == FNR { ani[$1 SUBSEP $2] = $3; ani[$2 SUBSEP $1] = $3; next }
+        {
+            for (i = 1; i <= n; i++) if (((rep[i] SUBSEP $1) in ani) && ani[rep[i] SUBSEP $1] + 0 >= cutoff + 0) next
+            rep[++n] = $1
+            print $2
+        }' "${FAKE_DATA}/pairwise-ani.tsv" - > "${OUT}/skDER_Results.txt"
+
+while IFS= read -r FILE; do
+    if [[ " $* " == *" --symlink "* ]]; then
+        ln -s "${FILE}" "${OUT}/Dereplicated_Representative_Genomes/$(basename "${FILE}")"
+    else
+        cp "${FILE}" "${OUT}/Dereplicated_Representative_Genomes/"
+    fi
+done < "${OUT}/skDER_Results.txt"

@@ -39,7 +39,9 @@ data/refdb-raw/       os arquivos brutos das mesmas linhas (relatórios do NCBI,
                       .tsv.gz do GTDB), dos quais o setup refaz as tabelas
 data/FIXTURE.txt      de onde e quando a fixture foi copiada
 data/make-fixture.sh  gera data/refdb e data/refdb-raw a partir de um banco completo (no cluster, num job PBS)
-bin/                  programas falsos (datasets, checkm2, busco, gtdbtk, skder, cidder) - fase 3
+data/genomes/         genomas do download-wf (só os primeiros ~300 kb de cada um), gerados por data/make-genomes.sh
+data/fake-programs/   resultados que os programas falsos devolvem (CheckM2, BUSCO, ani_rep, classify, ANI entre pares)
+bin/                  programas falsos (datasets, checkm2, busco, gtdbtk, skder, cidder) e fake-lib.bash
 expected/             resultados esperados das tabelas (normalizados: linhas ordenadas, colunas variáveis removidas)
 ```
 
@@ -58,6 +60,34 @@ Refazer a fixture (depois de mudar o formato de um banco, `PF_REFDB_FORMAT_*`): 
 `tests/data/make-fixture.sh --refdb ~/prokfinder-refdb -o <pasta>` num job PBS (lê ~20 GB; leva de minutos a ~1 h),
 copiar `refdb`, `refdb-raw`, `FIXTURE.txt` e `fixture-accession-numbers.txt` para `tests/data/`, depois
 `tests/run-tests.sh --update-expected` e revisar o `git diff`.
+
+## O download-wf nos testes (tests/module/download-wf.bats)
+
+O `download-wf` roda inteiro (módulos 2 a 10) sobre a fixture, com os genomas de `data/genomes`:
+
+| Genoma | Papel no teste |
+|---|---|
+| GCA_000091545.1 (HB8) e GCA_000008125.1 (HB27) | *T. thermophilus*, tabela do GTDB; ANI de 98,66 entre eles (com `--derep-ani 99.5` os dois ficam, com 98 fica um) |
+| GCA_000011105.1 | *P. horikoshii*: arqueia (linhagem `archaea_odb12` do BUSCO) |
+| GCA_964347835.1 | arqueia de espécie sem nome no GTDB (MAG) |
+| GCA_061250155.1 | Thermus sp. fora das tabelas do GTDB: classificado pelo `gtdbtk ani_rep` falso (ou pela árvore, com `--use-gtdbtk-tree`) |
+| GCA_040289965.1 | MAG fragmentado (N50 < 5 kb): reprovado na avaliação estrutural; com `--min-n50 0`, reprovado no CheckM2 |
+| GCA_000008565.1 | sem arquivo de genoma: `DOWNLOAD_FAILED` |
+
+Os genomas são cortados em ~300 kb para os testes ficarem rápidos. Os números de completude e contaminação de
+`data/fake-programs/checkm2-quality.tsv` são os do genoma inteiro, não os do recorte. seqkit e Pyrodigal são os
+programas reais. O CI fixa o pyrodigal 3.7.1, porque o número de genes entra nas tabelas esperadas. Os programas
+falsos de `bin/` escrevem as saídas no formato dos programas reais, copiado de execuções no cluster (por exemplo
+`gtdbtk.ani_closest.tsv`, `quality_report.tsv`, `short_summary.specific.*.txt`,
+`Dereplicated_Representative_Genomes/`).
+
+Cada chamada vai para `$PF_FAKE_LOG`, e os testes de reexecução contam as chamadas (`count_calls '^checkm2 predict'`).
+Outras variáveis usadas pelos testes:
+- `PF_FAKE_FAIL="checkm2"`: faz um programa falhar;
+- `PF_FAKE_GENOMES`: indica outra pasta de genomas;
+- `PF_FAKE_ANI_CLOSEST`: indica outra tabela do `ani_rep`.
+
+Para refazer os genomas (precisa de rede), usar `tests/data/make-genomes.sh`.
 
 ## Escrever um teste
 

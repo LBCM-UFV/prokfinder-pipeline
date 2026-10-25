@@ -44,7 +44,8 @@ folder). Keep it short.
 
 ```bash
 tests/run-tests.sh      # syntax (bash -n), shellcheck -S warning, catalog --check, command line, shared functions
-chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py tests/run-tests.sh
+chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py tests/run-tests.sh \
+    tests/data/*.sh tests/bin/{datasets,checkm2,busco,gtdbtk,skder}
 ```
 
 A new option, error message or shared function gets a test in `tests/` (see `tests/README.md`).

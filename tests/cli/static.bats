@@ -9,7 +9,8 @@ setup() {
 
 bash_scripts() {
     printf '%s\n' "${PF_ROOT}/main-prokfinder.sh" "${PF_ROOT}/lib/common.sh" "${PF_ROOT}"/modules/*.sh "${PF_ROOT}"/docker/*.sh \
-        "${PF_TESTS}/run-tests.sh" "${PF_TESTS}"/helpers/*.bash
+        "${PF_TESTS}/run-tests.sh" "${PF_TESTS}"/helpers/*.bash "${PF_TESTS}"/data/*.sh "${PF_TESTS}"/bin/fake-lib.bash \
+        "${PF_TESTS}"/bin/{datasets,checkm2,busco,gtdbtk,skder}
 }
 
 @test "bash -n: every script has a valid syntax" {

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#
+# busco - fake BUSCO of the tests (version 6, lineages odb12): writes, for each protein file of --in, the short summary
+# of a real BUSCO run (<out_path>/<out>/<file>/short_summary.specific.<lineage>.<file>.txt), with the counts of
+# tests/data/fake-programs/busco-summary.tsv for the lineage
+
+set -euo pipefail
+# shellcheck source=fake-lib.bash
+source "$(dirname "${BASH_SOURCE[0]}")/fake-lib.bash"
+fake_start busco "$@"
+
+if [[ "${1:-}" == "--version" ]]; then
+    echo "BUSCO 6.1.0"
+    exit 0
+fi
+
+INPUT="$(fake_option --in "$@")"
+RUN="$(fake_option --out_path "$@")/$(fake_option --out "$@")"
+LINEAGE="$(fake_option --lineage_dataset "$@")"
+[[ "$(fake_option --mode "$@")" == "proteins" ]] || { echo "fake busco: only --mode proteins" >&2; exit 1; }
+read -r C S D F M N < <(awk -F'\t' -v l="${LINEAGE}" '$1 == l { print $2, $3, $4, $5, $6, $7 }' "${FAKE_DATA}/busco-summary.tsv")
+[[ -n "${N:-}" ]] || { echo "fake busco: unknown lineage ${LINEAGE}" >&2; exit 1; }
+
+for FILE in "${INPUT}"/*; do
+    NAME="$(basename "${FILE}")"
+    mkdir -p "${RUN}/${NAME}"
+    awk -v c="${C}" -v s="${S}" -v d="${D}" -v f="${F}" -v m="${M}" -v n="${N}" -v l="${LINEAGE}" -v file="${FILE}" '
+        function pct(x) { return sprintf("%.1f%%", 100 * x / n) }
+        BEGIN {
+            print "# BUSCO version is: 6.1.0 "
+            print "# The lineage dataset is: " l " (Creation date: 2026-05-22, number of genomes: 3130, number of BUSCOs: " n ")"
+            print "# Summarized benchmarking in BUSCO notation for file " file
+            print "# BUSCO was run in mode: proteins"
+            print ""
+            print "\t***** Results: *****"
+            print ""
+            print "\tC:" pct(c) "[S:" pct(s) ",D:" pct(d) "],F:" pct(f) ",M:" pct(m) ",n:" n "\t   "
+            print "\t" c "\tComplete BUSCOs (C)\t\t\t   "
+            print "\t" s "\tComplete and single-copy BUSCOs (S)\t   "
+            print "\t" d "\tComplete and duplicated BUSCOs (D)\t   "
+            print "\t" f "\tFragmented BUSCOs (F)\t\t\t   "
+            print "\t" m "\tMissing BUSCOs (M)\t\t\t   "
+            print "\t" n "\tTotal BUSCO groups searched\t\t   "
+        }' > "${RUN}/${NAME}/short_summary.specific.${LINEAGE}.${NAME}.txt"
+done

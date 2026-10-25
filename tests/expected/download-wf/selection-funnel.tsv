@@ -1,0 +1,7 @@
+STEP	GENOMES
+1_selected_in_reference_db	7
+2_downloaded	6
+3_clean_genome_contigs_filtered	6
+4_passed_quality_filters	5
+5_gtdb_taxonomy_assigned	5
+6_representative_after_dereplication	5

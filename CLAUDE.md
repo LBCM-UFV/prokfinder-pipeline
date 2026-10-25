@@ -80,7 +80,9 @@ downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values conv
 - Module headers: line 3 is `# <file> - Prokfinder module <step>: <description>` and a `# Usage:` block
   (tools/build-catalog.py reads them).
 - After editing from Windows (`\\wsl.localhost` paths) the executable bit is lost: run
-  `chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py`.
+  `chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py
+  tests/run-tests.sh tests/data/*.sh tests/bin/{datasets,checkm2,busco,gtdbtk,skder}` (commit from WSL: `tests/bin/cidder`
+  is a symbolic link).
 
 ## Testing
 
@@ -94,8 +96,11 @@ runs it on every push and pull request, `.github/workflows/tests.yml`):
    error message gets a test here.
 3. **module** (`tests/module/`): modules on a small fixture: `tests/data/refdb` (rows of Thermus, Pyrococcus and a
    few controls copied from the real tables by `tests/data/make-fixture.sh`) and `tests/data/refdb-raw` (their raw
-   files: `setup` must rebuild from them the same tables). download-wf steps will use fake programs in `tests/bin/`
-   (`gtdbtk`, `checkm2`... that write the files the module reads). Tables are compared with `tests/expected/`; after
+   files: `setup` must rebuild from them the same tables). download-wf runs whole on the genomes of
+   `tests/data/genomes` with real seqkit and Pyrodigal and fake programs in `tests/bin/` (`datasets`, `checkm2`,
+   `busco`, `gtdbtk`, `skder`, `cidder`: they write the files the modules read, in the format of the real programs,
+   with the results of `tests/data/fake-programs`, and log every call to `$PF_FAKE_LOG`, which the re-execution tests
+   count). A change of what a module reads from a program's output needs the fake program changed too. Tables are compared with `tests/expected/`; after
    an intended change of an output, `tests/run-tests.sh --update-expected` and review the `git diff`. A change of
    `PF_REFDB_FORMAT_<DB>` needs the fixture made again (`tests/README.md`).
 4. **e2e** (`tests/e2e/`, only with `--level e2e`): real runs on the UFV cluster (PBS) with `run-on-cluster`; the

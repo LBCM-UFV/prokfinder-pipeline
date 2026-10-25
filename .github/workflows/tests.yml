@@ -18,15 +18,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Programs of the genome search and of the rebuild of the reference tables (setup); shellcheck and python3
-      # come with the runner
+      # Programs of the genome search, of the rebuild of the reference tables (setup) and of the download-wf steps that
+      # the tests run for real (seqkit, Pyrodigal: pinned, the expected tables have its gene counts); shellcheck comes
+      # with the runner; the other programs of download-wf are the fake ones of tests/bin; without R, no graph is drawn
       - name: Install the programs (micromamba)
         uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: prokfinder-tests
           create-args: >-
             -c conda-forge -c bioconda
-            bash gawk jq unzip ncbi-datasets-cli=18 taxonkit=0.20
+            bash gawk jq unzip ncbi-datasets-cli=18 taxonkit=0.20 seqkit=2.12 python=3.12 pyrodigal=3.7.1
           cache-environment: true
 
       # bats-core pinned to the version used locally
@@ -38,6 +39,8 @@ jobs:
           shellcheck --version | awk 'NR == 2'
           datasets --version
           taxonkit version
+          seqkit version
+          python3 -c 'import pyrodigal; print("pyrodigal", pyrodigal.__version__)'
 
       - name: Run the tests
         run: tests/run-tests.sh

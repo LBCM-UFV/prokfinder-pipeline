@@ -16,8 +16,10 @@ PF_FIXTURE_REFDB="${PF_TESTS}/data/refdb"
 PF_FIXTURE_RAW="${PF_TESTS}/data/refdb-raw"
 export PF_ROOT PF_MAIN PF_TESTS PF_FIXTURE_REFDB PF_FIXTURE_RAW
 
-# Called by the setup() of each test file
+# Called by the setup() of each test file. Python packages installed with "pip install --user" (e.g., pyrodigal) stay
+# visible after HOME changes.
 pf_test_setup() {
+    export PYTHONUSERBASE="${PYTHONUSERBASE:-${HOME}/.local}"
     export HOME="${BATS_TEST_TMPDIR}/home"
     export TMPDIR="${BATS_TEST_TMPDIR}/tmp"
     export NO_COLOR=1 PF_COLOR=0
