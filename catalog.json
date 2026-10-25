@@ -91,18 +91,18 @@
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Build the databases from the NCBI, BacDive and GTDB sources instead of downloading the Zenodo packages (a database installed from a Zenodo package that is out of date is replaced by the new package, never rebuilt)"
+      "description": "Build the databases from the NCBI, BacDive and GTDB sources instead of downloading the Zenodo packages. With the databases already installed it is a full update: everything is downloaded again (some hours), after a confirmation"
     },
     {
-      "name": "--force-refdb",
+      "name": "--yes",
       "aliases": [
-        "--force-refdb"
+        "--yes"
       ],
       "section": "setup",
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Install the databases again (the current ones are kept until the new ones are complete)"
+      "description": "Confirm the full update of setup --from-source without asking (needed in scripts and in jobs written by hand; run-on-cluster asks before submitting the job)"
     },
     {
       "name": "--ncbi-complete-metadata",
@@ -1076,8 +1076,13 @@
       "usage": "Usage: pf_refdb_from_package <db_dir>"
     },
     {
+      "name": "pf_refdb_package_current",
+      "summary": "Returns 1 if the registry has, for the table format <format>, another package than the one installed in <db_dir> (another record, file or MD5: a newer package was published); 0 otherwise, also when the registry has no package of that format",
+      "usage": "Usage: pf_refdb_package_current <registry> <DB> <format> <db_dir>"
+    },
+    {
       "name": "pf_install_refdb_package",
-      "summary": "Downloads the Zenodo package of a database, checks its MD5 and extracts it into <target_dir> (which must be empty or new). The package must record the table format the code expects. Stops with an error otherwise.",
+      "summary": "Downloads the Zenodo package of a database, checks its MD5 and extracts it into <target_dir> (which must be empty or new). The package must record the table format the code expects. Stops with an error otherwise. A download interrupted (a partial file in <download_dir>) is resumed by the next call.",
       "usage": "Usage: pf_install_refdb_package <registry> <DB> <format> <target_dir> <download_dir>"
     }
   ],

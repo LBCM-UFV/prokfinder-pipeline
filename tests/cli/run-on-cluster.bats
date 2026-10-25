@@ -48,6 +48,21 @@ pbs_file() {
     assert_output_contains "download-wf --skip-busco"
 }
 
+@test "setup --from-source over installed databases is confirmed before the job is written, and the job gets --yes" {
+    run_on_terminal y --refdb-dir refdb -o results run-on-cluster --dry-run setup --from-source search-genomes --gtdb-taxon g__Thermus
+    assert_success
+    assert_output_contains "Continue? [y/N]"
+    run awk '/^bash .*main-prokfinder.sh/' "$(pbs_file results)"
+    assert_output_contains "setup --yes --from-source search-genomes --gtdb-taxon g__Thermus"
+}
+
+@test "setup --from-source over installed databases: no job is written when the answer is not y" {
+    run_on_terminal "" --refdb-dir refdb -o results run-on-cluster --dry-run setup --from-source
+    assert_failure 1
+    assert_output_contains "Full update cancelled"
+    assert_file_not_exists results/PBS-JOBS
+}
+
 @test "--test --dry-run writes the short test job" {
     run bash "${PF_MAIN}" run-on-cluster --test --dry-run
     assert_success

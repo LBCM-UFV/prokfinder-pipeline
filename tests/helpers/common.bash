@@ -52,6 +52,17 @@ make_refdb_markers() {
     done
 }
 
+# Runs Prokfinder on a terminal (util-linux script), typing <answer> to its question; skips when script is missing
+# Usage: run_on_terminal <answer> <main-prokfinder.sh arguments...>
+run_on_terminal() {
+    local ANSWER="$1" CMD
+    shift
+    command -v script >/dev/null 2>&1 || skip "script (util-linux) not installed"
+    CMD="$(printf '%q ' bash "${PF_MAIN}" "$@")"
+    run bash -c "printf '%s\n' $(printf '%q' "${ANSWER}") | script -qec $(printf '%q' "${CMD}") /dev/null"
+    output="${output//$'\r'/}"
+}
+
 # Runs search-genomes on the fixture, writing to the results folder <results>
 # Usage: run search_fixture <results> <search-genomes options...>
 search_fixture() {

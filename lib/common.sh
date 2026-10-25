@@ -533,13 +533,13 @@ pf_refdb_format_ok() {
 # Prints the value of a HOST or RECORD line
 # Usage: pf_registry_value <registry> HOST|RECORD
 pf_registry_value() {
-    awk -F'\t' -v key="$2" '$1 == key { print $2; exit }' "$1"
+    awk -F'\t' -v key="$2" '{ sub(/\r$/, "") } $1 == key { print $2; exit }' "$1"
 }
 
 # Prints "<file><TAB><md5>" of the package of a database with the given table format (nothing if there is none)
 # Usage: pf_registry_package <registry> <DB> <format>
 pf_registry_package() {
-    awk -F'\t' -v db="$2" -v fmt="$3" '$1 == "PACKAGE" && $2 == db && $3 == fmt { print $4 "\t" $5; exit }' "$1"
+    awk -F'\t' -v db="$2" -v fmt="$3" '{ sub(/\r$/, "") } $1 == "PACKAGE" && $2 == db && $3 == fmt { print $4 "\t" $5; exit }' "$1"
 }
 
 # Returns 0 if <db_dir> was installed from a Zenodo package (so it has no raw files to rebuild the tables from)
@@ -548,8 +548,25 @@ pf_refdb_from_package() {
     grep -q '^package=' "$(pf_completed_marker "$1")" 2>/dev/null
 }
 
+# Returns 1 if the registry has, for the table format <format>, another package than the one installed in <db_dir>
+# (another record, file or MD5: a newer package was published); 0 otherwise, also when the registry has no package of
+# that format
+# Usage: pf_refdb_package_current <registry> <DB> <format> <db_dir>
+pf_refdb_package_current() {
+    local ENTRY MARKER RECORD MD5
+    ENTRY="$(pf_registry_package "$1" "$2" "$3")"
+    RECORD="$(pf_registry_value "$1" RECORD)"
+    [[ -n "${ENTRY}" && -n "${RECORD}" ]] || return 0
+    MARKER="$(pf_completed_marker "$4")"
+    grep -qxF "package=zenodo:${RECORD}:${ENTRY%%$'\t'*}" "${MARKER}" 2>/dev/null || return 1
+    # (packages installed before the MD5 was recorded are compared by record and file only)
+    MD5="$(sed -n 's/^package_md5=//p' "${MARKER}" | awk 'NR == 1')"
+    [[ -z "${MD5}" || "${MD5}" == "${ENTRY#*$'\t'}" ]]
+}
+
 # Downloads the Zenodo package of a database, checks its MD5 and extracts it into <target_dir> (which must be empty or
-# new). The package must record the table format the code expects. Stops with an error otherwise.
+# new). The package must record the table format the code expects. Stops with an error otherwise. A download
+# interrupted (a partial file in <download_dir>) is resumed by the next call.
 # Usage: pf_install_refdb_package <registry> <DB> <format> <target_dir> <download_dir>
 pf_install_refdb_package() {
     local REGISTRY="$1" DB="$2" FORMAT="$3" TARGET="$4" WORK="$5"
@@ -569,15 +586,29 @@ pf_install_refdb_package() {
     if [[ -f "${WORK}/${FILE}" && "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" == "${MD5}" ]]; then
         log "message" "${DB}: package ${FILE} already downloaded."
     else
-        log "message" "${DB}: downloading ${FILE} from Zenodo (record ${RECORD} on ${HOST})..."
-        rm -f "${WORK}/${FILE}"
-        curl -fL --retry 3 --retry-delay 10 -o "${WORK}/${FILE}" "${URL}" \
-            || die "Download of ${URL} failed. Check the connection and run setup again."
+        local RC=0
+        if [[ -s "${WORK}/${FILE}" ]]; then
+            log "message" "${DB}: resuming the download of ${FILE} from Zenodo (record ${RECORD} on ${HOST})..."
+            curl -fL --retry 3 --retry-delay 10 -C - -o "${WORK}/${FILE}" "${URL}" || RC=$?
+            # A partial file that cannot be completed (server without byte ranges, or a file of another package with
+            # the same name) is downloaded again from the start
+            if [[ "${RC}" -eq 33 || "${RC}" -eq 36 ]] \
+                || [[ "${RC}" -eq 0 && "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" != "${MD5}" ]]; then
+                log "warning" "${DB}: the partial file ${FILE} could not be completed; downloading it again from the start."
+                rm -f "${WORK}/${FILE}"
+                RC=0
+            fi
+        fi
+        if [[ ! -s "${WORK}/${FILE}" ]]; then
+            log "message" "${DB}: downloading ${FILE} from Zenodo (record ${RECORD} on ${HOST})..."
+            curl -fL --retry 3 --retry-delay 10 -o "${WORK}/${FILE}" "${URL}" || RC=$?
+        fi
+        [[ "${RC}" -eq 0 ]] || die "Download of ${URL} failed. Check the connection and run setup again (the download is resumed)."
         [[ "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" == "${MD5}" ]] \
             || { rm -f "${WORK}/${FILE}"; die "MD5 of ${FILE} differs from the registry (${MD5}); the file was removed. Run setup again."; }
     fi
     tar -xzf "${WORK}/${FILE}" -C "${TARGET}" --strip-components=1 || die "Could not extract ${WORK}/${FILE}."
     pf_refdb_format_ok "${TARGET}" "${FORMAT}" || die "The package ${FILE} does not record the table format ${FORMAT}."
-    echo "package=zenodo:${RECORD}:${FILE}" >> "$(pf_completed_marker "${TARGET}")"
+    printf 'package=zenodo:%s:%s\npackage_md5=%s\n' "${RECORD}" "${FILE}" "${MD5}" >> "$(pf_completed_marker "${TARGET}")"
     rm -f "${WORK}/${FILE}"
 }

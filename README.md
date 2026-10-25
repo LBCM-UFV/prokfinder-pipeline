@@ -138,35 +138,47 @@ de uma vez. No cluster, o job de `run-on-cluster` carrega só os módulos `ncbi_
 ```bash
 ./main-prokfinder.sh setup                 # baixa os bancos prontos do Zenodo para ~/prokfinder-refdb (minutos)
 ./main-prokfinder.sh setup --from-source   # monta os bancos a partir do NCBI, BacDive e GTDB (horas)
-./main-prokfinder.sh setup --force-refdb   # instala tudo de novo
 ./main-prokfinder.sh setup --from-source --ncbi-complete-metadata   # opcional: também converte todos os metadados do NCBI para TSV
 ```
 
+Há só dois caminhos: os bancos prontos do Zenodo ou os bancos montados a partir das fontes.
+
+| Comando | Banco ainda não instalado | Banco já instalado |
+|---|---|---|
+| `setup` | baixa o pacote do Zenodo | do Zenodo: troca pelo pacote mais novo, se o registro tiver um; das fontes: nada |
+| `setup --from-source` | baixa das fontes e monta as tabelas | **atualização completa**: baixa tudo de novo das fontes, depois de um aviso e de `Continue? [y/N]` |
+
 - Por padrão o `setup` baixa os três bancos já formatados, publicados no **Zenodo** (um pacote `.tar.gz` por banco,
-  com o MD5 conferido). O registro usado (servidor, número do registro e MD5 de cada pacote) está em
-  [`refdb-zenodo.tsv`](refdb-zenodo.tsv); `--refdb-registry ARQUIVO` usa outro. Cada pacote tem o formato de tabela
-  que o código lê (`format=` em `COMPLETED-DOWNLOAD.txt`): se o registro não tiver o formato certo, o `setup` pede
-  `--from-source`. Os bancos do Zenodo não trazem os arquivos brutos; quando o formato mudar, o `setup` baixa o pacote
-  novo (um banco montado com `--from-source` continua sendo atualizado a partir dos seus arquivos brutos).
+  com o MD5 conferido; um download interrompido é retomado). O registro usado (servidor, número do registro e MD5 de
+  cada pacote) está em [`refdb-zenodo.tsv`](refdb-zenodo.tsv); `--refdb-registry ARQUIVO` usa outro. Cada pacote tem
+  o formato de tabela que o código lê (`format=` em `COMPLETED-DOWNLOAD.txt`): se o registro não tiver o formato
+  certo, o `setup` pede `--from-source`. Rodar `setup` de novo instala os pacotes mais novos do registro (outro
+  registro, arquivo ou MD5 do que está em `COMPLETED-DOWNLOAD.txt`, linhas `package=` e `package_md5=`).
 - `--from-source` monta os bancos como as versões anteriores faziam: NCBI Datasets, API do BacDive e GTDB. Leva
   horas; no cluster, use `run-on-cluster setup --from-source`.
+- **Atualização completa** (`setup --from-source` com os bancos já instalados, das fontes ou do Zenodo): o
+  Prokfinder avisa que vai demorar horas, que precisa de rede o tempo todo e de espaço para uma segunda cópia de cada
+  banco, e pergunta `Continue? [y/N]` (outra resposta sai sem mudar nada). Com `run-on-cluster`, a pergunta é feita no
+  seu terminal antes do `qsub`, e o job recebe `--yes`. Sem terminal (scripts, jobs escritos à mão), é preciso
+  `setup --from-source --yes`.
 - Os bancos são instalados **uma única vez** e compartilhados por todas as execuções e pastas de resultados.
 - `search-genomes` e `download-wf` **não rodam sem o `setup`**: se os bancos não forem encontrados, o Prokfinder
   para com o erro `Reference databases not found in ~/prokfinder-refdb` e pede o `setup` (que pode vir no mesmo
   comando: `setup search-genomes ...`).
-- Rodar `setup` de novo com os bancos já instalados não baixa nada. Para reinstalar é preciso `--force-refdb`.
-- Com `--force-refdb`, cada banco é baixado e formatado numa **pasta temporária** (`~/prokfinder-refdb/.NCBI.new`,
-  `.BACDIVE.new`, `.GTDB.new`) e só substitui o banco atual quando termina sem erro. Se o download falhar, o banco
-  atual continua lá e funcionando; o mesmo comando retoma a instalação nova de onde parou, sem baixar de novo os
-  bancos que já foram trocados (eles ficam anotados em `~/prokfinder-refdb/.force-refdb.state`, apagado no fim).
+- Na atualização completa e na troca de pacote do Zenodo, cada banco é instalado numa **pasta temporária**
+  (`~/prokfinder-refdb/.NCBI.new`, `.BACDIVE.new`, `.GTDB.new`) e só substitui o banco atual quando termina sem erro.
+  Se o download falhar, o banco atual continua lá e funcionando; o mesmo comando retoma a instalação de onde parou,
+  sem baixar de novo os bancos que já foram trocados (anotados em `~/prokfinder-refdb/.full-update.state`, apagado no
+  fim).
 - Bancos instalados por uma versão **anterior** do Prokfinder, cujas tabelas tinham outro formato, também precisam do
-  `setup`: ele **atualiza** as tabelas a partir dos arquivos já baixados, **sem baixar nada de novo** (a versão do
-  formato fica registrada em `COMPLETED-DOWNLOAD.txt`, linha `format=`).
+  `setup`: os do Zenodo são trocados pelo pacote novo; os montados das fontes têm as tabelas **refeitas a partir dos
+  arquivos já baixados, sem baixar nada de novo** (a versão do formato fica em `COMPLETED-DOWNLOAD.txt`, linha
+  `format=`).
 - Se duas execuções precisarem instalar os bancos ao mesmo tempo, a segunda espera a primeira terminar.
 - `--ncbi-complete-metadata` (opcional; exige `--from-source`): converte **todos** os campos dos metadados do NCBI (o
   `assembly_data_report.jsonl` inteiro, ~180 colunas) para TSV em `NCBI/<DOMÍNIO>-NCBI-METADATA/complete-metadata.tsv`.
   É lento (mais de 15 h só para Bacteria) e a busca não usa essa tabela; por isso fica desligado por padrão. Com os
-  bancos já instalados, só essa tabela é gravada, a partir do JSONL já baixado.
+  bancos já instalados, faz parte da atualização completa.
 
 **Tabelas do BacDive (estilo BactoTraits).** Uma cepa pode ter vários valores para o mesmo traço, vindos de
 referências diferentes (em `BACDIVE_DATA_FORMATTED.tsv`, `;` separa referências e `:` separa valores da mesma
@@ -545,7 +557,7 @@ O Prokfinder pode ser executado de novo sem refazer o que já foi concluído:
 
 | Etapa | O que é reaproveitado | Para forçar |
 |---|---|---|
-| `setup` | bancos baixados só uma vez (checkpoint `COMPLETED-DOWNLOAD.txt`); downloads interrompidos são retomados | `setup --force-refdb` |
+| `setup` | bancos baixados só uma vez (checkpoint `COMPLETED-DOWNLOAD.txt`); downloads interrompidos são retomados | `setup --from-source` (atualização completa) |
 | `search-genomes` | busca reaproveitada quando os filtros e os bancos não mudaram (checkpoint `SEARCH-GENOMES-COMPLETED.txt`) | `search-genomes --force-selection` |
 | `download-wf` | genomas já baixados; contigs, seqkit, genes, CheckM2, BUSCO e GTDB-Tk (ANI e árvore) por genoma; skDER/CiDDER por táxon (quando a lista de genomas e os parâmetros não mudaram) | `download-wf --force-curation` |
 

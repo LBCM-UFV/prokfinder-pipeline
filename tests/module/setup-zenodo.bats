@@ -82,12 +82,80 @@ setup() {
     [[ "$(selected_accessions search | wc -l)" -gt 100 ]]
 }
 
-@test "--force-refdb downloads the packages again" {
+@test "the checkpoints record the MD5 of the package" {
+    run grep -c '^package_md5=[0-9a-f]\{32\}$' "${REFDB}/GTDB/COMPLETED-DOWNLOAD.txt"
+    assert_output_equals "1"
+}
+
+@test "a newer package in the registry replaces the installed one" {
+    cp -r "${REFDB}" new-refdb
+    local FORMAT FILE
+    FORMAT="$(pf_var PF_REFDB_FORMAT_GTDB)"
+    FILE="refdb-gtdb-format${FORMAT}.tar.gz"
+    cp "${PF_FAKE_PACKAGES}/${FILE}" "${PF_FAKE_PACKAGES}/newer-${FILE}"
+    sed "s/\t${FILE}\t/\tnewer-${FILE}\t/" "${REGISTRY}" > newer-registry.tsv
     : > "${PF_FAKE_LOG}"
-    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir "${REFDB}" -o results setup \
-        --force-refdb --refdb-registry "${REGISTRY}"
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir new-refdb -o results setup \
+        --refdb-registry newer-registry.tsv
     assert_success
-    [[ "$(grep -c '^curl' "${PF_FAKE_LOG}")" -eq 3 ]]
+    assert_output_contains "has a newer Zenodo package of GTDB: it replaces the installed one."
+    assert_output_contains "NCBI reference data already installed"
+    [[ "$(grep -c '^curl' "${PF_FAKE_LOG}")" -eq 1 ]]
+    run grep -x "package=zenodo:1:newer-${FILE}" new-refdb/GTDB/COMPLETED-DOWNLOAD.txt
+    assert_success
+}
+
+@test "an interrupted package download is resumed" {
+    cp -r "${REFDB}" resume-refdb
+    sed -i 's/^format=.*/format=1/' resume-refdb/NCBI/COMPLETED-DOWNLOAD.txt
+    local FILE
+    FILE="refdb-ncbi-format$(pf_var PF_REFDB_FORMAT_NCBI).tar.gz"
+    mkdir -p resume-refdb/.zenodo-download
+    head -c 1000 "${PF_FAKE_PACKAGES}/${FILE}" > "resume-refdb/.zenodo-download/${FILE}"
+    : > "${PF_FAKE_LOG}"
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir resume-refdb -o results setup \
+        --refdb-registry "${REGISTRY}"
+    assert_success
+    assert_output_contains "NCBI: resuming the download of ${FILE}"
+    run grep -c '^curl .*-C - ' "${PF_FAKE_LOG}"
+    assert_output_equals "1"
+    assert_same_file "${PF_FIXTURE_REFDB}/NCBI/NULL-VALUES-NCBI.tsv" resume-refdb/NCBI/NULL-VALUES-NCBI.tsv
+}
+
+@test "a partial file that cannot be completed is downloaded again from the start" {
+    cp -r "${REFDB}" stale-refdb
+    sed -i 's/^format=.*/format=1/' stale-refdb/NCBI/COMPLETED-DOWNLOAD.txt
+    local FILE
+    FILE="refdb-ncbi-format$(pf_var PF_REFDB_FORMAT_NCBI).tar.gz"
+    mkdir -p stale-refdb/.zenodo-download
+    head -c 1000 /dev/urandom > "stale-refdb/.zenodo-download/${FILE}"
+    : > "${PF_FAKE_LOG}"
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir stale-refdb -o results setup \
+        --refdb-registry "${REGISTRY}"
+    assert_success
+    assert_output_contains "NCBI: the partial file ${FILE} could not be completed; downloading it again from the start."
+    [[ "$(grep -c '^curl' "${PF_FAKE_LOG}")" -eq 2 ]]
+    assert_same_file "${PF_FIXTURE_REFDB}/NCBI/NULL-VALUES-NCBI.tsv" stale-refdb/NCBI/NULL-VALUES-NCBI.tsv
+}
+
+@test "setup --from-source --yes over Zenodo databases is a full update that keeps the current databases until it ends" {
+    local P
+    for P in dataformat taxonkit jq gawk unzip; do
+        command -v "${P}" >/dev/null 2>&1 || skip "${P} not installed"
+    done
+    cp -r "${REFDB}" full-refdb
+    cp full-refdb/NCBI/COMPLETED-DOWNLOAD.txt ncbi-marker.txt
+    : > "${PF_FAKE_LOG}"
+    # (the fake curl and datasets serve nothing from the sources: the download of NCBI fails)
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir full-refdb -o results setup \
+        --from-source --yes
+    assert_failure
+    assert_output_contains "is a full update: NCBI BACDIVE GTDB will be downloaded again"
+    assert_output_contains "The full update was confirmed (--yes)."
+    assert_output_contains "Installing the new NCBI database in the temporary folder"
+    [[ -s "${PF_FAKE_LOG}" ]]
+    assert_same_file ncbi-marker.txt full-refdb/NCBI/COMPLETED-DOWNLOAD.txt
+    assert_file_exists full-refdb/GTDB/BACTERIA-GTDB-TAXONOMY/bac120_taxonomy_formatted.tsv
 }
 
 @test "an installed database of an older format is replaced by the new package" {

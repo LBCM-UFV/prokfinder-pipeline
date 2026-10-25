@@ -229,6 +229,26 @@ package=zenodo:1:x.tar.gz
     assert_success
 }
 
+@test "pf_refdb_package_current: a newer package in the registry (record, file or MD5) is found" {
+    printf 'RECORD\t42\nPACKAGE\tGTDB\t4\tnew.tar.gz\tbbb\n' > registry.tsv
+    mkdir -p same old-file no-md5 other-md5
+    printf 'format=4\npackage=zenodo:42:new.tar.gz\npackage_md5=bbb\n' > same/COMPLETED-DOWNLOAD.txt
+    printf 'format=4\npackage=zenodo:42:old.tar.gz\npackage_md5=bbb\n' > old-file/COMPLETED-DOWNLOAD.txt
+    printf 'format=4\npackage=zenodo:42:new.tar.gz\n' > no-md5/COMPLETED-DOWNLOAD.txt
+    printf 'format=4\npackage=zenodo:42:new.tar.gz\npackage_md5=aaa\n' > other-md5/COMPLETED-DOWNLOAD.txt
+    run pf_eval 'pf_refdb_package_current registry.tsv GTDB 4 same'
+    assert_success
+    run pf_eval 'pf_refdb_package_current registry.tsv GTDB 4 no-md5'
+    assert_success
+    run pf_eval 'pf_refdb_package_current registry.tsv GTDB 4 old-file'
+    assert_failure 1
+    run pf_eval 'pf_refdb_package_current registry.tsv GTDB 4 other-md5'
+    assert_failure 1
+    # (no package of the format in the registry: nothing to replace)
+    run pf_eval 'pf_refdb_package_current registry.tsv GTDB 5 old-file'
+    assert_success
+}
+
 @test "reference database paths" {
     run pf_eval 'pf_gtdb_taxonomy_table G ARCHAEA; pf_gtdb_metadata_table G BACTERIA; pf_ncbi_metadata_table N BACTERIA genbank'
     assert_success

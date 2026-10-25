@@ -83,12 +83,15 @@ once: the databases are shared by every run. By default it downloads the ready-m
 (refdb-zenodo.tsv; a few minutes); with --from-source it builds them from the NCBI, BacDive and GTDB sources
 (some hours).
 
+Run again, setup installs the newer Zenodo packages listed in the registry (the current databases are kept until
+the new ones are complete). Databases built with --from-source are updated only by setup --from-source.
+
 Options:
   --from-source              Build the databases from the NCBI, BacDive and GTDB sources instead of downloading the
-                             Zenodo packages (a database installed from a Zenodo package that is out of date is
-                             replaced by the new package, never rebuilt)
-  --force-refdb              Install the databases again (the current ones are kept until the new ones are
-                             complete)
+                             Zenodo packages. With the databases already installed it is a full update: everything
+                             is downloaded again (some hours), after a confirmation
+  --yes                      Confirm the full update of setup --from-source without asking (needed in scripts and
+                             in jobs written by hand; run-on-cluster asks before submitting the job)
   --ncbi-complete-metadata   Also write a table with every NCBI metadata field (slow; not used by the search;
                              needs --from-source)
   --refdb-registry FILE      List of Zenodo packages to use instead of the one of Prokfinder (refdb-zenodo.tsv)
@@ -267,7 +270,7 @@ SUBCOMMANDS=" setup search-genomes download-wf run-on-cluster "
 # Options of each section: flags (no value) and options with a value
 GLOBAL_FLAGS=" -h --help --check "
 GLOBAL_VALUES=" -o --results-dir --refdb-dir -p --threads --memory "
-SETUP_FLAGS=" --from-source --force-refdb --ncbi-complete-metadata "
+SETUP_FLAGS=" --from-source --yes --ncbi-complete-metadata "
 SETUP_VALUES=" --refdb-registry "
 SEARCH_FLAGS=" --force-selection --force-search "
 SEARCH_VALUES=" -s --assembly-source "
@@ -304,7 +307,7 @@ MEMORY=""
 CHECK_DEPS=0
 FROM_SOURCE=0
 REFDB_REGISTRY="${SCRIPT_DIR}/refdb-zenodo.tsv"
-FORCE_REFDB=0
+CONFIRM_YES=0
 NCBI_COMPLETE=0
 FORCE_SELECTION=0
 ASSEMBLY_SOURCE="genbank"
@@ -423,6 +426,7 @@ expression_token() {
 COMMAND_LINE="$0 $*"
 SECTION=""
 JOB_ARGS=()   # the command line without the run-on-cluster sub-command and its options (for the PBS job)
+SETUP_JOB_INDEX=0   # position in JOB_ARGS just after "setup" (where --yes is added when run-on-cluster confirms)
 
 while [[ $# -gt 0 ]]; do
     ARG="$1"
@@ -440,6 +444,7 @@ while [[ $# -gt 0 ]]; do
         RUN["${ARG}"]=1
         SECTION="${ARG}"
         [[ "${ARG}" == "run-on-cluster" ]] || JOB_ARGS+=("${ARG}")
+        [[ "${ARG}" != "setup" ]] || SETUP_JOB_INDEX="${#JOB_ARGS[@]}"
         shift
         continue
     fi
@@ -507,7 +512,7 @@ while [[ $# -gt 0 ]]; do
         # setup
         --from-source)                FROM_SOURCE=1 ;;
         --refdb-registry)             REFDB_REGISTRY="${VAL}" ;;
-        --force-refdb)                FORCE_REFDB=1 ;;
+        --yes)                        CONFIRM_YES=1 ;;
         --ncbi-complete-metadata)     NCBI_COMPLETE=1 ;;
         # search-genomes: options
         -s|--assembly-source)         ASSEMBLY_SOURCE="${VAL,,}"; QUERY_LINES+=("ASSEMBLY_SOURCE"$'\t'"${VAL,,}") ;;
@@ -665,16 +670,20 @@ fi
 # an older Prokfinder, whose tables have another format)
 declare -A REFDB_MISSING=()
 declare -A REFDB_OUTDATED=()
+# Usage: refdb_dir_of NCBI|BACDIVE|GTDB
+refdb_dir_of() {
+    case "$1" in
+        NCBI)    echo "${NCBI_DIR}" ;;
+        BACDIVE) echo "${BACDIVE_DIR}" ;;
+        GTDB)    echo "${GTDB_DIR}" ;;
+    esac
+}
 check_refdb_state() {
     local DB DB_DIR FORMAT_VAR
     REFDB_MISSING=()
     REFDB_OUTDATED=()
     for DB in NCBI BACDIVE GTDB; do
-        case "${DB}" in
-            NCBI)    DB_DIR="${NCBI_DIR}" ;;
-            BACDIVE) DB_DIR="${BACDIVE_DIR}" ;;
-            GTDB)    DB_DIR="${GTDB_DIR}" ;;
-        esac
+        DB_DIR="$(refdb_dir_of "${DB}")"
         FORMAT_VAR="PF_REFDB_FORMAT_${DB}"
         if [[ ! -f "$(pf_completed_marker "${DB_DIR}")" ]]; then
             REFDB_MISSING["${DB}"]=1
@@ -946,6 +955,45 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     fi
 fi
 
+# setup --from-source with databases already installed (from the sources or from Zenodo) is a full update: they are
+# downloaded again from the sources. It takes hours, so it is confirmed on the terminal of the user (with
+# run-on-cluster, here, before the job is submitted; the job gets --yes) or with --yes. The databases installed by a
+# first setup --from-source that was interrupted (listed in <refdb>/.from-source-install.state) are not updated: the
+# same command goes on with the ones that are missing.
+SOURCE_INSTALL_STATE="${REF_DIR}/.from-source-install.state"
+declare -A REFDB_FULL_UPDATE=()
+if [[ -n "${RUN[setup]:-}" && "${FROM_SOURCE}" -eq 1 ]]; then
+    for DB in NCBI BACDIVE GTDB; do
+        if [[ -z "${REFDB_MISSING[${DB}]:-}" ]] && ! grep -qx "${DB}" "${SOURCE_INSTALL_STATE}" 2>/dev/null; then
+            REFDB_FULL_UPDATE["${DB}"]=1
+        fi
+    done
+fi
+# Prints the warning about the full update (one line)
+full_update_warning() {
+    local DB SIZE
+    local -a DBS=() DIRS=()
+    for DB in NCBI BACDIVE GTDB; do
+        [[ -z "${REFDB_FULL_UPDATE[${DB}]:-}" ]] || { DBS+=("${DB}"); DIRS+=("$(refdb_dir_of "${DB}")"); }
+    done
+    SIZE="$(du -shc "${DIRS[@]}" 2>/dev/null | awk 'END { print $1 }')" || SIZE="?"
+    echo "setup --from-source with reference databases already installed is a full update: ${DBS[*]} will be downloaded again from their sources (NCBI, BacDive API, GTDB) and their tables rebuilt. It takes some hours, needs the network the whole time and free disk space for a second copy of each database (${SIZE:-?} now in ${REF_DIR}): the current database is replaced only when its new copy is complete."
+}
+if [[ "${#REFDB_FULL_UPDATE[@]}" -gt 0 && "${CONFIRM_YES}" -eq 0 ]]; then
+    if [[ -t 0 && -z "${PBS_JOBID:-}" ]]; then
+        log "warning" "$(full_update_warning)"
+        read -r -p "Continue? [y/N] " ANSWER || ANSWER=""
+        if [[ ! "${ANSWER}" =~ ^[yYsS] ]]; then
+            log "message" "Full update cancelled: nothing was changed."
+            exit 1
+        fi
+        # The job of run-on-cluster runs without a terminal: it gets the confirmation on its command line
+        JOB_ARGS=("${JOB_ARGS[@]:0:${SETUP_JOB_INDEX}}" --yes "${JOB_ARGS[@]:${SETUP_JOB_INDEX}}")
+    else
+        cli_error "$(full_update_warning) It must be confirmed: run it on a terminal (with run-on-cluster too: it asks before submitting the job) or add --yes to setup." setup
+    fi
+fi
+
 # search-genomes and download-wf need the reference databases installed by setup
 if [[ -z "${RUN[setup]:-}" && ( -n "${RUN[search-genomes]:-}" || -n "${RUN[download-wf]:-}" ) ]]; then
     if [[ "${#REFDB_MISSING[@]}" -gt 0 ]]; then
@@ -1016,30 +1064,45 @@ fi
 
 ############ CHECKING THE DEPENDENCIES ############
 
-# Reference databases whose module must run (setup): not installed, installed by an older Prokfinder, or forced; and
-# NCBI when --ncbi-complete-metadata asks for a complete table that is missing
+# Reference databases whose module must run (setup):
+#   - not installed: from the Zenodo package, or from the sources with --from-source;
+#   - full update (REFDB_FULL_UPDATE, confirmed): downloaded again from the sources;
+#   - installed from Zenodo: replaced when the registry has a newer package or the table format changed;
+#   - built from the sources, of an older table format: rebuilt from the raw files already downloaded;
+# and NCBI when --ncbi-complete-metadata asks for a complete table that is missing
 declare -A REFDB_NEEDED=()
-# ... and, among them, those installed from a Zenodo package (the others are built from the sources by their module,
-# or rebuilt from the raw files already downloaded)
+# ... and, among them, those installed from a Zenodo package
 declare -A REFDB_PACKAGE=()
+# ... and those installed from Zenodo that have a newer package in the registry (only for the log)
+declare -A REFDB_NEW_PACKAGE=()
 refdb_needed() {
-    local DB DOMAIN DB_DIR
+    local DB DOMAIN DB_DIR FORMAT_VAR
     REFDB_NEEDED=()
     REFDB_PACKAGE=()
+    REFDB_NEW_PACKAGE=()
     check_refdb_state
     for DB in NCBI BACDIVE GTDB; do
-        if [[ "${FORCE_REFDB}" -eq 1 || -n "${REFDB_MISSING[${DB}]:-}" || -n "${REFDB_OUTDATED[${DB}]:-}" ]]; then
+        DB_DIR="$(refdb_dir_of "${DB}")"
+        FORMAT_VAR="PF_REFDB_FORMAT_${DB}"
+        if [[ -n "${REFDB_FULL_UPDATE[${DB}]:-}" ]]; then
             REFDB_NEEDED["${DB}"]=1
-            [[ "${FROM_SOURCE}" -eq 0 ]] || continue
-            case "${DB}" in
-                NCBI)    DB_DIR="${NCBI_DIR}" ;;
-                BACDIVE) DB_DIR="${BACDIVE_DIR}" ;;
-                GTDB)    DB_DIR="${GTDB_DIR}" ;;
-            esac
-            # (a database built from the sources that only needs its tables updated is rebuilt, not replaced)
-            if [[ "${FORCE_REFDB}" -eq 1 || -n "${REFDB_MISSING[${DB}]:-}" ]] || pf_refdb_from_package "${DB_DIR}"; then
+        elif [[ -n "${REFDB_MISSING[${DB}]:-}" ]]; then
+            REFDB_NEEDED["${DB}"]=1
+            [[ "${FROM_SOURCE}" -eq 1 ]] || REFDB_PACKAGE["${DB}"]=1
+        elif [[ "${FROM_SOURCE}" -eq 1 ]]; then
+            # (installed by another run while this one waited for it; not confirmed for a full update)
+            continue
+        elif pf_refdb_from_package "${DB_DIR}"; then
+            if [[ -n "${REFDB_OUTDATED[${DB}]:-}" ]]; then
+                REFDB_NEEDED["${DB}"]=1
                 REFDB_PACKAGE["${DB}"]=1
+            elif ! pf_refdb_package_current "${REFDB_REGISTRY}" "${DB}" "${!FORMAT_VAR}" "${DB_DIR}"; then
+                REFDB_NEEDED["${DB}"]=1
+                REFDB_PACKAGE["${DB}"]=1
+                REFDB_NEW_PACKAGE["${DB}"]=1
             fi
+        elif [[ -n "${REFDB_OUTDATED[${DB}]:-}" ]]; then
+            REFDB_NEEDED["${DB}"]=1
         fi
     done
     if [[ "${NCBI_COMPLETE}" -eq 1 ]]; then
@@ -1146,14 +1209,15 @@ run_module() {
 ############ SETUP: REFERENCE DATABASES ############
 #   The reference folder is shared by every run, so only one run installs it at a time: a run that finds another one
 #   installing waits for it and then reuses what it installed.
-#   With --force-refdb each database is installed in a temporary folder (<refdb>/.<DB>.new) and replaces the current
-#   one only when its module finished without error: a failed download never leaves the folder without a database.
-#   The databases already replaced are listed in <refdb>/.force-refdb.state, so the same command run again after a
-#   failure skips them and goes on from the database that failed; the file is removed when the three are done.
+#   A full update (setup --from-source over installed databases) and a Zenodo package install each database in a
+#   temporary folder (<refdb>/.<DB>.new), which replaces the current one only when it is complete: a failed download
+#   never leaves the folder without a database. The databases already replaced by a full update are listed in
+#   <refdb>/.full-update.state, so the same command run again after a failure skips them and goes on from the
+#   database that failed; the file is removed when the three are done.
 
-FORCE_STATE="${REF_DIR}/.force-refdb.state"
+FULL_UPDATE_STATE="${REF_DIR}/.full-update.state"
 
-# Runs the module of one reference database (into its folder, or into the temporary folder with --force-refdb)
+# Runs the module of one reference database (into its folder, or into the temporary folder in a full update)
 # Usage: install_refdb <DB> <db_dir> <module> [module options]
 # With a Zenodo package (REFDB_PACKAGE) the database is always installed through the temporary folder, and the
 # package is downloaded to <refdb>/.zenodo-download (kept if the download is interrupted)
@@ -1162,18 +1226,22 @@ install_refdb() {
     local NEW_DIR="${REF_DIR}/.${DB}.new" OLD_DIR="${REF_DIR}/.${DB}.old"
     local FORMAT_VAR="PF_REFDB_FORMAT_${DB}"
     shift 3
-    if [[ "${FORCE_REFDB}" -eq 0 && -z "${REFDB_PACKAGE[${DB}]:-}" ]]; then
+    if [[ -z "${REFDB_FULL_UPDATE[${DB}]:-}" && -z "${REFDB_PACKAGE[${DB}]:-}" ]]; then
         run_module "${MODULE}" -o "${DB_DIR}" "$@"
         return 0
     fi
 
-    if [[ "${FORCE_REFDB}" -eq 1 ]] && grep -qx "${DB}" "${FORCE_STATE}" 2>/dev/null; then
-        log "message" "${DB} was already installed again by the interrupted --force-refdb run (${FORCE_STATE}); skipping it."
+    if [[ -n "${REFDB_FULL_UPDATE[${DB}]:-}" ]] && grep -qx "${DB}" "${FULL_UPDATE_STATE}" 2>/dev/null; then
+        log "message" "${DB} was already updated by the interrupted full update (${FULL_UPDATE_STATE}); skipping it."
         return 0
     fi
 
+    # (a temporary folder left by a Zenodo package is not resumed by a build from the sources)
+    if [[ -d "${NEW_DIR}" && -z "${REFDB_PACKAGE[${DB}]:-}" ]] && pf_refdb_from_package "${NEW_DIR}"; then
+        rm -rf "${NEW_DIR}"
+    fi
     if [[ -d "${NEW_DIR}" && -z "${REFDB_PACKAGE[${DB}]:-}" ]]; then
-        log "message" "Resuming the new ${DB} installation in ${NEW_DIR} (left by an interrupted --force-refdb run)."
+        log "message" "Resuming the new ${DB} installation in ${NEW_DIR} (left by an interrupted full update)."
     else
         log "message" "Installing the new ${DB} database in the temporary folder ${NEW_DIR}; the current one is kept until it finishes."
     fi
@@ -1193,7 +1261,7 @@ install_refdb() {
     mv "${NEW_DIR}" "${DB_DIR}"
     sed -i "s#${NEW_DIR}#${DB_DIR}#g" "$(pf_completed_marker "${DB_DIR}")"
     rm -rf "${OLD_DIR}"
-    [[ "${FORCE_REFDB}" -eq 0 ]] || echo "${DB}" >> "${FORCE_STATE}"
+    [[ -z "${REFDB_FULL_UPDATE[${DB}]:-}" ]] || echo "${DB}" >> "${FULL_UPDATE_STATE}"
     log "message" "New ${DB} reference database installed in ${DB_DIR} (the previous one was removed)."
 }
 
@@ -1204,11 +1272,15 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     else
         log "message" "The databases are downloaded from Zenodo (registry ${REFDB_REGISTRY}); use --from-source to build them from the sources."
     fi
-    if [[ "${FORCE_REFDB}" -eq 1 ]]; then
-        log "message" "Option --force-refdb: the reference databases will be downloaded and installed again, each one in a temporary folder that replaces the current database only at the end."
+    if [[ "${#REFDB_FULL_UPDATE[@]}" -gt 0 ]]; then
+        log "warning" "$(full_update_warning)"
+        log "message" "The full update was confirmed$([[ "${CONFIRM_YES}" -eq 1 ]] && echo " (--yes)")."
     fi
     for DB in NCBI BACDIVE GTDB; do
         mkdir -p "${REF_DIR}/${DB}"
+        if [[ "${FROM_SOURCE}" -eq 1 && -n "${REFDB_MISSING[${DB}]:-}" ]] && ! grep -qx "${DB}" "${SOURCE_INSTALL_STATE}" 2>/dev/null; then
+            echo "${DB}" >> "${SOURCE_INSTALL_STATE}"
+        fi
     done
 
     REFDB_LOCKED=0
@@ -1218,7 +1290,7 @@ if [[ -n "${RUN[setup]:-}" ]]; then
             if ! flock -n 9; then
                 log "message" "Another Prokfinder run is installing the reference databases in ${REF_DIR}; waiting for it to finish..."
                 flock 9
-                [[ "${FORCE_REFDB}" -eq 1 ]] || refdb_needed
+                refdb_needed
             fi
             REFDB_LOCKED=1
         else
@@ -1227,7 +1299,9 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     fi
 
     for DB in NCBI BACDIVE GTDB; do
-        if [[ "${FORCE_REFDB}" -eq 0 && -n "${REFDB_OUTDATED[${DB}]:-}" ]]; then
+        if [[ -n "${REFDB_NEW_PACKAGE[${DB}]:-}" ]]; then
+            log "message" "The registry ${REFDB_REGISTRY} has a newer Zenodo package of ${DB}: it replaces the installed one."
+        elif [[ -z "${REFDB_FULL_UPDATE[${DB}]:-}" && -n "${REFDB_OUTDATED[${DB}]:-}" ]]; then
             if [[ -n "${REFDB_PACKAGE[${DB}]:-}" ]]; then
                 log "message" "The ${DB} reference tables were installed by an older version of Prokfinder: the Zenodo package of the current format replaces them."
             else
@@ -1248,7 +1322,7 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     # older Prokfinder are rebuilt from the strains already downloaded (no request to the BacDive API)
     if [[ -n "${REFDB_NEEDED[BACDIVE]:-}" ]]; then
         BACDIVE_ARGS=(--taxdump-dir "$(pf_ncbi_taxdump_dir "${NCBI_DIR}")")
-        [[ "${FORCE_REFDB}" -eq 1 || -z "${REFDB_OUTDATED[BACDIVE]:-}" ]] || BACDIVE_ARGS+=(--skip-download)
+        [[ -n "${REFDB_FULL_UPDATE[BACDIVE]:-}" || -z "${REFDB_OUTDATED[BACDIVE]:-}" ]] || BACDIVE_ARGS+=(--skip-download)
         install_refdb BACDIVE "${BACDIVE_DIR}" download-reference-db-bacdive.sh "${BACDIVE_ARGS[@]}"
     else
         log "message" "BacDive reference data already installed ($(head -n 1 "$(pf_completed_marker "${BACDIVE_DIR}")"))."
@@ -1259,8 +1333,8 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     else
         log "message" "GTDB reference data already installed ($(head -n 1 "$(pf_completed_marker "${GTDB_DIR}")"))."
     fi
-    # Every database was installed again: the next --force-refdb starts from scratch
-    rm -f "${FORCE_STATE}"
+    # Every database is installed: the next full update starts from scratch
+    rm -f "${FULL_UPDATE_STATE}" "${SOURCE_INSTALL_STATE}"
     rmdir "${REF_DIR}/.zenodo-download" 2>/dev/null || true
 
     if [[ "${REFDB_LOCKED}" -eq 1 ]]; then

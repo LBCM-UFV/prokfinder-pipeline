@@ -182,6 +182,45 @@ assert_cli_error() {
     assert_cli_error "download-wf needs the genomes selected by search-genomes, but results/SEARCH-GENOMES-COMPLETED.txt was not found."
 }
 
+@test "setup --from-source over installed databases without a terminal and without --yes stops" {
+    make_refdb_markers refdb
+    rm refdb/GTDB/COMPLETED-DOWNLOAD.txt
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results setup --from-source
+    assert_cli_error "setup --from-source with reference databases already installed is a full update: NCBI BACDIVE will be downloaded again"
+    assert_output_contains "add --yes to setup."
+    assert_file_not_exists results
+}
+
+@test "setup --from-source over installed databases asks on a terminal; an answer other than y changes nothing" {
+    make_refdb_markers refdb
+    run_on_terminal n --refdb-dir refdb -o results setup --from-source
+    assert_failure 1
+    assert_output_contains "is a full update: NCBI BACDIVE GTDB will be downloaded again"
+    assert_output_contains "Continue? [y/N]"
+    assert_output_contains "Full update cancelled: nothing was changed."
+    assert_file_not_exists results
+}
+
+@test "setup --from-source without installed databases needs no confirmation" {
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results run-on-cluster --dry-run setup --from-source
+    assert_success
+    refute_output_contains "full update"
+}
+
+@test "setup --from-source goes on with an interrupted first installation without a full update" {
+    make_refdb_markers refdb
+    rm refdb/GTDB/COMPLETED-DOWNLOAD.txt
+    printf 'NCBI\nBACDIVE\nGTDB\n' > refdb/.from-source-install.state
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results run-on-cluster --dry-run setup --from-source
+    assert_success
+    refute_output_contains "full update"
+}
+
+@test "--yes belongs to setup" {
+    run bash "${PF_MAIN}" search-genomes --yes
+    assert_cli_error "Option --yes belongs to the sub-command setup, not to search-genomes."
+}
+
 @test "a command line error writes nothing in the results folder" {
     run bash "${PF_MAIN}" -o results search-genomes -T 45:80 -O rod
     assert_failure 1

@@ -30,8 +30,12 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - NCBI domain of each genome (`GENOME_DOMAIN_NCBI`).
 - `setup` downloads the ready-made reference databases from Zenodo (one package per database, MD5 checked; registry in
   `refdb-zenodo.tsv`, another one with `--refdb-registry`). `setup --from-source` builds them from the NCBI, BacDive
-  and GTDB sources, as `setup` did before. A database installed from a package whose format is out of date is
-  replaced by the new package. `--ncbi-complete-metadata` needs `--from-source`.
+  and GTDB sources, as `setup` did before. A database installed from a package whose format is out of date, or with
+  a newer package in the registry, is replaced by the new package; an interrupted package download is resumed.
+  `--ncbi-complete-metadata` needs `--from-source`.
+- `setup --from-source` with the databases already installed is a full update (everything downloaded again from the
+  sources, each database replaced only when its new copy is complete), after a warning and a `[y/N]` confirmation;
+  `run-on-cluster` asks before submitting the job and passes `--yes` to it. Without a terminal, `--yes` is needed.
 - Automated tests (`tests/run-tests.sh`, bats-core): shared functions, command line, genome search, the rebuild
   of the reference tables by `setup` and every `download-wf` step (with re-execution), on a small fixture of the
   reference databases and a few genomes (`tests/data`), with real seqkit and Pyrodigal and fake CheckM2, BUSCO,
@@ -56,6 +60,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - NCBI taxonomy filters `-t/--taxid`, `-f/--taxid-file`, `--ncbi-taxon`, `-N/--ncbi-taxon-file`.
 - `--gtdbtk` (replaced by the default ANI step and `--use-gtdbtk-tree`).
 - `--meta-for-mags` (MAGs are predicted in single mode).
+- `setup --force-refdb`: `setup` replaces the Zenodo packages by the newer ones, and `setup --from-source` over
+  installed databases is the full update.
 
 ### Fixed
 - Genome download: the NCBI `fetch.txt` lines end with CRLF, so no genome was downloaded.
