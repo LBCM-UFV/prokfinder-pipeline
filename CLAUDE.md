@@ -92,10 +92,12 @@ runs it on every push and pull request, `.github/workflows/tests.yml`):
 2. **cli** (`tests/cli/`): command line (help, errors, AND/OR, resources), `run-on-cluster --dry-run`, `bash -n`,
    `shellcheck -S warning`, module headers, `-h` of every module, `tools/build-catalog.py --check`. A new option or
    error message gets a test here.
-3. **module** (`tests/module/`): each module on a small fixture in `tests/data/` (real slices of the reference
-   tables, e.g. Thermus and Pyrococcus, and a few genomes) with fake programs in `tests/bin/` (`gtdbtk`, `checkm2`,
-   `datasets`... that write the files the module reads). Tables are compared with `tests/expected/`; after an
-   intended change of an output, `tests/run-tests.sh --update-expected` and review the `git diff`.
+3. **module** (`tests/module/`): modules on a small fixture: `tests/data/refdb` (rows of Thermus, Pyrococcus and a
+   few controls copied from the real tables by `tests/data/make-fixture.sh`) and `tests/data/refdb-raw` (their raw
+   files: `setup` must rebuild from them the same tables). download-wf steps will use fake programs in `tests/bin/`
+   (`gtdbtk`, `checkm2`... that write the files the module reads). Tables are compared with `tests/expected/`; after
+   an intended change of an output, `tests/run-tests.sh --update-expected` and review the `git diff`. A change of
+   `PF_REFDB_FORMAT_<DB>` needs the fixture made again (`tests/README.md`).
 4. **e2e** (`tests/e2e/`, only with `--level e2e`): real runs on the UFV cluster (PBS) with `run-on-cluster`; the
    login node kills commands > 10 min.
 

@@ -1,7 +1,7 @@
 name: Tests
 
-# Runs tests/run-tests.sh (levels unit, cli and module: no network besides installing bats, no reference database)
-# on every push and pull request; the result is shown as a check mark on each commit
+# Runs tests/run-tests.sh (levels unit, cli and module: no network besides installing the programs, no reference
+# database) on every push and pull request; the result is shown as a check mark on each commit
 on:
   push:
     branches: [ "main", "restructure-pipeline", "docker" ]
@@ -11,17 +11,33 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}                    # login shell: the micromamba environment is active in every step
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # bats-core pinned to the version used locally; shellcheck and python3 come with the runner
+      # Programs of the genome search and of the rebuild of the reference tables (setup); shellcheck and python3
+      # come with the runner
+      - name: Install the programs (micromamba)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: prokfinder-tests
+          create-args: >-
+            -c conda-forge -c bioconda
+            bash gawk jq unzip ncbi-datasets-cli=18 taxonkit=0.20
+          cache-environment: true
+
+      # bats-core pinned to the version used locally
       - name: Install bats-core
         run: |
           git clone --quiet --depth 1 --branch v1.11.1 https://github.com/bats-core/bats-core.git "${RUNNER_TEMP}/bats-core"
           sudo "${RUNNER_TEMP}/bats-core/install.sh" /usr/local
           bats --version
           shellcheck --version | awk 'NR == 2'
+          datasets --version
+          taxonkit version
 
       - name: Run the tests
         run: tests/run-tests.sh

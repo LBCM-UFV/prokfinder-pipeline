@@ -205,10 +205,11 @@ def nums:
       else [] end;
 
 # list of {ref, v}  ->  "v1:v2;v3"
+# (". + 0" writes a number in the same way with every jq: jq >= 1.7 keeps the literal of the JSON, e.g. 67.0)
 def cell:
     if length == 0 then ""
     else group_by(.ref)
-         | map(map(.v) | unique | map(tostring) | join(":"))
+         | map(map(.v) | unique | map(if type == "number" then . + 0 else . end | tostring) | join(":"))
          | map(select(. != "")) | sort | join(";")
     end;
 

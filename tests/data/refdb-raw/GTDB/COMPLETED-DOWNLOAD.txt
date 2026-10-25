@@ -1,0 +1,5 @@
+GTDB reference data downloaded on 2026-10-24 09:31:51
+url=https://data.gtdb.aau.ecogenomic.org/releases/latest
+release=v232
+format=4
+fixture=tests/data/make-fixture.sh 2026-10-25

@@ -1,0 +1,11 @@
+Reference database fixture of the Prokfinder tests, written by tests/data/make-fixture.sh on 2026-10-25 08:02:26
+Source: /home/es112637/prokfinder-refdb
+  NCBI: NCBI reference data downloaded on 2026-10-24 09:12:17
+  BACDIVE: BacDive reference data downloaded on 2026-10-24 09:20:32
+  GTDB: GTDB reference data downloaded on 2026-10-24 09:31:51
+Genomes: GTDB and NCBI genera Thermus Pyrococcus; extra accessions GCA_964347835.1 GCA_000008565.1 GCA_000008545.1 GCA_000091665.1
+Accession numbers: 326; BacDive strains: 170; NCBI TaxIDs: 116
+  GCA_964347835.1: uncultured archaeon
+  GCA_000008565.1: Deinococcus radiodurans R1 = ATCC 13939 = DSM 20539
+  GCA_000008545.1: Thermotoga maritima MSB8
+  GCA_000091665.1: Methanocaldococcus jannaschii DSM 2661

@@ -11,7 +11,10 @@
 PF_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 PF_MAIN="${PF_ROOT}/main-prokfinder.sh"
 PF_TESTS="${PF_ROOT}/tests"
-export PF_ROOT PF_MAIN PF_TESTS
+# Reference database fixture (tests/data/make-fixture.sh): formatted tables and the raw files they are built from
+PF_FIXTURE_REFDB="${PF_TESTS}/data/refdb"
+PF_FIXTURE_RAW="${PF_TESTS}/data/refdb-raw"
+export PF_ROOT PF_MAIN PF_TESTS PF_FIXTURE_REFDB PF_FIXTURE_RAW
 
 # Called by the setup() of each test file
 pf_test_setup() {
@@ -45,6 +48,25 @@ make_refdb_markers() {
         mkdir -p "$1/${DB}"
         printf 'format=%s\n' "${FORMAT}" > "$1/${DB}/COMPLETED-DOWNLOAD.txt"
     done
+}
+
+# Runs search-genomes on the fixture, writing to the results folder <results>
+# Usage: run search_fixture <results> <search-genomes options...>
+search_fixture() {
+    local RESULTS="$1"
+    shift
+    bash "${PF_MAIN}" --refdb-dir "${PF_FIXTURE_REFDB}" -o "${RESULTS}" search-genomes "$@"
+}
+
+# Prints the accessions selected in <results> (first column of genome-metadata.tsv), sorted
+selected_accessions() {
+    awk -F'\t' 'NR > 1 { print $1 }' "$1/OUTPUT/GENOME-METADATA/genome-metadata.tsv" | LC_ALL=C sort
+}
+
+# Prints the value of <column> of <accession> in a TSV
+# Usage: tsv_value <tsv> <accession> <column>
+tsv_value() {
+    awk -F'\t' -v a="$2" -v c="$3" 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == c) k = i; next } $1 == a && k { print $k }' "$1"
 }
 
 ############ ASSERTIONS ############

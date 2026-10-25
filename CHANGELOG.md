@@ -28,8 +28,9 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
   column, original value, rule, occurrences).
 - Docker image with every program (`docker/`), published to Docker Hub by a GitHub Actions workflow.
 - NCBI domain of each genome (`GENOME_DOMAIN_NCBI`).
-- Automated tests (`tests/run-tests.sh`, bats-core): shared functions and command line, without network or
-  reference databases; real runs only with `--level e2e`. GitHub Actions runs them on every push and pull request
+- Automated tests (`tests/run-tests.sh`, bats-core): shared functions, command line, genome search and the rebuild
+  of the reference tables by `setup`, on a small fixture of the reference databases (`tests/data`), without network;
+  real runs only with `--level e2e`. GitHub Actions runs them on every push and pull request
   (`.github/workflows/tests.yml`).
 - One run per results folder: active PBS jobs or processes are detected and can be cancelled.
 - GPL-3.0 license, `CITATION.cff`, `CLAUDE.md`, `AGENTS.md`, `llms.txt` and the generated `catalog.json`.
@@ -54,6 +55,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - BUSCO failed on the cluster with "No module named 'busco'" (python3 of another module first in the PATH).
 - `GTDB_TYPE_MATERIAL` values such as "not used as type" are now NULL.
 - `run-on-cluster --test` ignored `-o`: the test job is now written to `<results_dir>/PBS-JOBS`.
+- BacDive tables written with jq >= 1.7 had numbers such as `67.0` where older jq writes `67`; every jq now writes
+  the same tables.
 
 ## [0.4.0] - 2026-10-18
 
