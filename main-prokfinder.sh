@@ -179,6 +179,7 @@ Biological evaluation (CheckM2 and BUSCO):
   --min-completeness <pct>         Minimum CheckM2 completeness (default: 75)
   --max-contamination <pct>        Maximum CheckM2 contamination (default: 5)
   --skip-busco                     Do not run BUSCO (by default it is reported, not used as a filter)
+  (CheckM2 needs about 18 GB of RAM; with less --memory it runs in its low-memory mode, which is slower)
 
 Taxonomy (GTDB tables; then, for the genomes not in them, ANI to the GTDB representative genomes with GTDB-Tk):
   --use-gtdbtk-tree                Place in the GTDB tree (GTDB-Tk) the genomes that the ANI did not classify (needs
@@ -1397,7 +1398,7 @@ else
     : > "${GENES_LIST}"
 fi
 
-# RAM given to the modules that adapt to it (GTDB-Tk, skDER/CiDDER); unknown -> they use their defaults
+# RAM given to the modules that adapt to it (CheckM2, GTDB-Tk, skDER/CiDDER); unknown -> they use their defaults
 MEMORY_ARGS=()
 [[ -z "${MEMORY_GB}" ]] || MEMORY_ARGS=(--memory "${MEMORY_GB}")
 
@@ -1406,7 +1407,7 @@ BUSCO_FLAG=()
 [[ "${SKIP_BUSCO}" -eq 0 ]] || BUSCO_FLAG=(--skip-busco)
 run_module evaluate-genome-completeness.sh -l "${GENES_LIST}" -g "${GENES_DIR}" -s "${QUALITY_DIR}/genome-structure.tsv" \
     -d "${TAXONOMY_DIR}/genome-domain-ncbi.tsv" -o "${QUALITY_DIR}" -b "${REF_DIR}/BUSCO" -p "${THREADS}" \
-    ${COMPLETENESS_ARGS[@]+"${COMPLETENESS_ARGS[@]}"} ${BUSCO_FLAG[@]+"${BUSCO_FLAG[@]}"}
+    ${MEMORY_ARGS[@]+"${MEMORY_ARGS[@]}"} ${COMPLETENESS_ARGS[@]+"${COMPLETENESS_ARGS[@]}"} ${BUSCO_FLAG[@]+"${BUSCO_FLAG[@]}"}
 add_metadata_columns "${METADATA}" "${QUALITY_DIR}/genome-quality.tsv"
 
 HIGH_QUALITY_LIST="${WORK_DIR}/high_quality.txt"

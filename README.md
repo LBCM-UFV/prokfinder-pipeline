@@ -41,7 +41,7 @@ Vários sub-comandos podem ser dados juntos; eles sempre rodam na ordem `setup` 
 | `-o, --results-dir <dir>` | `./prokfinder-results` | pasta de resultados desta execução |
 | `--refdb-dir <dir>` | `~/prokfinder-refdb` | pasta dos bancos de referência, compartilhada por todas as execuções |
 | `-p, --threads <n>` | 4 (com `run-on-cluster`: as CPUs do job) | CPUs usadas por todos os programas (seqkit, CheckM2, GTDB-Tk, skDER) |
-| `--memory <ram>` | RAM do computador (com `run-on-cluster`: a RAM do job) | RAM que os programas podem usar (`16gb`, `16000mb` ou só o número em GB). O skDER/CiDDER recebem o limite (`--max-memory`); com menos de 200 GB o posicionamento na árvore do GTDB-Tk grava em disco (`--scratch_dir`) |
+| `--memory <ram>` | RAM do computador (com `run-on-cluster`: a RAM do job) | RAM que os programas podem usar (`16gb`, `16000mb` ou só o número em GB). O CheckM2 precisa de ~18 GB: com menos, roda com `--lowmem` (mais lento, com aviso). O skDER/CiDDER recebem o limite (`--max-memory`); com menos de 200 GB o posicionamento na árvore do GTDB-Tk grava em disco (`--scratch_dir`) |
 | `--check` | | mostra quais dependências estão instaladas e sai (ver [Dependências](#dependências)) |
 | `-h, --help` | | ajuda geral ou, depois de um sub-comando, a ajuda dele |
 
@@ -432,7 +432,7 @@ outra máquina sem PBS não pode ser conferida: se ela não estiver mais rodando
 | Opção | Padrão | Descrição |
 |---|---|---|
 | `--queue <fila>` | `roteamento` | fila de submissão (ver abaixo) |
-| `--mem <ram>` | `20gb` | memória RAM (`20gb`, `24000mb` ou só o número em GB); **mínimo 4 GB, e 8 GB com `download-wf`** (o CheckM2 sozinho passou de 3 GB com 166 genomas) |
+| `--mem <ram>` | `20gb` | memória RAM (`20gb`, `24000mb` ou só o número em GB); **mínimo 4 GB, e 8 GB com `download-wf`**. O CheckM2 usou 17,3 GB com 166 genomas: de 8 a 18 GB ele roda com `--lowmem` (mais lento, com aviso). Na fila `roteamento`, os nós têm ~22,95 GB: pedir no máximo `22gb` |
 | `--cpus <n>` | 20 | CPUs do job (**mínimo 4**) |
 
 O PBS mata o job que usa mais CPUs ou RAM do que pediu. Por isso os programas usam as CPUs (`-p`) e a RAM

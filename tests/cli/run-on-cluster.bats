@@ -69,6 +69,13 @@ pbs_file() {
     run bash "${PF_MAIN}" --refdb-dir refdb -o results run-on-cluster --dry-run --mem 4gb search-genomes --gtdb-taxon g__Thermus download-wf
     assert_failure 1
     assert_output_contains "--mem must be at least 8gb for download-wf"
+    # From 8 GB up to the RAM of the normal mode of CheckM2 (18 GB): only a warning (CheckM2 runs with --lowmem)
+    run bash "${PF_MAIN}" --refdb-dir refdb -o lowmem run-on-cluster --dry-run --mem 12gb search-genomes --gtdb-taxon g__Thermus download-wf
+    assert_success
+    assert_output_contains "it will run with --lowmem, which may take longer"
+    run bash "${PF_MAIN}" --refdb-dir refdb -o normal run-on-cluster --dry-run --mem 20gb search-genomes --gtdb-taxon g__Thermus download-wf
+    assert_success
+    refute_output_contains "--lowmem"
     run bash "${PF_MAIN}" --refdb-dir refdb -o results run-on-cluster --dry-run --mem 30gb search-genomes --gtdb-taxon g__Thermus
     assert_failure 1
     assert_output_contains "Queue roteamento accepts at most 24024 MB of RAM per job"

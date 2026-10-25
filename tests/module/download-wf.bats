@@ -306,6 +306,18 @@ assert_value() {
         results/OUTPUT/GENOME-TAXONOMY/taxonomy-classification.tsv
 }
 
+@test "--memory below 18 GB: CheckM2 runs with --lowmem and a warning; with 18 GB, in its normal mode" {
+    run cat "${BATS_FILE_TMPDIR}/base.log"
+    assert_output_contains "it runs with --lowmem, which may take longer"
+    run count_calls '^checkm2 predict .*--lowmem' "${BATS_FILE_TMPDIR}/fake-calls.log"
+    assert_output_equals "1"
+    run bash "${PF_MAIN}" --refdb-dir "${REFDB}" -o results -p 2 --memory 18 search-genomes -a "${HB8}" download-wf
+    assert_success
+    refute_output_contains "--lowmem"
+    run count_calls '^checkm2 predict .*--lowmem'
+    assert_output_equals "0"
+}
+
 @test "--skip-busco: BUSCO is not called and its columns are NULL" {
     run run_wf results --skip-busco
     assert_success

@@ -431,6 +431,11 @@ run_in_own_env() {
 
 ############ RESOURCES ################
 
+# RAM (GB) that CheckM2 needs in its normal mode: it used 17.3 GB with 166 genomes and 8 CPUs on the UFV cluster.
+# With less, CheckM2 runs with --lowmem (smaller DIAMOND blocks: less RAM, slower). Used by the modules.
+# shellcheck disable=SC2034
+PF_CHECKM2_MIN_MEMORY_GB=18
+
 # Prints an amount of RAM in GB, rounded down: "20gb", "20g" or "20" -> 20; "24000mb" -> 23. Returns 1 (prints
 # nothing) if the format is invalid.
 # Usage: pf_memory_gb <ram>

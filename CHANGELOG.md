@@ -42,6 +42,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - The taxonomy used by Prokfinder is GTDB only.
 - BUSCO, CheckM2 and GTDB-Tk run with their own conda environment first in the PATH.
 - `run-on-cluster --test` has a walltime of 1 hour.
+- CheckM2 runs with `--lowmem` (slower, with a warning) when `--memory` is below 18 GB; `run-on-cluster` with
+  `download-wf` still needs at least 8 GB and warns between 8 and 18 GB.
 - Reference table formats: NCBI 3, BacDive 3, GTDB 4 (`setup` rebuilds them from the files already downloaded).
 - The hierarchy leaves no longer get their own metadata table; `REPRESENTATIVE_GENOME` is only in
   `genome-metadata.tsv`.

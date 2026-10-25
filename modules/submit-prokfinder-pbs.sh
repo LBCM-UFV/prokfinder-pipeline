@@ -32,8 +32,9 @@ PROKFINDER_PBS_MODULES="seqkit checkm2 busco ncbi_datasets gtdbtk taxonkit skder
 PROKFINDER_PBS_OPTIONAL_MODULES="r"   # loaded if available (graphs of the final results)
 # Modules needed by setup and search-genomes (used when the job does not run download-wf)
 PROKFINDER_PBS_SEARCH_MODULES="ncbi_datasets taxonkit"
-# Minimum resources of a job (not of --test): CheckM2 alone used more than 3 GB with 166 genomes, so download-wf
-# needs more RAM than the search
+# Minimum resources of a job (not of --test). download-wf needs more RAM than the search: CheckM2 used 17.3 GB with
+# 166 genomes in its normal mode (PF_CHECKM2_MIN_MEMORY_GB); from MIN_MEM_GB_DOWNLOAD up to that, it runs with
+# --lowmem (a warning); with less, the job could be killed by PBS
 MIN_CPUS=4
 MIN_MEM_GB=4
 MIN_MEM_GB_DOWNLOAD=8
@@ -52,7 +53,8 @@ with qsub.
 Options:
   --queue <queue>            Submission queue: roteamento (default), qtime or high_mem
   --mem <ram>                RAM of the job: 20gb, 20000mb or only the number in GB (default: 20gb; at least
-                             ${MIN_MEM_GB}gb, and ${MIN_MEM_GB_DOWNLOAD}gb with download-wf); Prokfinder uses it unless --memory is given
+                             ${MIN_MEM_GB}gb, and ${MIN_MEM_GB_DOWNLOAD}gb with download-wf; below ${PF_CHECKM2_MIN_MEMORY_GB}gb CheckM2 runs
+                             with --lowmem, slower); Prokfinder uses it unless --memory is given
   --cpus <n>                 CPUs of the job (default: 20; at least ${MIN_CPUS}); Prokfinder uses all of them unless -p
                              is given (-p and --memory cannot be larger than the job)
   --walltime <HH:MM:SS>      Maximum run time of the job (default: 2160:00:00; 72:00:00 with qtime)
@@ -197,7 +199,10 @@ if [[ "${TEST}" -eq 0 ]]; then
     MIN_MEM="${MIN_MEM_GB}"
     [[ "${USES_DOWNLOAD}" -eq 0 ]] || MIN_MEM="${MIN_MEM_GB_DOWNLOAD}"
     (( PROKFINDER_PBS_PPN >= MIN_CPUS )) || pbs_error "--cpus must be at least ${MIN_CPUS} (asked: ${PROKFINDER_PBS_PPN})."
-    (( MEM_MB >= MIN_MEM * 1024 )) || pbs_error "--mem must be at least ${MIN_MEM}gb$([[ "${USES_DOWNLOAD}" -eq 1 ]] && echo " for download-wf (CheckM2 needs more than 3 GB)") (asked: ${PROKFINDER_PBS_MEM})."
+    (( MEM_MB >= MIN_MEM * 1024 )) || pbs_error "--mem must be at least ${MIN_MEM}gb$([[ "${USES_DOWNLOAD}" -eq 1 ]] && echo " for download-wf (CheckM2, even in its low-memory mode)") (asked: ${PROKFINDER_PBS_MEM})."
+    if [[ "${USES_DOWNLOAD}" -eq 1 ]] && (( MEM_MB < PF_CHECKM2_MIN_MEMORY_GB * 1024 )); then
+        log "warning" "CheckM2 needs about ${PF_CHECKM2_MIN_MEMORY_GB}gb of RAM and the job asks for ${PROKFINDER_PBS_MEM}: it will run with --lowmem, which may take longer."
+    fi
 fi
 
 # Without download-wf, only the modules of the genome search are loaded
