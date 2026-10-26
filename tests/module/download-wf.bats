@@ -114,7 +114,9 @@ assert_value() {
 @test "download-wf: versions.tsv and parameters.tsv record the programs, databases and options of the run" {
     local FINAL="${BASE}/OUTPUT/FINAL-RESULTS"
     # (the versions of the real programs seqkit, Pyrodigal, R and of the code change: only the fake ones are compared)
-    assert_expected_tsv download-wf/versions.tsv "${FINAL}/versions.tsv" VERSION SOURCE
+    # (without the Rscript row: R is installed on the maintainer machines, not in the CI)
+    grep -v "^Rscript" "${FINAL}/versions.tsv" > "${BATS_TEST_TMPDIR}/versions-without-r.tsv" || true
+    assert_expected_tsv download-wf/versions.tsv "${BATS_TEST_TMPDIR}/versions-without-r.tsv" VERSION SOURCE
     assert_value "${FINAL}/versions.tsv" checkm2 VERSION 1.1.0
     assert_value "${FINAL}/versions.tsv" busco VERSION "BUSCO 6.1.0"
     assert_value "${FINAL}/versions.tsv" gtdbtk VERSION "gtdbtk: version 2.7.2 Copyright 2017 Pierre-Alain Chaumeil, Aaron Mussig and Donovan Parks"

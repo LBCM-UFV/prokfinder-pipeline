@@ -2,7 +2,6 @@ COMPONENT	TYPE
 BACDIVE	database
 GTDB	database
 NCBI	database
-Rscript	program
 busco	program
 busco-lineages	database
 checkm2	program
