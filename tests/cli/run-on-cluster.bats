@@ -39,15 +39,6 @@ pbs_file() {
     assert_output_equals "bash ${PF_MAIN} --refdb-dir refdb -o results search-genomes --gtdb-taxon g__Thermus AND -i hot\\ spring -p 4 --memory 8gb"
 }
 
-@test "--prepend-path puts a folder first in the PATH of the job, after the modules are loaded" {
-    run bash "${PF_MAIN}" --refdb-dir refdb -o results run-on-cluster --dry-run --prepend-path /data/envs/skder/bin \
-        search-genomes --gtdb-taxon g__Thermus download-wf --derep-method cidder
-    assert_success
-    run cat "$(pbs_file results)"
-    assert_output_contains 'export PATH=/data/envs/skder/bin:"${PATH}"'
-    run awk '/^module load seqkit/ { m = NR } /^export PATH=/ { p = NR } END { print (m > 0 && p > m) ? "after" : "before" }' "$(pbs_file results)"
-    assert_output_equals "after"
-}
 
 @test "--dry-run of download-wf loads the modules of the analysis programs" {
     run bash "${PF_MAIN}" --refdb-dir refdb -o results run-on-cluster --dry-run --cpus 8 --mem 16gb \

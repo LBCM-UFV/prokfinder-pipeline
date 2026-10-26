@@ -118,10 +118,6 @@ How to write the filters:
   - List files (-A, -I, -C, --gtdb-taxon-file) have one value per line; in a table (TSV), only the first column
     is read, and a header line is skipped (-A, --gtdb-taxon-file; -I and -C must not have a header)
 
-GTDB filters (the taxonomy used by Prokfinder is the GTDB one):
-  --gtdb-taxon <name>                  GTDB taxon name, any rank (e.g., g__Thermus, s__Thermus aquaticus or Thermus)
-  --gtdb-taxon-file <file>             List of GTDB taxon names
-
 NCBI filters:
   -a, --accession <acc>                Accession with version, GCA_ or GCF_ (e.g., GCA_000005845.2)
   -A, --accession-file <file>          List of accessions
@@ -149,11 +145,15 @@ BacDive filters (phenotype of the species or strain):
   --electron-donor <donor>             lithotroph or organotroph
   --carbon-source <source>             autotroph or heterotroph
 
+GTDB filters (the taxonomy used by Prokfinder is the GTDB one):
+  --gtdb-taxon <name>                  GTDB taxon name, any rank (e.g., g__Thermus, s__Thermus aquaticus or Thermus)
+  --gtdb-taxon-file <file>             List of GTDB taxon names
+
 Options:
   -s, --assembly-source <src>          NCBI table searched: genbank (default) or refseq
   --force-selection                    Search again, even if the filters did not change
   --force-search                       Ignore the invalid values and filters (with a warning) and search with the
-                                       valid ones; a filter left without valid values is removed
+                                       valid ones. Note: a filter left without valid values is removed
 
 $(help_global_options)
 
@@ -232,8 +232,6 @@ Options:
                           and 8gb with download-wf)
   --cpus <n>              CPUs of the job (default: 20; at least 4)
   --walltime <HH:MM:SS>   Maximum run time of the job (default: 2160:00:00; 72:00:00 with qtime)
-  --prepend-path <dir>    Folder put first in the PATH of the job, after the modules are loaded (e.g., the bin of a
-                          conda environment with a newer skDER/CiDDER than the cluster module)
   --test                  Submit only a short job that shows the version of every program
   --dry-run               Only write the job script (do not submit it)
 
@@ -285,7 +283,7 @@ DOWNLOAD_VALUES=" -j --download-threads --min-contig-length --max-contigs --max-
  --max-contamination --derep-method --derep-mode --derep-ani "
 DOWNLOAD_VALUES="${DOWNLOAD_VALUES//$'\n'/ }"
 CLUSTER_FLAGS=" --test --dry-run "
-CLUSTER_VALUES=" --queue --mem --cpus --walltime --prepend-path "
+CLUSTER_VALUES=" --queue --mem --cpus --walltime "
 
 in_list() { [[ "$2" == *" $1 "* ]]; }
 

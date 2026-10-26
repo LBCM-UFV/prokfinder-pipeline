@@ -146,7 +146,7 @@
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Ignore the invalid values and filters (with a warning) and search with the valid ones; a filter left without valid values is removed"
+      "description": "Ignore the invalid values and filters (with a warning) and search with the valid ones. Note: a filter left without valid values is removed"
     },
     {
       "name": "--assembly-source",
@@ -669,17 +669,6 @@
       "takes_value": true,
       "argument": "<HH:MM:SS>",
       "description": "Maximum run time of the job (default: 2160:00:00; 72:00:00 with qtime)"
-    },
-    {
-      "name": "--prepend-path",
-      "aliases": [
-        "--prepend-path"
-      ],
-      "section": "run-on-cluster",
-      "kind": "option",
-      "takes_value": true,
-      "argument": "<dir>",
-      "description": "Folder put first in the PATH of the job, after the modules are loaded (e.g., the bin of a conda environment with a newer skDER/CiDDER than the cluster module)"
     }
   ],
   "modules": [

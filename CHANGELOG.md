@@ -9,8 +9,6 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 ## [Unreleased] - 0.5.0-dev
 
 ### Added
-- `run-on-cluster --prepend-path <dir>`: puts a folder first in the PATH of the job, after the modules (e.g., a conda
-  environment with a newer skDER/CiDDER than the cluster module).
 - `download-wf` writes `FINAL-RESULTS/versions.tsv` (programs, reference databases, CheckM2 database, BUSCO lineages
   and GTDB-Tk reference package used) and `FINAL-RESULTS/parameters.tsv` (command line, genome selection and the
   effective value of every option).

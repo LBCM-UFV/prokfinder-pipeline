@@ -407,15 +407,6 @@ genomas ao CiDDER, que então **prediz os genes de novo** (tabela de tradução 
 desreplicação mostra `CIDDER_INPUT = genomes`. Com o 1.3.7 ou mais novo, uma falha do CiDDER nas proteínas **não** é
 contornada: a linhagem fica `NOT_DEREPLICATED` e o motivo está no `cidder-console.log` dela.
 
-Para ter um CiDDER novo no cluster sem esperar o módulo, crie um ambiente conda em `~/dados` e aponte o job para ele:
-
-```bash
-module load miniconda3
-conda create -y -p ~/dados/envs/skder -c conda-forge -c bioconda skder=1.3.8
-./main-prokfinder.sh run-on-cluster --prepend-path ~/dados/envs/skder/bin -o termofilos \
-    search-genomes --gtdb-taxon g__Thermus download-wf --derep-method cidder
-```
-
 ---
 
 ## run-on-cluster: execução no cluster (PBS)
@@ -469,7 +460,6 @@ outra máquina sem PBS não pode ser conferida: se ela não estiver mais rodando
 O PBS mata o job que usa mais CPUs ou RAM do que pediu. Por isso os programas usam as CPUs (`-p`) e a RAM
 (`--memory`) do job, e o Prokfinder recusa um `-p` ou `--memory` maior que `--cpus` ou `--mem`.
 | `--walltime <HH:MM:SS>` | `2160:00:00` (`72:00:00` na `qtime`) | tempo máximo do job |
-| `--prepend-path <pasta>` | | pasta colocada no início do `PATH` do job, depois dos módulos (por exemplo, o `bin` de um ambiente conda com um skDER/CiDDER mais novo que o do módulo) |
 | `--test` | | envia só um job curto (fila `qtime`, 1 h: carregar os módulos, sobretudo o `busco`, leva mais de 15 min) que carrega os módulos e mostra a versão de cada programa |
 | `--dry-run` | | só escreve o `.pbs`, sem submeter |
 
