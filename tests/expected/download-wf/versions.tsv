@@ -1,0 +1,16 @@
+COMPONENT	TYPE
+BACDIVE	database
+GTDB	database
+NCBI	database
+Rscript	program
+busco	program
+busco-lineages	database
+checkm2	program
+checkm2-database	database
+datasets	program
+gtdbtk	program
+gtdbtk-reference	database
+prokfinder	program
+pyrodigal	program
+seqkit	program
+skder	program

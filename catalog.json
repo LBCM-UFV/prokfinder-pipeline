@@ -1076,6 +1076,11 @@
       "usage": "Usage: pf_refdb_from_package <db_dir>"
     },
     {
+      "name": "pf_marker_value",
+      "summary": "Prints the value of the first \"<key>=<value>\" line of the checkpoint of <db_dir> (nothing if there is none)",
+      "usage": "Usage: pf_marker_value <db_dir> <key>"
+    },
+    {
       "name": "pf_refdb_package_current",
       "summary": "Returns 1 if the registry has, for the table format <format>, another package than the one installed in <db_dir> (another record, file or MD5: a newer package was published); 0 otherwise, also when the registry has no package of that format",
       "usage": "Usage: pf_refdb_package_current <registry> <DB> <format> <db_dir>"

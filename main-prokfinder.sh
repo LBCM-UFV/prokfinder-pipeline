@@ -1454,6 +1454,102 @@ for (( I = 0; I < ${#QC_ARGS[@]}; I += 2 )); do
         --max-contigs)       QC_MAX_CONTIGS="${QC_ARGS[$((I + 1))]}" ;;
     esac
 done
+# (not drawn in the graphs, so not exported; the default is the one of evaluate-genome-structure-seqkit.sh)
+QC_MAX_N_BASES=100000
+for (( I = 0; I < ${#QC_ARGS[@]}; I += 2 )); do
+    [[ "${QC_ARGS[$I]}" != "--max-n-bases" ]] || QC_MAX_N_BASES="${QC_ARGS[$((I + 1))]}"
+done
+
+# Writes FINAL-RESULTS/versions.tsv (programs and databases of this run, as installed now) and parameters.tsv (the
+# options of this run, with their default values, and where the genome selection came from)
+write_run_record() {
+    local VERSIONS="${FINAL_DIR}/versions.tsv" PARAMETERS="${FINAL_DIR}/parameters.tsv"
+    local PROGRAM PYTHON DB DB_DIR VALUE SOURCE LINEAGES
+    local -a PROGRAMS=(datasets seqkit checkm2)
+    [[ "${SKIP_BUSCO}" -eq 1 ]] || PROGRAMS+=(busco)
+    PROGRAMS+=("${DEREP_METHOD}")
+    if command -v gtdbtk >/dev/null 2>&1 && [[ -n "${GTDBTK_DATA_PATH:-}" && -d "${GTDBTK_DATA_PATH}" ]]; then
+        PROGRAMS+=(gtdbtk)
+    fi
+    command -v Rscript >/dev/null 2>&1 && PROGRAMS+=(Rscript)
+
+    {
+        printf 'COMPONENT\tTYPE\tVERSION\tSOURCE\n'
+        VALUE="${PROKFINDER_VERSION}"
+        if git -C "${SCRIPT_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
+            VALUE="${VALUE} (git $(git -C "${SCRIPT_DIR}" describe --always --dirty 2>/dev/null || echo unknown))"
+        fi
+        printf 'prokfinder\tprogram\t%s\t%s\n' "${VALUE}" "${SCRIPT_DIR}/main-prokfinder.sh"
+        for PROGRAM in "${PROGRAMS[@]}"; do
+            printf '%s\tprogram\t%s\t%s\n' "${PROGRAM}" "$(tool_version "${PROGRAM}")" "$(command -v "${PROGRAM}")"
+        done
+        PYTHON="$(pf_python_with_pyrodigal)"
+        if [[ -n "${PYTHON}" ]]; then
+            printf 'pyrodigal\tprogram\t%s\t%s\n' "$("${PYTHON}" -c 'import pyrodigal; print(pyrodigal.__version__)' 2>/dev/null)" "${PYTHON}"
+        fi
+        for DB in NCBI BACDIVE GTDB; do
+            DB_DIR="$(refdb_dir_of "${DB}")"
+            VALUE="$(sed -n '1s/^.* downloaded on //p' "$(pf_completed_marker "${DB_DIR}")" 2>/dev/null)" || true
+            if [[ "${DB}" == "GTDB" ]]; then
+                VALUE="$(pf_marker_value "${DB_DIR}" release) ${VALUE}"
+            fi
+            VALUE="${VALUE} (format $(pf_marker_value "${DB_DIR}" format))"
+            SOURCE="$(pf_marker_value "${DB_DIR}" package)"
+            if [[ -n "${SOURCE}" ]]; then
+                SOURCE="${SOURCE} (md5 $(pf_marker_value "${DB_DIR}" package_md5))"
+            else
+                SOURCE="setup --from-source"
+            fi
+            printf '%s\tdatabase\t%s\t%s\n' "${DB}" "${VALUE}" "${SOURCE}"
+        done
+        printf 'checkm2-database\tdatabase\t%s\t%s\n' "$(basename "${CHECKM2DB:-}")" "${CHECKM2DB:-}"
+        if [[ "${SKIP_BUSCO}" -eq 0 ]]; then
+            LINEAGES=""
+            if [[ "$(get_column_index "${METADATA}" BUSCO_LINEAGE)" -gt 0 ]]; then
+                LINEAGES="$(awk -F'\t' -v c="$(get_column_index "${METADATA}" BUSCO_LINEAGE)" \
+                    'NR > 1 && $c != "NULL" && !($c in seen) { seen[$c] = 1; print $c }' "${METADATA}" | LC_ALL=C sort | paste -sd, -)"
+            fi
+            printf 'busco-lineages\tdatabase\t%s\t%s\n' "${LINEAGES}" "${REF_DIR}/BUSCO"
+        fi
+        if [[ -n "${GTDBTK_DATA_PATH:-}" && -d "${GTDBTK_DATA_PATH}" ]]; then
+            VALUE="$(sed -n 's/^VERSION_DATA=//p' "${GTDBTK_DATA_PATH%/}/metadata/metadata.txt" 2>/dev/null | awk 'NR == 1')" || true
+            printf 'gtdbtk-reference\tdatabase\t%s\t%s\n' "${VALUE:-$(basename "${GTDBTK_DATA_PATH%/}")}" "${GTDBTK_DATA_PATH}"
+        fi
+    } | format_tsv 0 > "${VERSIONS}.tmp"
+    mv "${VERSIONS}.tmp" "${VERSIONS}"
+
+    {
+        printf 'PARAMETER\tVALUE\n'
+        printf 'run_date\t%s\n' "$(date +"%Y-%m-%d %H:%M:%S")"
+        printf 'prokfinder_version\t%s\n' "${PROKFINDER_VERSION}"
+        printf 'command\t%s\n' "${COMMAND_LINE}"
+        printf 'search_command\t%s\n' "$(sed -n 's/^command=//p' "${SEARCH_CHECKPOINT}" 2>/dev/null | awk 'NR == 1')"
+        printf 'search_expression\t%s\n' "$(sed -n 's/^expression=//p' "${SEARCH_CHECKPOINT}" 2>/dev/null | awk 'NR == 1')"
+        printf 'assembly_source\t%s\n' "${ASSEMBLY_SOURCE}"
+        printf 'selected_genomes\t%s\n' "${N_SELECTED}"
+        printf 'results_dir\t%s\n' "$(absolute_path "${PROKFINDER_DIR}")"
+        printf 'pbs_job\t%s\n' "${PBS_JOBID:-}"
+        printf -- '--threads\t%s\n' "${THREADS}"
+        printf -- '--memory\t%sgb\n' "${MEMORY_GB}"
+        printf -- '--refdb-dir\t%s\n' "$(absolute_path "${REF_DIR}")"
+        printf -- '--download-threads\t%s\n' "${DOWNLOAD_THREADS}"
+        printf -- '--gzip\t%s\n' "$([[ "${GZIP}" -eq 1 ]] && echo yes || echo no)"
+        printf -- '--min-contig-length\t%s\n' "${MIN_CONTIG_LENGTH}"
+        printf -- '--max-contigs\t%s\n' "${QC_MAX_CONTIGS}"
+        printf -- '--min-n50\t%s\n' "${QC_MIN_N50}"
+        printf -- '--max-n-bases\t%s\n' "${QC_MAX_N_BASES}"
+        printf -- '--min-completeness\t%s\n' "${QC_MIN_COMPLETENESS}"
+        printf -- '--max-contamination\t%s\n' "${QC_MAX_CONTAMINATION}"
+        printf -- '--skip-busco\t%s\n' "$([[ "${SKIP_BUSCO}" -eq 1 ]] && echo yes || echo no)"
+        printf -- '--use-gtdbtk-tree\t%s\n' "$([[ "${USE_GTDBTK_TREE}" -eq 1 ]] && echo yes || echo no)"
+        printf -- '--derep-method\t%s\n' "${DEREP_METHOD}"
+        printf -- '--derep-mode\t%s\n' "${DEREP_MODE}"
+        printf -- '--derep-ani\t%s\n' "${DEREP_ANI}"
+        printf -- '--filter-mge\t%s\n' "$([[ "${FILTER_MGE}" -eq 1 ]] && echo yes || echo no)"
+    } | format_tsv 0 > "${PARAMETERS}.tmp"
+    mv "${PARAMETERS}.tmp" "${PARAMETERS}"
+    log "message" "Versions and parameters of this run: ${VERSIONS} and ${PARAMETERS}"
+}
 
 # Writes the accessions of the metadata rows that satisfy an awk condition on the named columns.
 # Usage: accessions_where <output_file> '<condition with $COL_NAME>' <COL_NAME> [COL_NAME ...]
@@ -1473,6 +1569,7 @@ accessions_where() {
 # Runs the final summary and stops (used when a step leaves no genome for the next ones)
 finish_early() {
     log "warning" "$1"
+    write_run_record
     run_module summarize-final-results.sh -m "${METADATA}" -r "${NCBI_DIR}" -s "${ASSEMBLY_SOURCE}" -o "${FINAL_DIR}"
     exit 0
 }
@@ -1580,6 +1677,7 @@ run_module dereplicate-genomes.sh -d "${HIERARCHY_DIR}" -o "${DEREPLICATION_DIR}
 add_metadata_columns "${METADATA}" "${DEREPLICATION_DIR}/genome-dereplication.tsv"
 
 # Step 10: final results
+write_run_record
 run_module summarize-final-results.sh -m "${METADATA}" -r "${NCBI_DIR}" -s "${ASSEMBLY_SOURCE}" -o "${FINAL_DIR}"
 
 log "message" "Prokfinder finished successfully. Genome metadata (every step): ${METADATA}"

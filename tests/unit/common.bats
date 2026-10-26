@@ -229,6 +229,20 @@ package=zenodo:1:x.tar.gz
     assert_success
 }
 
+@test "pf_marker_value: first value of a key, nothing when the key or the checkpoint is missing" {
+    mkdir -p a
+    printf 'format=3\nrelease=v232\nrelease=v233\n' > a/COMPLETED-DOWNLOAD.txt
+    run pf_eval 'pf_marker_value a release'
+    assert_success
+    assert_output_equals "v232"
+    run pf_eval 'pf_marker_value a package'
+    assert_success
+    assert_output_equals ""
+    run pf_eval 'pf_marker_value missing release'
+    assert_success
+    assert_output_equals ""
+}
+
 @test "pf_refdb_package_current: a newer package in the registry (record, file or MD5) is found" {
     printf 'RECORD\t42\nPACKAGE\tGTDB\t4\tnew.tar.gz\tbbb\n' > registry.tsv
     mkdir -p same old-file no-md5 other-md5

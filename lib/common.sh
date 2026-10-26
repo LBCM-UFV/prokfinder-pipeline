@@ -548,6 +548,12 @@ pf_refdb_from_package() {
     grep -q '^package=' "$(pf_completed_marker "$1")" 2>/dev/null
 }
 
+# Prints the value of the first "<key>=<value>" line of the checkpoint of <db_dir> (nothing if there is none)
+# Usage: pf_marker_value <db_dir> <key>
+pf_marker_value() {
+    sed -n "s/^$2=//p" "$(pf_completed_marker "$1")" 2>/dev/null | awk 'NR == 1' || true
+}
+
 # Returns 1 if the registry has, for the table format <format>, another package than the one installed in <db_dir>
 # (another record, file or MD5: a newer package was published); 0 otherwise, also when the registry has no package of
 # that format

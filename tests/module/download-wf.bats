@@ -111,6 +111,38 @@ assert_value() {
         "$(portable_tsv "${BASE}/OUTPUT/FINAL-RESULTS/high-quality-selected-genomes.txt")"
 }
 
+@test "download-wf: versions.tsv and parameters.tsv record the programs, databases and options of the run" {
+    local FINAL="${BASE}/OUTPUT/FINAL-RESULTS"
+    # (the versions of the real programs seqkit, Pyrodigal, R and of the code change: only the fake ones are compared)
+    assert_expected_tsv download-wf/versions.tsv "${FINAL}/versions.tsv" VERSION SOURCE
+    assert_value "${FINAL}/versions.tsv" checkm2 VERSION 1.1.0
+    assert_value "${FINAL}/versions.tsv" busco VERSION "BUSCO 6.1.0"
+    assert_value "${FINAL}/versions.tsv" gtdbtk VERSION "gtdbtk: version 2.7.2 Copyright 2017 Pierre-Alain Chaumeil, Aaron Mussig and Donovan Parks"
+    assert_value "${FINAL}/versions.tsv" skder VERSION "skDER v1.3.6"
+    assert_value "${FINAL}/versions.tsv" GTDB VERSION "v232 2026-10-24 09:31:51 (format 4)"
+    assert_value "${FINAL}/versions.tsv" gtdbtk-reference VERSION r232
+    assert_value "${FINAL}/versions.tsv" checkm2-database VERSION checkm2-fake.dmnd
+    assert_value "${FINAL}/versions.tsv" busco-lineages VERSION "archaea_odb12,bacteria_odb12"
+    assert_expected_tsv download-wf/parameters.tsv "$(portable_tsv "${FINAL}/parameters.tsv")" VALUE
+    assert_value "${FINAL}/parameters.tsv" --derep-ani VALUE 99.5
+    assert_value "${FINAL}/parameters.tsv" --max-n-bases VALUE 100000
+    assert_value "${FINAL}/parameters.tsv" --threads VALUE 2
+    assert_value "${FINAL}/parameters.tsv" --memory VALUE 4gb
+    assert_value "${FINAL}/parameters.tsv" selected_genomes VALUE 7
+}
+
+@test "download-wf: --skip-busco and --derep-method cidder change the programs listed in versions.tsv" {
+    local FINAL="${BATS_TEST_TMPDIR}/r/OUTPUT/FINAL-RESULTS"
+    run run_wf "${BATS_TEST_TMPDIR}/r" --skip-busco --derep-method cidder
+    assert_success
+    run cut -f1 "${FINAL}/versions.tsv"
+    refute_output_contains "busco"
+    assert_output_contains "cidder"
+    refute_output_contains "skder"
+    assert_value "${FINAL}/parameters.tsv" --skip-busco VALUE yes
+    assert_value "${FINAL}/parameters.tsv" --derep-method VALUE cidder
+}
+
 @test "download-wf: a genome without a file is DOWNLOAD_FAILED and the others go on" {
     assert_value "$(metadata "${BASE}")" "${NO_GENOME_FILE}" DOWNLOAD_STATUS DOWNLOAD_FAILED
     assert_value "$(metadata "${BASE}")" "${HB8}" DOWNLOAD_STATUS DOWNLOADED

@@ -526,10 +526,16 @@ prokfinder-results/
     └── FINAL-RESULTS/
         ├── high-quality-selected-genomes.txt          # acessos + caminho do FASTA dos genomas finais
         ├── high-quality-selected-genomes-metadata.txt
+        ├── versions.tsv                               # programas e bancos desta execução (COMPONENT, TYPE, VERSION, SOURCE)
+        ├── parameters.tsv                             # linha de comando, consulta e valor efetivo de cada opção (PARAMETER, VALUE)
         └── STATISTICS/
             ├── TABLES/   # funil de seleção, QC, genomas por táxon, tabela de todos os procariotos
             └── GRAPHS/   # gráficos (R)
 ```
+
+`FINAL-RESULTS/versions.tsv` e `parameters.tsv` registram o que produziu o resultado (versões instaladas no momento
+da execução, bancos de referência com a origem do pacote, linhagens do BUSCO e valores efetivos das opções, inclusive
+os padrões); citem-nos no método do trabalho.
 
 `GENOME-DEREPLICATION/dereplication-summary.tsv` resume a desreplicação, uma linha por linhagem (o diretório-folha da
 hierarquia):

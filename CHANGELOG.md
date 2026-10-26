@@ -9,6 +9,9 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 ## [Unreleased] - 0.5.0-dev
 
 ### Added
+- `download-wf` writes `FINAL-RESULTS/versions.tsv` (programs, reference databases, CheckM2 database, BUSCO lineages
+  and GTDB-Tk reference package used) and `FINAL-RESULTS/parameters.tsv` (command line, genome selection and the
+  effective value of every option).
 - Gene prediction once per genome with Pyrodigal (translation table 11 or 4 chosen as GTDB-Tk does; meta mode only
   for genomes < 100 kbp); the proteins are used by CheckM2, BUSCO, GTDB-Tk and CiDDER.
 - BUSCO (proteins mode, lineage chosen by the NCBI domain) on the genomes that pass CheckM2; reported, not filtered

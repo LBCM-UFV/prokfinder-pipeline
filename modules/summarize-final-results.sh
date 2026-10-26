@@ -13,6 +13,7 @@
 #     all-prokaryote-genomes-status.tsv.gz      every genome of the NCBI table with flags for selected,
 #                                               high-quality and representative (for comparison studies)
 #   STATISTICS/GRAPHS/                          plots made by plot-statistics.R (only if Rscript is installed)
+# (versions.tsv and parameters.tsv of the same folder are written by main-prokfinder.sh before this module runs)
 #
 # Usage: summarize-final-results.sh -m <genome_metadata.tsv> -r <ncbi_dir> -s <genbank|refseq> -o <final_results_dir>
 
