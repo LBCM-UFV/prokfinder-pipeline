@@ -31,12 +31,13 @@ bash_scripts() {
 
 @test "every module has the header read by tools/build-catalog.py" {
     local FILE
-    for FILE in "${PF_ROOT}"/modules/*.sh; do
-        run awk 'NR == 3' "${FILE}"
-        [[ "${output}" == "# $(basename "${FILE}") - Prokfinder module "* ]] \
-            || { echo "line 3 of ${FILE} is not '# <file> - Prokfinder module <step>: ...': ${output}" >&2; return 1; }
-        run grep -c '^# Usage:' "${FILE}"
-        [[ "${output}" -ge 1 ]] || { echo "${FILE} has no '# Usage:' block" >&2; return 1; }
+    # (the Python and R helpers have it too; in the docstring of the .py it has no "# ")
+    for FILE in "${PF_ROOT}"/modules/*.sh "${PF_ROOT}"/modules/*.py "${PF_ROOT}"/modules/*.R; do
+        run awk 'NR == 3 { sub(/^# /, ""); print }' "${FILE}"
+        [[ "${output}" == "$(basename "${FILE}") - Prokfinder module "* ]] \
+            || { echo "line 3 of ${FILE} is not '<file> - Prokfinder module <step>: ...': ${output}" >&2; return 1; }
+        run grep -cE '^(# )?Usage:' "${FILE}"
+        [[ "${output}" -ge 1 ]] || { echo "${FILE} has no 'Usage:' block" >&2; return 1; }
     done
 }
 

@@ -79,7 +79,8 @@ downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values conv
 - **Resources**: programs use `-p` CPUs and `--memory` GB; never more than a PBS job asked for.
 - **Taxonomy is GTDB only** (no NCBI taxonomy filters). NCBI TaxIDs are used only to link BacDive.
 - Module headers: line 3 is `# <file> - Prokfinder module <step>: <description>` and a `# Usage:` block
-  (tools/build-catalog.py reads them).
+  (tools/build-catalog.py reads them). The Python and R helpers (`.py`, `.R`) have the same line 3 and a `Usage:`
+  line (in the docstring of the `.py`, without the `# `); tests/cli/static.bats checks all of them.
 - After editing from Windows (`\\wsl.localhost` paths) the executable bit is lost: run
   `chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py
   tests/run-tests.sh tests/data/*.sh tests/bin/{datasets,checkm2,busco,gtdbtk,skder,curl}` (commit from WSL: `tests/bin/cidder`

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-predict-genes-pyrodigal.py - Prokfinder: gene prediction (Pyrodigal, the Python port of Prodigal)
+predict-genes-pyrodigal.py - Prokfinder module 5 (helper of predict-genes-pyrodigal.sh): gene prediction (Pyrodigal, the Python port of Prodigal)
 
 Predicts the genes of each genome once, so that the next steps (CheckM2, BUSCO, GTDB-Tk and CiDDER) all use the
 same predicted proteins. Called by predict-genes-pyrodigal.sh, which decides which genomes must be (re)predicted.
+
+Usage: predict-genes-pyrodigal.py --genomes <genomes.tsv> --out-dir <genes_dir> --table <table.tsv> [--threads <n>]
 
 Gene calling mode and translation table (the heuristic of GTDB-Tk):
   - single mode ("-p single"): Pyrodigal is trained on the genome with translation table 11 and with table 4.
