@@ -232,6 +232,8 @@ Options:
                           and 8gb with download-wf)
   --cpus <n>              CPUs of the job (default: 20; at least 4)
   --walltime <HH:MM:SS>   Maximum run time of the job (default: 2160:00:00; 72:00:00 with qtime)
+  --prepend-path <dir>    Folder put first in the PATH of the job, after the modules are loaded (e.g., the bin of a
+                          conda environment with a newer skDER/CiDDER than the cluster module)
   --test                  Submit only a short job that shows the version of every program
   --dry-run               Only write the job script (do not submit it)
 
@@ -283,7 +285,7 @@ DOWNLOAD_VALUES=" -j --download-threads --min-contig-length --max-contigs --max-
  --max-contamination --derep-method --derep-mode --derep-ani "
 DOWNLOAD_VALUES="${DOWNLOAD_VALUES//$'\n'/ }"
 CLUSTER_FLAGS=" --test --dry-run "
-CLUSTER_VALUES=" --queue --mem --cpus --walltime "
+CLUSTER_VALUES=" --queue --mem --cpus --walltime --prepend-path "
 
 in_list() { [[ "$2" == *" $1 "* ]]; }
 

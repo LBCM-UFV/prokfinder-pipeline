@@ -229,6 +229,19 @@ package=zenodo:1:x.tar.gz
     assert_success
 }
 
+@test "pf_version_ge: compares versions number by number" {
+    run pf_eval 'pf_version_ge 1.3.8 1.3.7'
+    assert_success
+    run pf_eval 'pf_version_ge 1.3.7 1.3.7'
+    assert_success
+    run pf_eval 'pf_version_ge 1.3.10 1.3.7'
+    assert_success
+    run pf_eval 'pf_version_ge 1.3.6 1.3.7'
+    assert_failure 1
+    run pf_eval 'pf_version_ge 1.2.9 1.3.7'
+    assert_failure 1
+}
+
 @test "pf_marker_value: first value of a key, nothing when the key or the checkpoint is missing" {
     mkdir -p a
     printf 'format=3\nrelease=v232\nrelease=v233\n' > a/COMPLETED-DOWNLOAD.txt

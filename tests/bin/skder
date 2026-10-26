@@ -4,7 +4,9 @@
 # tests/data/fake-programs/pairwise-ani.tsv (pairs that are not there are below any cutoff). The genomes are taken in
 # the order of their accessions; a genome is redundant when its ANI to a representative already chosen is >= the
 # cutoff. Writes <output-directory>/Dereplicated_Representative_Genomes/ (links with --symlink) and skDER_Results.txt.
-# The cidder of tests/bin is this same program; like the real CiDDER 1.3.6, it fails when only --proteomes is given.
+# The cidder of tests/bin is this same program. Its version is PF_FAKE_CIDDER_VERSION (default 1.3.8, which dereplicates
+# --proteomes: the representatives are the .faa files); like the real CiDDER 1.3.6 (< 1.3.7), it fails when only
+# --proteomes is given.
 
 set -euo pipefail
 # shellcheck source=fake-lib.bash
@@ -13,18 +15,20 @@ PROGRAM="$(basename "$0")"
 fake_start "${PROGRAM}" "$@"
 
 if [[ "${1:-}" == "--version" ]]; then
-    [[ "${PROGRAM}" == "cidder" ]] && echo "CiDDER v1.3.6" || echo "skDER v1.3.6"
+    [[ "${PROGRAM}" == "cidder" ]] && echo "CiDDER v${PF_FAKE_CIDDER_VERSION:-1.3.8}" || echo "skDER v1.3.6"
     exit 0
 fi
 
 OUT="$(fake_option --output-directory "$@")"
 CUTOFF="$(fake_option --percent-identity-cutoff "$@")"
 CUTOFF="${CUTOFF:-99.0}"
-if [[ "${PROGRAM}" == "cidder" && " $* " != *" --genomes "* ]]; then
-    echo "fake cidder: no genome file given (CiDDER 1.3.6 does not dereplicate proteomes alone)" >&2
+CIDDER_VERSION="${PF_FAKE_CIDDER_VERSION:-1.3.8}"
+OLDEST="$(printf '%s\n' "${CIDDER_VERSION}" 1.3.7 | LC_ALL=C sort -V | awk 'NR == 1')"
+if [[ "${PROGRAM}" == "cidder" && " $* " != *" --genomes "* && "${OLDEST}" != "1.3.7" ]]; then
+    echo "fake cidder: no genome file given (CiDDER ${CIDDER_VERSION} does not dereplicate proteomes alone)" >&2
     exit 1
 fi
-mapfile -t FILES < <(fake_option_list --genomes "$@" | awk 'NF')
+mapfile -t FILES < <({ fake_option_list --genomes "$@"; fake_option_list --proteomes "$@"; } | awk 'NF')
 [[ "${#FILES[@]}" -gt 0 ]] || { echo "fake ${PROGRAM}: no input genome" >&2; exit 1; }
 mkdir -p "${OUT}/Dereplicated_Representative_Genomes"
 

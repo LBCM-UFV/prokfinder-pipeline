@@ -26,6 +26,7 @@ PROKFINDER_PBS_QUEUE="roteamento"
 PROKFINDER_PBS_PPN=20
 PROKFINDER_PBS_MEM="20gb"
 PROKFINDER_PBS_WALLTIME=""
+PROKFINDER_PBS_PREPEND_PATH=""
 PROKFINDER_PBS_JOB_NAME="prokfinder"
 # (skder also gives cidder and the Python with pyrodigal used by the gene prediction)
 PROKFINDER_PBS_MODULES="seqkit checkm2 busco ncbi_datasets gtdbtk taxonkit skder"
@@ -42,7 +43,7 @@ MIN_MEM_GB_DOWNLOAD=8
 usage() {
     cat << EOF
 Usage:
-  $(basename "$0") [--queue <q>] [--mem <ram>] [--cpus <n>] [--walltime <HH:MM:SS>] [--dry-run] -- <arguments>
+  $(basename "$0") [--queue <q>] [--mem <ram>] [--cpus <n>] [--walltime <HH:MM:SS>] [--prepend-path <dir>] [--dry-run] -- <arguments>
   $(basename "$0") --test [--dry-run]
   (usually called through: main-prokfinder.sh run-on-cluster [options] <sub-commands>)
 
@@ -58,6 +59,8 @@ Options:
   --cpus <n>                 CPUs of the job (default: 20; at least ${MIN_CPUS}); Prokfinder uses all of them unless -p
                              is given (-p and --memory cannot be larger than the job)
   --walltime <HH:MM:SS>      Maximum run time of the job (default: 2160:00:00; 72:00:00 with qtime)
+  --prepend-path <dir>       Folder put first in the PATH of the job, after the modules are loaded (e.g., the bin of
+                             a conda environment with a newer skDER/CiDDER than the cluster module)
   --test                     Submit a short job that only loads the modules and prints the version/help of every
                              program (queue qtime, 1 CPU, 2gb, 01:00:00: loading the modules takes long)
   --dry-run                  Only write the .pbs script (do not submit it)
@@ -89,6 +92,7 @@ while [[ $# -gt 0 ]]; do
         --mem)      PROKFINDER_PBS_MEM="$2"; shift 2 ;;
         --cpus)     PROKFINDER_PBS_PPN="$2"; shift 2 ;;
         --walltime) PROKFINDER_PBS_WALLTIME="$2"; shift 2 ;;
+        --prepend-path) PROKFINDER_PBS_PREPEND_PATH="${2:-}"; PROKFINDER_PBS_PREPEND_PATH="${PROKFINDER_PBS_PREPEND_PATH/#\~/${HOME}}"; shift 2 ;;
         --test)     TEST=1; shift ;;
         --dry-run)  DRY_RUN=1; shift ;;
         -h|--help)  usage 0 ;;
@@ -272,6 +276,10 @@ EOF
     for MODULE in ${PROKFINDER_PBS_OPTIONAL_MODULES}; do
         echo "module load ${MODULE} 2>/dev/null || echo \"WARNING: optional module '${MODULE}' could not be loaded\" >&2"
     done
+    if [[ -n "${PROKFINDER_PBS_PREPEND_PATH}" ]]; then
+        echo "# Programs of --prepend-path come before the ones of the modules"
+        printf 'export PATH=%q:"${PATH}"\n' "${PROKFINDER_PBS_PREPEND_PATH%/}"
+    fi
     echo
 
     if [[ "${TEST}" -eq 0 ]]; then

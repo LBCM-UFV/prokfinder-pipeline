@@ -9,8 +9,9 @@
 #   skder  (default) ANI between the genomes (skani): genomes above the ANI cutoff (99.5% by default) with an aligned
 #          fraction of 90% are redundant; --mode greedy (default) or dynamic
 #   cidder protein clustering (CD-HIT) of the proteins predicted by Pyrodigal (-a): representatives are added until
-#          they sample the pangenome of the taxon (CiDDER defaults). If CiDDER cannot read the proteomes (CiDDER
-#          1.3.6 fails without genome files), the genomes are given instead and CiDDER predicts their genes itself
+#          they sample the pangenome of the taxon (CiDDER defaults). CiDDER < 1.3.7 cannot read proteomes (it fails
+#          without genome files): then a warning is logged and the genomes are given instead, so CiDDER predicts
+#          their genes again itself (CIDDER_INPUT = genomes in the summary)
 # --filter-mge makes skDER/CiDDER mask the mobile genetic elements (prophages and plasmids, predicted with PhiSpy)
 # before comparing the genomes.
 #
@@ -61,6 +62,7 @@ TABLE=""
 DEREP_OUT=""
 THREADS=4
 MEMORY_GB=0   # --max-memory of skDER/CiDDER (0 = no limit)
+CIDDER_PROTEOMES="unknown"   # yes | no | unknown: whether the CiDDER installed reads proteomes (>= 1.3.7)
 GENES_DIR=""
 DEREP_METHOD="skder"
 SKDER_MODE="greedy"
@@ -123,26 +125,32 @@ leaf_relative_path() {
     echo "${REL#"${HIERARCHY_DIR}"/}"
 }
 
-# Runs CiDDER on the predicted proteins of the genomes of a leaf; if CiDDER cannot use them (CiDDER 1.3.6 stops when
-# no genome file is given), runs it again on the genome files (CiDDER then predicts the genes itself). The input
-# used is written to <run_dir>/.cidder-input (proteomes or genomes).
+# Runs CiDDER on the predicted proteins of the genomes of a leaf (CIDDER_PROTEOMES = yes: CiDDER >= 1.3.7, which reads
+# proteomes; a failure is an error) or on the genome files (CIDDER_PROTEOMES = no: CiDDER < 1.3.7, which predicts the
+# genes itself; unknown = the proteins first and, if CiDDER refuses them, the genomes). The input used is written to
+# <run_dir>/.cidder-input (proteomes or genomes).
 # Usage: run_cidder <threads> <leaf_dir> <run_dir> <genome files...>
 run_cidder() {
     local THREADS="$1" LEAF="$2" RUN_DIR="$3"
     local -a PROTEOMES=()
     local ACC
     shift 3
-    while IFS=$'\t' read -r ACC _; do
-        PROTEOMES+=("${GENES_DIR}/${ACC}.faa")
-    done < "${LEAF}/${LIST_NAME}"
-    # shellcheck disable=SC2086
-    if cidder --proteomes "${PROTEOMES[@]}" --output-directory "${RUN_DIR}/CIDDER-RESULTS" --threads "${THREADS}" \
-            --max-memory "${MEMORY_GB}" --symlink ${SKDER_EXTRA_ARGS} < /dev/null > "${RUN_DIR}/cidder-console.log" 2>&1; then
-        echo "proteomes" > "${RUN_DIR}/.cidder-input"
-        return 0
+    if [[ "${CIDDER_PROTEOMES}" != "no" ]]; then
+        while IFS=$'\t' read -r ACC _; do
+            PROTEOMES+=("${GENES_DIR}/${ACC}.faa")
+        done < "${LEAF}/${LIST_NAME}"
+        # shellcheck disable=SC2086
+        if cidder --proteomes "${PROTEOMES[@]}" --output-directory "${RUN_DIR}/CIDDER-RESULTS" --threads "${THREADS}" \
+                --max-memory "${MEMORY_GB}" --symlink ${SKDER_EXTRA_ARGS} < /dev/null > "${RUN_DIR}/cidder-console.log" 2>&1; then
+            echo "proteomes" > "${RUN_DIR}/.cidder-input"
+            return 0
+        fi
+        if [[ "${CIDDER_PROTEOMES}" == "yes" ]]; then
+            return 1
+        fi
+        log "warning" "CiDDER failed on the predicted proteins of $(leaf_relative_path "${LEAF}") (version not identified; see ${RUN_DIR}/cidder-console.log; an old CiDDER cannot read proteomes); running it on the genome files: CiDDER predicts the genes again (translation table 11), not the ones of Pyrodigal."
+        rm -rf "${RUN_DIR}/CIDDER-RESULTS"
     fi
-    log "warning" "CiDDER could not use the predicted proteins of $(leaf_relative_path "${LEAF}") (see ${RUN_DIR}/cidder-console.log); running it on the genome files (CiDDER predicts their genes)."
-    rm -rf "${RUN_DIR}/CIDDER-RESULTS"
     echo "genomes" > "${RUN_DIR}/.cidder-input"
     # shellcheck disable=SC2086
     cidder --genomes "$@" --output-directory "${RUN_DIR}/CIDDER-RESULTS" --threads "${THREADS}" \
@@ -164,6 +172,8 @@ dereplicate_leaf() {
         PARAMS="${PARAMS} mode=${SKDER_MODE} identity=${SKDER_PERCENT_IDENTITY} aligned_fraction=${SKDER_ALIGNED_FRACTION}"
         RESULTS_DIR="${RUN_DIR}/SKDER-RESULTS"
     else
+        # (the input of CiDDER depends on its version: a run made with genome files is not reused by a CiDDER that reads proteomes)
+        PARAMS="${PARAMS} proteomes=${CIDDER_PROTEOMES}"
         RESULTS_DIR="${RUN_DIR}/CIDDER-RESULTS"
     fi
     INPUT_LIST="$(cut -f2 "${LEAF}/${LIST_NAME}" | LC_ALL=C sort)"
@@ -236,7 +246,17 @@ if [[ "${N_MULTI}" -gt 0 ]]; then
     if [[ "${DEREP_METHOD}" == "skder" ]]; then
         log "message" "skDER: $(skder --version 2>&1 | head -n 1); mode ${SKDER_MODE}, identity ${SKDER_PERCENT_IDENTITY}%, aligned fraction ${SKDER_ALIGNED_FRACTION}%; ${THREADS} CPU(s)."
     else
-        log "message" "CiDDER: $(cidder --version 2>&1 | head -n 1); predicted proteins from ${GENES_DIR}; CiDDER default parameters; ${THREADS} CPU(s)."
+        CIDDER_VERSION_OUTPUT="$(cidder --version 2>&1)" || true
+        log "message" "CiDDER: $(awk 'NF { print; exit }' <<< "${CIDDER_VERSION_OUTPUT}"); predicted proteins from ${GENES_DIR}; CiDDER default parameters; ${THREADS} CPU(s)."
+        CIDDER_VERSION="$(grep -oE '[0-9]+[.][0-9]+([.][0-9]+)?' <<< "${CIDDER_VERSION_OUTPUT}" | awk 'NR == 1')" || true
+        if [[ -z "${CIDDER_VERSION}" ]]; then
+            CIDDER_PROTEOMES="unknown"
+        elif pf_version_ge "${CIDDER_VERSION}" "${PF_CIDDER_MIN_PROTEOME_VERSION}"; then
+            CIDDER_PROTEOMES="yes"
+        else
+            CIDDER_PROTEOMES="no"
+            log "warning" "CiDDER ${CIDDER_VERSION} cannot read proteomes (fixed in ${PF_CIDDER_MIN_PROTEOME_VERSION}): it will predict the genes of the genomes again (translation table 11), not use the ones predicted by Pyrodigal. Install skDER/CiDDER ${PF_CIDDER_MIN_PROTEOME_VERSION} or newer to avoid it."
+        fi
     fi
     while IFS= read -r LEAF; do
         dereplicate_leaf "${THREADS}" "${LEAF}"

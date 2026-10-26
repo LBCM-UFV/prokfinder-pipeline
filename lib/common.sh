@@ -429,6 +429,16 @@ run_in_own_env() {
     PATH="${BIN_DIR}:${PATH}" "$@"
 }
 
+# Returns 0 if the version <version> is the same as or newer than <minimum> (numbers separated by dots)
+# Usage: pf_version_ge <version> <minimum>
+pf_version_ge() {
+    [[ "$(printf '%s\n%s\n' "$1" "$2" | LC_ALL=C sort -V | awk 'NR == 1')" == "$2" ]]
+}
+
+# The oldest CiDDER that dereplicates predicted proteomes (1.3.6 stops without genome files; fixed in 1.3.7)
+# shellcheck disable=SC2034  # used by the modules
+PF_CIDDER_MIN_PROTEOME_VERSION=1.3.7
+
 ############ RESOURCES ################
 
 # RAM (GB) that CheckM2 needs in its normal mode: it used 17.3 GB with 166 genomes and 8 CPUs on the UFV cluster.

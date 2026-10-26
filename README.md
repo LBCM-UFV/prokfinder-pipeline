@@ -400,10 +400,21 @@ a hierarquia e a desreplicação:
     search-genomes --gtdb-taxon g__Thermus download-wf --use-gtdbtk-tree
 ```
 
-**CiDDER 1.3.6** (a versão do módulo `skder` do cluster) não consegue ler só proteomas (falha ao calcular o N50 dos
-genomas); o **1.3.8** (o da imagem Docker) já lê. Quando a falha acontece, o Prokfinder roda o CiDDER de novo com os
-genomas, e o próprio CiDDER prediz os genes (com a tabela 11), com um aviso no log e `CIDDER_INPUT = genomes` no
-resumo da desreplicação.
+**CiDDER e os proteomas.** Com `--derep-method cidder`, o CiDDER lê as proteínas que o Pyrodigal já predisse (os genes
+são preditos uma única vez). Isso exige o **CiDDER 1.3.7 ou mais novo**: o 1.3.6 (a versão do módulo `skder` do cluster)
+falha quando recebe só proteomas. Com um CiDDER mais antigo, o Prokfinder registra **um aviso** no log e entrega os
+genomas ao CiDDER, que então **prediz os genes de novo** (tabela de tradução 11, não os genes do Pyrodigal); o resumo da
+desreplicação mostra `CIDDER_INPUT = genomes`. Com o 1.3.7 ou mais novo, uma falha do CiDDER nas proteínas **não** é
+contornada: a linhagem fica `NOT_DEREPLICATED` e o motivo está no `cidder-console.log` dela.
+
+Para ter um CiDDER novo no cluster sem esperar o módulo, crie um ambiente conda em `~/dados` e aponte o job para ele:
+
+```bash
+module load miniconda3
+conda create -y -p ~/dados/envs/skder -c conda-forge -c bioconda skder=1.3.8
+./main-prokfinder.sh run-on-cluster --prepend-path ~/dados/envs/skder/bin -o termofilos \
+    search-genomes --gtdb-taxon g__Thermus download-wf --derep-method cidder
+```
 
 ---
 
@@ -458,6 +469,7 @@ outra máquina sem PBS não pode ser conferida: se ela não estiver mais rodando
 O PBS mata o job que usa mais CPUs ou RAM do que pediu. Por isso os programas usam as CPUs (`-p`) e a RAM
 (`--memory`) do job, e o Prokfinder recusa um `-p` ou `--memory` maior que `--cpus` ou `--mem`.
 | `--walltime <HH:MM:SS>` | `2160:00:00` (`72:00:00` na `qtime`) | tempo máximo do job |
+| `--prepend-path <pasta>` | | pasta colocada no início do `PATH` do job, depois dos módulos (por exemplo, o `bin` de um ambiente conda com um skDER/CiDDER mais novo que o do módulo) |
 | `--test` | | envia só um job curto (fila `qtime`, 1 h: carregar os módulos, sobretudo o `busco`, leva mais de 15 min) que carrega os módulos e mostra a versão de cada programa |
 | `--dry-run` | | só escreve o `.pbs`, sem submeter |
 
@@ -547,7 +559,7 @@ hierarquia):
 | `REPRESENTATIVE_GENOMES` | acessos dos representativos, separados por `;` |
 | `DEREPLICATION_SOFTWARE` | `skder`, `cidder` ou `NONE` (linhagem com um só genoma) |
 | `SKDER_MODE` / `SKDER_ANI_CUTOFF` | modo (`greedy`/`dynamic`) e ANI de corte do skDER |
-| `CIDDER_INPUT` | `proteomes` (proteínas do Pyrodigal) ou `genomes` (quando o CiDDER não lê os proteomas) |
+| `CIDDER_INPUT` | `proteomes` (proteínas do Pyrodigal) ou `genomes` (CiDDER < 1.3.7, que não lê proteomas e prediz os genes de novo) |
 | `MGE_FILTERED` / `MGE_SOFTWARE` | se os elementos genéticos móveis foram mascarados (`--filter-mge`) e com qual programa (PhiSpy) |
 | `DEREPLICATION_STATUS` | `DEREPLICATED`, `SINGLE_GENOME` ou `FAILED` |
 

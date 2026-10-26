@@ -9,6 +9,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 ## [Unreleased] - 0.5.0-dev
 
 ### Added
+- `run-on-cluster --prepend-path <dir>`: puts a folder first in the PATH of the job, after the modules (e.g., a conda
+  environment with a newer skDER/CiDDER than the cluster module).
 - `download-wf` writes `FINAL-RESULTS/versions.tsv` (programs, reference databases, CheckM2 database, BUSCO lineages
   and GTDB-Tk reference package used) and `FINAL-RESULTS/parameters.tsv` (command line, genome selection and the
   effective value of every option).
@@ -51,6 +53,9 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - `download-wf` order: download, contigs, structure (seqkit), genes, completeness (CheckM2 + BUSCO), taxonomy,
   hierarchy, dereplication, summary.
 - The taxonomy used by Prokfinder is GTDB only.
+- CiDDER reads the Pyrodigal proteins when it is 1.3.7 or newer; with an older one (the cluster module is 1.3.6) one
+  warning is logged and CiDDER predicts the genes again from the genomes (`CIDDER_INPUT = genomes`); with 1.3.7 or
+  newer a failure on the proteins is no longer hidden by that fallback.
 - BUSCO, CheckM2 and GTDB-Tk run with their own conda environment first in the PATH.
 - `run-on-cluster --test` has a walltime of 1 hour.
 - CheckM2 runs with `--lowmem` (slower, with a warning) when `--memory` is below 18 GB; `run-on-cluster` with

@@ -51,7 +51,7 @@ setup_file() {
     load ../helpers/common
     export PYTHONUSERBASE="${PYTHONUSERBASE:-${HOME}/.local}"
     export HOME="${BATS_FILE_TMPDIR}/home" TMPDIR="${BATS_FILE_TMPDIR}/tmp" NO_COLOR=1 PF_COLOR=0
-    unset PROKFINDER_LOG PROKFINDER_COMMON_LOADED PBS_JOBID NCPUS PF_FAKE_FAIL PF_FAKE_ANI_CLOSEST
+    unset PROKFINDER_LOG PROKFINDER_COMMON_LOADED PBS_JOBID NCPUS PF_FAKE_FAIL PF_FAKE_ANI_CLOSEST PF_FAKE_CIDDER_VERSION
     mkdir -p "${HOME}" "${TMPDIR}"
     cd "${BATS_FILE_TMPDIR}" || return 1
     fake_env "${BATS_FILE_TMPDIR}"
@@ -62,7 +62,7 @@ setup_file() {
 setup() {
     load ../helpers/common
     pf_test_setup
-    unset PF_FAKE_FAIL PF_FAKE_ANI_CLOSEST
+    unset PF_FAKE_FAIL PF_FAKE_ANI_CLOSEST PF_FAKE_CIDDER_VERSION
     fake_env "${BATS_TEST_TMPDIR}"
     BASE="${BATS_FILE_TMPDIR}/base"
 }
@@ -359,17 +359,57 @@ assert_value() {
     assert_value "$(metadata results)" "${HB8}" QC_STATUS PASSED
 }
 
-@test "--derep-method cidder: proteins first; CiDDER 1.3.6 refuses them, so it runs again on the genome files" {
+@test "--derep-method cidder (CiDDER 1.3.8): reads the proteins predicted by Pyrodigal, nothing is predicted again" {
     run run_wf results --derep-method cidder
     assert_success
-    assert_output_contains "CiDDER could not use the predicted proteins"
+    refute_output_contains "cannot read proteomes"
+    refute_output_contains "could not use the predicted proteins"
     run count_calls '^cidder --proteomes .*GENOME-GENES/GCA_000008125.1.faa'
     assert_output_equals "1"
+    run count_calls '^cidder --genomes'
+    assert_output_equals "0"
+    local S="results/OUTPUT/GENOME-DEREPLICATION/dereplication-summary.tsv"
+    run awk -F'\t' '$12 == "DEREPLICATED" { print $6, $9 }' "${S}"
+    assert_output_equals "cidder proteomes"
+    run cat results/OUTPUT/GENOME-DEREPLICATION/representative-genomes.tsv
+    assert_output_contains "${HB8}"
+}
+
+@test "--derep-method cidder (CiDDER 1.3.6): one warning, then the genome files (CiDDER predicts the genes again)" {
+    PF_FAKE_CIDDER_VERSION=1.3.6 run run_wf results --derep-method cidder
+    assert_success
+    assert_output_contains "CiDDER 1.3.6 cannot read proteomes (fixed in 1.3.7)"
+    run grep -c "cannot read proteomes" <<< "${output}"
+    assert_output_equals "1"
+    run count_calls '^cidder --proteomes'
+    assert_output_equals "0"
     run count_calls '^cidder --genomes .*clean_genomes/GCA_000008125.1.fna'
     assert_output_equals "1"
     local S="results/OUTPUT/GENOME-DEREPLICATION/dereplication-summary.tsv"
     run awk -F'\t' '$12 == "DEREPLICATED" { print $6, $9 }' "${S}"
     assert_output_equals "cidder genomes"
+}
+
+@test "--derep-method cidder: a result made from genome files (CiDDER 1.3.6) is not reused by a CiDDER that reads proteins" {
+    PF_FAKE_CIDDER_VERSION=1.3.6 run run_wf results --derep-method cidder
+    assert_success
+    run run_wf results --derep-method cidder
+    assert_success
+    run count_calls '^cidder --proteomes'
+    assert_output_equals "1"
+    run awk -F'\t' '$12 == "DEREPLICATED" { print $9 }' results/OUTPUT/GENOME-DEREPLICATION/dereplication-summary.tsv
+    assert_output_equals "proteomes"
+}
+
+@test "--derep-method cidder (CiDDER 1.3.8) that fails on the proteins is an error of the lineage, with no re-prediction" {
+    PF_FAKE_FAIL="cidder" run run_wf results --derep-method cidder
+    assert_success
+    assert_output_contains "cidder failed in"
+    run count_calls '^cidder --genomes'
+    assert_output_equals "0"
+    local S="results/OUTPUT/GENOME-DEREPLICATION/dereplication-summary.tsv"
+    run awk -F'\t' '$12 == "FAILED" { n++ } END { print n + 0 }' "${S}"
+    assert_output_equals "1"
 }
 
 @test "--use-gtdbtk-tree: a genome without an ANI match is placed in the GTDB tree (genus leaf)" {
