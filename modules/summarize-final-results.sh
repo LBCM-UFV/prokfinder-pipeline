@@ -6,8 +6,11 @@
 #   high-quality-selected-genomes.txt           accession + path of the clean genome of every genome that passed the
 #                                               quality filters and is representative of its taxon
 #   high-quality-selected-genomes-metadata.txt  metadata of those genomes only
+#   genomes-left-out.tsv                        genomes without GTDB taxonomy (NOT_CLASSIFIED) or whose taxon failed in
+#                                               the dereplication (NOT_DEREPLICATED), with what to do; both are also
+#                                               reported as warnings
 #   STATISTICS/TABLES/
-#     selection-funnel.tsv                      number of genomes left after each step
+#     selection-funnel.tsv                     number of genomes left after each step
 #     qc-status.tsv                             genomes per quality result
 #     genomes-per-gtdb-<rank>.tsv               selected / high-quality / representative genomes per taxon
 #     all-prokaryote-genomes-status.tsv.gz      every genome of the NCBI table with flags for selected,
@@ -115,6 +118,23 @@ log "message" "Selection funnel:"
 while IFS=$'\t' read -r STEP COUNT; do
     log "message" "    ${STEP}: ${COUNT}"
 done < <(tail -n +2 "${TABLES_DIR}/selection-funnel.tsv")
+
+# 2b. Genomes that passed the quality filters but were left out of the final list by a failure (not by a decision)
+LEFT_OUT="${FINAL_DIR}/genomes-left-out.tsv"
+awk -F'\t' -v OFS='\t' -v c_tx="${C_TAX_METHOD}" -v c_rep="${C_REP}" '
+    BEGIN { print "ASSEMBLY_ACCESSION", "REASON", "WHAT_TO_DO" }
+    NR == 1 { next }
+    c_tx && $c_tx == "NOT_CLASSIFIED" { print $1, "NOT_CLASSIFIED", "no GTDB taxonomy: left out of the taxonomic hierarchy and of the dereplication; see NON-CLASSIFIED-GENOMES-BY-GTDB.txt, or run again with --use-gtdbtk-tree" }
+    c_rep && $c_rep == "NOT_DEREPLICATED" { print $1, "NOT_DEREPLICATED", "the dereplication of its taxon failed: run the same command again to retry (see GENOME-DEREPLICATION/dereplicate-genomes.log)" }
+' "${METADATA}" > "${LEFT_OUT}"
+N_NOT_CLASSIFIED="$(awk -F'\t' 'NR > 1 && $2 == "NOT_CLASSIFIED"' "${LEFT_OUT}" | wc -l)"
+N_NOT_DEREPLICATED="$(awk -F'\t' 'NR > 1 && $2 == "NOT_DEREPLICATED"' "${LEFT_OUT}" | wc -l)"
+if [[ "${N_NOT_CLASSIFIED}" -gt 0 ]]; then
+    log "warning" "${N_NOT_CLASSIFIED} genome(s) have no GTDB taxonomy (NOT_CLASSIFIED) and are not in the final list: use --use-gtdbtk-tree to place them in the GTDB tree. Listed in ${LEFT_OUT}"
+fi
+if [[ "${N_NOT_DEREPLICATED}" -gt 0 ]]; then
+    log "warning" "${N_NOT_DEREPLICATED} genome(s) could not be dereplicated (NOT_DEREPLICATED) and are not in the final list: run the same command again to retry. Listed in ${LEFT_OUT}"
+fi
 
 # 3. Quality results
 if [[ "${C_QC}" -gt 0 ]]; then

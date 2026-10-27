@@ -602,7 +602,7 @@
       "kind": "option",
       "takes_value": true,
       "argument": "<method>",
-      "description": "skder (default; ANI) or cidder (clustering of the predicted proteins)"
+      "description": "skder (default): by genetic identity (ANI), for genome-wide properties and relationships between lineages; cidder: by gene repertoire (protein clusters of the complete genes), to sample the accessory genes of a taxon with few genomes"
     },
     {
       "name": "--derep-mode",
@@ -613,7 +613,7 @@
       "kind": "option",
       "takes_value": true,
       "argument": "<mode>",
-      "description": "skDER only: greedy (default) or dynamic"
+      "description": "skDER only: greedy (default) or dynamic (fewer representatives, but slower)"
     },
     {
       "name": "--derep-ani",
@@ -822,7 +822,7 @@
       "description": "(helper of predict-genes-pyrodigal.sh): gene prediction (Pyrodigal, the Python port of Prodigal)",
       "usage": [
         "predict-genes-pyrodigal.py - Prokfinder module 5 (helper of predict-genes-pyrodigal.sh): gene prediction (Pyrodigal, the Python port of Prodigal)",
-        "Usage: predict-genes-pyrodigal.py --genomes <genomes.tsv> --out-dir <genes_dir> --table <table.tsv> [--threads <n>]"
+        "Usage: predict-genes-pyrodigal.py --genomes <genomes.tsv> --out-dir <genes_dir> --table <table.tsv> [--threads <n>] [--complete-only]"
       ],
       "language": "python"
     },

@@ -13,13 +13,20 @@
 # Re-execution: the result of each genome is kept in a cache table with the modification time of the genome file, so
 # only new or changed genomes are predicted again.
 #
+# With --complete-genes (dereplication with CiDDER) the genes are predicted a second time with closed ends (Pyrodigal
+# -c: no gene runs off a contig edge, which is what CiDDER predicts when it reads the genomes) and only the proteins
+# are kept, in COMPLETE-GENES/. The .faa of the first pass is never rewritten.
+#
 # Usage: predict-genes-pyrodigal.sh -l <accession_list> -i <clean_genomes_dir> -o <genes_dir> -t <table> [-p <threads>]
+#                                   [--complete-genes]
 #
 # Output:
 #   <genes_dir>/<ACCESSION>.faa / .ffn / .gff   proteins, gene sequences and coordinates
+#   <genes_dir>/COMPLETE-GENES/<ACCESSION>.faa  proteins of the complete genes only (with --complete-genes)
 #   <genes_dir>/gene-prediction-cache.tsv
 #   <table>: ASSEMBLY_ACCESSION GENE_CALLING_MODE TRANSLATION_TABLE CODING_DENSITY_TABLE11 CODING_DENSITY_TABLE4
-#            PREDICTED_GENES PROTEIN_FILE GENE_PREDICTION_STATUS (PREDICTED | FAILED)
+#            PREDICTED_GENES PROTEIN_FILE GENE_PREDICTION_STATUS (PREDICTED | FAILED) PREDICTED_COMPLETE_GENES
+#            (NULL without --complete-genes)
 
 set -euo pipefail
 
@@ -36,6 +43,8 @@ Usage: $(basename "$0") -l <accession_list> -i <clean_genomes_dir> -o <genes_dir
   -o <dir>          Folder of the predicted genes (.faa, .ffn, .gff)
   -t <file>         Result table (one row per genome)
   -p <n>            Genomes predicted at the same time (default: 4)
+  --complete-genes  Also write <genes_dir>/COMPLETE-GENES/<ACCESSION>.faa: the proteins of the genes that do not run
+                    off a contig edge (Pyrodigal -c), which is what CiDDER predicts when it reads the genomes
 
 Needs Python 3 with the package pyrodigal (on the UFV cluster, the Python of the skder module has it).
 EOF
@@ -47,6 +56,7 @@ CLEAN_DIR=""
 GENES_DIR=""
 TABLE=""
 THREADS=4
+COMPLETE=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -55,6 +65,7 @@ while [[ $# -gt 0 ]]; do
         -o) GENES_DIR="${2%/}"; shift 2 ;;
         -t) TABLE="$2"; shift 2 ;;
         -p) THREADS="$2"; shift 2 ;;
+        --complete-genes) COMPLETE=1; shift ;;
         -h|--help) usage 0 ;;
         *) log "error" "Invalid option: $1"; usage ;;
     esac
@@ -130,6 +141,39 @@ awk -F'\t' -v OFS='\t' -v params="${PARAMS}" -v legacy="${LEGACY_PARAMS}" '
         else print $1, "NULL", "NULL", "NULL", "NULL", "NULL", "NULL", "FAILED"
     }
 ' "${CACHE}" <(printf 'header\n'; cat "${GENOMES}") > "${TABLE}"
+
+# 4. Proteins of the complete genes only (--complete-genes): a second prediction with closed ends and the mode and
+# table of the first one. The .faa of the first pass is not rewritten (the caches of CheckM2, BUSCO and GTDB-Tk use it).
+COMPLETE_DIR="${GENES_DIR}/COMPLETE-GENES"
+: > "${WORK_DIR}/complete-counts.tsv"
+if [[ "${COMPLETE}" -eq 1 ]]; then
+    mkdir -p "${COMPLETE_DIR}"
+    : > "${WORK_DIR}/complete-pending.tsv"
+    while IFS=$'\t' read -r ACC MODE TABLE_ID; do
+        if [[ ! -e "${COMPLETE_DIR}/${ACC}.faa" || "${GENES_DIR}/${ACC}.faa" -nt "${COMPLETE_DIR}/${ACC}.faa" ]]; then
+            awk -F'\t' -v acc="${ACC}" -v mode="${MODE}" -v table="${TABLE_ID}" -v OFS='\t' \
+                '$1 == acc { print $1, $2, mode, table }' "${GENOMES}" >> "${WORK_DIR}/complete-pending.tsv"
+        fi
+    done < <(awk -F'\t' -v OFS='\t' 'NR > 1 && $8 == "PREDICTED" { print $1, $2, $3 }' "${TABLE}")
+    N_COMPLETE_PENDING="$(count_lines "${WORK_DIR}/complete-pending.tsv")"
+    log "message" "Complete genes (closed ends, as CiDDER predicts): ${N_COMPLETE_PENDING} genome(s) to predict -> ${COMPLETE_DIR}"
+    if [[ "${N_COMPLETE_PENDING}" -gt 0 ]]; then
+        "${PYTHON}" "${SCRIPT_DIR}/predict-genes-pyrodigal.py" --complete-only --genomes "${WORK_DIR}/complete-pending.tsv" \
+            --out-dir "${COMPLETE_DIR}" --table "${WORK_DIR}/complete-done.tsv" --threads "${THREADS}" \
+            || die "predict-genes-pyrodigal.py (complete genes) failed."
+    fi
+    while IFS= read -r ACC; do
+        if [[ -e "${COMPLETE_DIR}/${ACC}.faa" ]]; then
+            awk -v acc="${ACC}" 'BEGIN { OFS = "\t" } /^>/ { n++ } END { print acc, n + 0 }' "${COMPLETE_DIR}/${ACC}.faa"
+        fi
+    done < <(awk -F'\t' 'NR > 1 && $8 == "PREDICTED" { print $1 }' "${TABLE}") >> "${WORK_DIR}/complete-counts.tsv"
+fi
+awk -F'\t' -v OFS='\t' '
+    FILENAME == ARGV[1] { n[$1] = $2; next }   # (NR == FNR would also match the table when the counts are empty)
+    FNR == 1 { print $0, "PREDICTED_COMPLETE_GENES"; next }
+    { print $0, ($1 in n ? n[$1] : "NULL") }
+' "${WORK_DIR}/complete-counts.tsv" "${TABLE}" > "${WORK_DIR}/table-with-complete.tsv"
+cp "${WORK_DIR}/table-with-complete.tsv" "${TABLE}"
 
 N_OK="$(awk -F'\t' 'NR > 1 && $8 == "PREDICTED"' "${TABLE}" | wc -l)"
 N_TABLE4="$(awk -F'\t' 'NR > 1 && $8 == "PREDICTED" && $3 == "4"' "${TABLE}" | wc -l)"

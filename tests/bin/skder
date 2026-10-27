@@ -3,7 +3,8 @@
 # skder - fake skDER of the tests: greedy dereplication with the ANI of the pairs of genomes in
 # tests/data/fake-programs/pairwise-ani.tsv (pairs that are not there are below any cutoff). The genomes are taken in
 # the order of their accessions; a genome is redundant when its ANI to a representative already chosen is >= the
-# cutoff. Writes <output-directory>/Dereplicated_Representative_Genomes/ (links with --symlink) and skDER_Results.txt.
+# cutoff. Writes <output-directory>/Dereplicated_Representative_Genomes/ (links with --symlink) and skDER_Results.txt,
+# plus skDER_Clustering.txt / CiDDER_Clustering.txt with --determine-clusters.
 # The cidder of tests/bin is this same program. Its version is PF_FAKE_CIDDER_VERSION (default 1.3.8, which dereplicates
 # --proteomes: the representatives are the .faa files); like the real CiDDER 1.3.6 (< 1.3.7), it fails when only
 # --proteomes is given.
@@ -51,6 +52,41 @@ done | LC_ALL=C sort -k1,1 \
             rep[++n] = $1
             print $2
         }' "${FAKE_DATA}/pairwise-ani.tsv" - > "${OUT}/skDER_Results.txt"
+
+if [[ " $* " == *" --determine-clusters "* ]]; then
+    # skDER_Clustering.txt (paths, ANI) or CiDDER_Clustering.txt (names, % of shared protein clusters): the representative
+    # with the highest ANI of the pair table (ties joined with ", "); the fake CiDDER uses that ANI as the percentage
+    if [[ "${PROGRAM}" == "cidder" ]]; then
+        CLUSTER_FILE="${OUT}/CiDDER_Clustering.txt"
+        printf 'genome\tnearest_representative_genome(s)\tmax_containment_of_genome_protein_clusters\tgenome_protein_cluster_count\trepresentative_genome_protein_cluster_count\n' > "${CLUSTER_FILE}"
+    else
+        CLUSTER_FILE="${OUT}/skDER_Clustering.txt"
+        printf 'genome\tnearest_representative_genome\taverage_nucleotide_identity\talignment_fraction\tmatch_category\n' > "${CLUSTER_FILE}"
+    fi
+    for FILE in "${FILES[@]}"; do
+        printf '%s\t%s\n' "$(fake_accession "${FILE}")" "${FILE}"
+    done | LC_ALL=C sort -k1,1 > "${OUT}/.fake-genomes.tsv"
+    awk -F'\t' -v OFS='\t' -v cidder="$([[ "${PROGRAM}" == "cidder" ]] && echo 1 || echo 0)" '
+        FNR == 1 { pass++ }
+        pass == 1 { ani[$1 SUBSEP $2] = $3; ani[$2 SUBSEP $1] = $3; next }
+        pass == 2 { rep_path[$1] = 1; next }
+        pass == 3 { path[$1] = $2; if ($2 in rep_path) { isrep[$1] = 1; reps[++n] = $1 } next }
+        {
+            name = cidder ? $1 : $2
+            if ($1 in isrep) { print name, name, "100.0", (cidder ? "10" : "100.0"), (cidder ? "10" : "representative_to_self"); next }
+            best = -1; list = ""
+            for (i = 1; i <= n; i++) {
+                a = ani[reps[i] SUBSEP $1]
+                if (a == "") continue
+                rep_name = cidder ? reps[i] : path[reps[i]]
+                if (a + 0 > best) { best = a + 0; value = a; list = rep_name }
+                else if (a + 0 == best) list = list ", " rep_name
+            }
+            if (list == "") print name, "NA", "0.0", "0.0", "outside_cutoffs_requested"
+            else print name, list, value, (cidder ? "10" : "100.0"), (cidder ? "10" : "within_cutoffs_requested")
+        }' "${FAKE_DATA}/pairwise-ani.tsv" "${OUT}/skDER_Results.txt" "${OUT}/.fake-genomes.tsv" "${OUT}/.fake-genomes.tsv" >> "${CLUSTER_FILE}"
+    rm -f "${OUT}/.fake-genomes.tsv"
+fi
 
 while IFS= read -r FILE; do
     if [[ " $* " == *" --symlink "* ]]; then

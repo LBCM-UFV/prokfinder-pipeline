@@ -351,9 +351,9 @@ Usa os genomas do último `search-genomes` da mesma pasta de resultados (`-o`). 
 | | `--max-contamination <%>` | 5 | contaminação máxima (CheckM2) |
 | | `--skip-busco` | desligado | não roda o BUSCO |
 | Taxonomia | `--use-gtdbtk-tree` | desligado | posiciona na árvore do GTDB os genomas que não estão nas tabelas nem foram classificados por ANI (**precisa de > 200 GB de RAM**: fila `high_mem`) |
-| Desreplicação | `--derep-method <m>` | `skder` | `skder` (ANI) ou `cidder` (agrupamento das proteínas com CD-HIT, parâmetros padrão do CiDDER) |
+| Desreplicação | `--derep-method <m>` | `skder` | `skder` (por identidade genética, ANI) ou `cidder` (por repertório gênico: agrupamento das proteínas com CD-HIT, parâmetros padrão do CiDDER); ver [skDER ou CiDDER?](#skder-ou-cidder) |
 | | `--derep-ani <%>` | 99,5 | só skDER (ignorada, com aviso, com `--derep-method cidder`): identidade (ANI) acima da qual dois genomas do mesmo táxon são redundantes |
-| | `--derep-mode <modo>` | `greedy` | só skDER (ignorada, com aviso, com `cidder`): `greedy` ou `dynamic` (fração alinhada fixa em 90 %) |
+| | `--derep-mode <modo>` | `greedy` | só skDER (ignorada, com aviso, com `cidder`): `greedy` ou `dynamic` (fração alinhada fixa em 90 %); o `dynamic` deixa **menos** representantes (aproxima um representante por grupo de genomas parecidos), mas demora mais |
 | | `--filter-mge` | desligado | mascara os elementos genéticos móveis (profagos e plasmídeos, previstos com o PhiSpy) antes de comparar os genomas |
 | Exportação | `--export-all-hq` | desligado | exporta para `GENOME-DATABASE` todos os genomas aprovados na qualidade, não só os representantes |
 | Re-execução | `--force-curation` | | descarta os genomas limpos, os genes preditos e todos os resultados de qualidade, taxonomia e desreplicação (os genomas baixados são mantidos) |
@@ -405,8 +405,33 @@ a hierarquia e a desreplicação:
     search-genomes --gtdb-taxon g__Thermus download-wf --use-gtdbtk-tree
 ```
 
+### skDER ou CiDDER?
+
+O skDER é mais indicado quando a pergunta envolve propriedades do genoma como um todo ou a relação entre linhagens
+(tamanho, GC, filogenia, genoma core, estrutura populacional), por selecionar representantes com base na identidade de
+sequência, sem favorecer genomas por seu conteúdo gênico. O CiDDER é mais indicado quando o objetivo é amostrar a
+amplitude do repertório gênico de um táxon (genes acessórios, famílias gênicas associadas a linhagens ou habitats) com o
+menor número de genomas, mas não para estimar frequências gênicas ou a estrutura do pangenoma, pois sua seleção favorece
+genomas com genes raros.
+
+O corte padrão do skDER (99,5 % de ANI, com 90 % de fração alinhada) só considera redundantes genomas **quase
+idênticos**: de propósito, vários genomas da mesma espécie podem ficar, o que preserva a diversidade entre linhagens. Para
+ter menos representantes, use `--derep-mode dynamic` (mais lento) ou baixe o `--derep-ani` (por exemplo, 95 é o limite
+usual de espécie).
+
+**Representante mais próximo.** Os dois programas rodam com `--determine-clusters`, que não muda quais genomas são
+representativos, mas diz, para cada genoma, qual é o representativo mais próximo. As colunas `NEAREST_REPRESENTATIVE` (o
+acesso; o próprio genoma se ele for representativo ou o único da folha; vários separados por `;` em caso de empate) e
+`NEAREST_REPRESENTATIVE_SIMILARITY` (skDER: ANI em %; CiDDER: % dos grupos de proteínas do genoma que existem no
+representativo; 100 para os representativos) entram em `genome-metadata.tsv`. O status do GTDB do genoma
+(`GTDB_SPECIES_REPRESENTATIVE`, `GTDB_TYPE_MATERIAL`) está nas colunas de taxonomia e **não** muda a escolha dos
+representativos.
+
 **CiDDER e os proteomas.** Com `--derep-method cidder`, o CiDDER lê as proteínas que o Pyrodigal já predisse (os genes
-são preditos uma única vez). Isso exige o **CiDDER 1.3.7 ou mais novo**: o 1.3.6 (a versão do módulo `skder` do cluster)
+são preditos uma única vez), mas só as dos **genes completos**: o CiDDER, quando prediz sozinho, usa o Pyrodigal com `-c`
+(sem genes parciais nas bordas dos contigs), então o Prokfinder roda o Pyrodigal uma segunda vez desse modo e grava
+`GENOME-GENES/COMPLETE-GENES/<ACESSO>.faa` (a coluna `PREDICTED_COMPLETE_GENES` conta esses genes; os `.faa` com
+genes completos e parciais, usados pelo CheckM2, BUSCO e GTDB-Tk, não mudam). Isso exige o **CiDDER 1.3.7 ou mais novo**: o 1.3.6 (a versão do módulo `skder` do cluster)
 falha quando recebe só proteomas. Com um CiDDER mais antigo, o Prokfinder registra **um aviso** no log e entrega os
 genomas ao CiDDER, que então **prediz os genes de novo** (tabela de tradução 11, não os genes do Pyrodigal); o resumo da
 desreplicação mostra `CIDDER_INPUT = genomes`. Com o 1.3.7 ou mais novo, uma falha do CiDDER nas proteínas **não** é
@@ -542,6 +567,7 @@ prokfinder-results/
         ├── high-quality-selected-genomes-metadata.txt
         ├── versions.tsv                               # programas e bancos desta execução (COMPONENT, TYPE, VERSION, SOURCE)
         ├── parameters.tsv                             # linha de comando, consulta e valor efetivo de cada opção (PARAMETER, VALUE)
+        ├── genomes-left-out.tsv                       # genomas fora da lista final por falha (NOT_CLASSIFIED, NOT_DEREPLICATED) e o que fazer
         └── STATISTICS/
             ├── TABLES/   # funil de seleção, QC, genomas por táxon, tabela de todos os procariotos
             └── GRAPHS/   # gráficos (R)

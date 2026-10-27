@@ -34,11 +34,12 @@ modules/                    one script per step; each one runs alone too (-h sho
   download-selected-genomes-from-db.sh           2  datasets rehydrate
   filter-low-quality-contigs-from-genomes.sh     3  seqkit
   evaluate-genome-structure-seqkit.sh            4  contigs, N50, N bases
-  predict-genes-pyrodigal.sh (+ .py)             5  genes predicted once, used by every later step
+  predict-genes-pyrodigal.sh (+ .py)             5  genes predicted once, used by every later step (--complete-genes: also
+                                                    COMPLETE-GENES/*.faa, closed ends, for CiDDER)
   evaluate-genome-completeness.sh                6  CheckM2 --genes (filter) + BUSCO proteins (reported)
   assign-taxonomy-gtdb.sh                        7  GTDB table -> GTDB-Tk ani_rep -> tree (--use-gtdbtk-tree)
   build-taxonomic-dir-hierarchy.sh               8  Domain/.../Species folders (lists of paths)
-  dereplicate-genomes.sh                         9  skDER or CiDDER inside each leaf
+  dereplicate-genomes.sh                         9  skDER or CiDDER inside each leaf (--determine-clusters: nearest representative)
   summarize-final-results.sh (+ plot-statistics.R) 10 tables and graphs
   export-genome-database.sh                      11 GENOME-DATABASE: genomes, proteins, genes, metadata, MD5 (hard links)
   submit-prokfinder-pbs.sh                       run-on-cluster

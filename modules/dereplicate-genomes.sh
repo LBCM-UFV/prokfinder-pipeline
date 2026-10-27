@@ -9,11 +9,17 @@
 #   skder  (default) ANI between the genomes (skani): genomes above the ANI cutoff (99.5% by default) with an aligned
 #          fraction of 90% are redundant; --mode greedy (default) or dynamic
 #   cidder protein clustering (CD-HIT) of the proteins predicted by Pyrodigal (-a): representatives are added until
-#          they sample the pangenome of the taxon (CiDDER defaults). CiDDER < 1.3.7 cannot read proteomes (it fails
-#          without genome files): then a warning is logged and the genomes are given instead, so CiDDER predicts
-#          their genes again itself (CIDDER_INPUT = genomes in the summary)
+#          they sample the pangenome of the taxon (CiDDER defaults). CiDDER receives the proteins of the complete
+#          genes (<genes_dir>/COMPLETE-GENES/, predicted with closed ends as CiDDER does itself) when they exist.
+#          CiDDER < 1.3.7 cannot read proteomes (it fails without genome files): then a warning is logged and the
+#          genomes are given instead, so CiDDER predicts their genes again itself (CIDDER_INPUT = genomes in the summary)
+# skDER selects representatives by genetic identity (genome-wide properties, relationships between lineages); CiDDER by
+# gene repertoire (breadth of the accessory genes of a taxon with few genomes).
 # --filter-mge makes skDER/CiDDER mask the mobile genetic elements (prophages and plasmids, predicted with PhiSpy)
 # before comparing the genomes.
+#
+# Both programs run with --determine-clusters, which assigns every genome to its nearest representative (it does not
+# change which genomes are representatives); the nearest representative and its similarity go to the metadata.
 #
 # All the results go to one folder (-o, OUTPUT/GENOME-DEREPLICATION), not to the leaves of the hierarchy:
 #   dereplication-summary.tsv     one row per lineage: TAXONOMIC_LINEAGE (Domain;...;Species), TAXONOMIC_LEAF_RANK,
@@ -25,6 +31,9 @@
 #   representative-genomes.tsv    ASSEMBLY_ACCESSION  TAXONOMIC_LINEAGE of every representative genome
 #   genome-dereplication.tsv      (or -t) one row per genome: ASSEMBLY_ACCESSION  REPRESENTATIVE_GENOME
 #                                 (yes | no | NOT_DEREPLICATED)  LEAF_GENOME_COUNT  LEAF_REPRESENTATIVE_COUNT
+#                                 NEAREST_REPRESENTATIVE (accession; itself for a representative; ";" if tied)
+#                                 NEAREST_REPRESENTATIVE_SIMILARITY (skDER: ANI %; CiDDER: % of the protein clusters of
+#                                 the genome found in the representative; 100 for a representative)
 #   RUNS/<Domain>/.../<Species>/  raw output of skDER/CiDDER of each lineage (also the cache of the re-execution)
 #
 # Re-execution: the result of a lineage is reused when its list of genomes and the parameters did not change.
@@ -48,8 +57,9 @@ Usage: $(basename "$0") -d <hierarchy_dir> -o <dereplication_dir> [-t <table>] [
   -t <file>           Per-genome result table (default: <dereplication_dir>/genome-dereplication.tsv)
   -p <n>              CPUs (default: 4)
   --memory <GB>       Maximum RAM of skDER/CiDDER (default: no limit)
-  --method <method>   skder (default; ANI) or cidder (protein clustering of the predicted proteins)
-  -a <dir>            Folder with the predicted proteins, <ACCESSION>.faa (used by cidder)
+  --method <method>   skder (default; genetic identity, ANI) or cidder (gene repertoire, protein clusters)
+  -a <dir>            Folder with the predicted proteins, <ACCESSION>.faa (used by cidder; the proteins of the complete
+                      genes in <dir>/COMPLETE-GENES/ are used when they exist)
   --mode <mode>       skDER dereplication mode: greedy (default) or dynamic
   --ani <pct>         skDER ANI (% identity) cutoff: genomes above it are redundant (default: 99.5)
   --filter-mge        Mask mobile genetic elements (PhiSpy) before comparing the genomes
@@ -125,6 +135,25 @@ leaf_relative_path() {
     echo "${REL#"${HIERARCHY_DIR}"/}"
 }
 
+# Proteins given to CiDDER for one genome: those of the complete genes when they exist, else the first-pass proteins
+cidder_proteome_of() {
+    if [[ -s "${GENES_DIR}/COMPLETE-GENES/${1}.faa" ]]; then
+        echo "${GENES_DIR}/COMPLETE-GENES/${1}.faa"
+    else
+        echo "${GENES_DIR}/${1}.faa"
+    fi
+}
+
+# complete-genes when every genome of the leaf has the proteins of the complete genes, else all-genes
+# Usage: leaf_proteins_kind <leaf_dir>
+leaf_proteins_kind() {
+    local ACC
+    while IFS=$'\t' read -r ACC _; do
+        [[ -s "${GENES_DIR}/COMPLETE-GENES/${ACC}.faa" ]] || { echo "all-genes"; return 0; }
+    done < "${1}/${LIST_NAME}"
+    echo "complete-genes"
+}
+
 # Runs CiDDER on the predicted proteins of the genomes of a leaf (CIDDER_PROTEOMES = yes: CiDDER >= 1.3.7, which reads
 # proteomes; a failure is an error) or on the genome files (CIDDER_PROTEOMES = no: CiDDER < 1.3.7, which predicts the
 # genes itself; unknown = the proteins first and, if CiDDER refuses them, the genomes). The input used is written to
@@ -137,11 +166,11 @@ run_cidder() {
     shift 3
     if [[ "${CIDDER_PROTEOMES}" != "no" ]]; then
         while IFS=$'\t' read -r ACC _; do
-            PROTEOMES+=("${GENES_DIR}/${ACC}.faa")
+            PROTEOMES+=("$(cidder_proteome_of "${ACC}")")
         done < "${LEAF}/${LIST_NAME}"
         # shellcheck disable=SC2086
         if cidder --proteomes "${PROTEOMES[@]}" --output-directory "${RUN_DIR}/CIDDER-RESULTS" --threads "${THREADS}" \
-                --max-memory "${MEMORY_GB}" --symlink ${SKDER_EXTRA_ARGS} < /dev/null > "${RUN_DIR}/cidder-console.log" 2>&1; then
+                --max-memory "${MEMORY_GB}" --symlink --determine-clusters ${SKDER_EXTRA_ARGS} < /dev/null > "${RUN_DIR}/cidder-console.log" 2>&1; then
             echo "proteomes" > "${RUN_DIR}/.cidder-input"
             return 0
         fi
@@ -166,7 +195,7 @@ run_cidder() {
     done
     # shellcheck disable=SC2086
     cidder --genomes "${INPUTS[@]}" --output-directory "${RUN_DIR}/CIDDER-RESULTS" --threads "${THREADS}" \
-        --max-memory "${MEMORY_GB}" --symlink ${SKDER_EXTRA_ARGS} < /dev/null >> "${RUN_DIR}/cidder-console.log" 2>&1 || STATUS=$?
+        --max-memory "${MEMORY_GB}" --symlink --determine-clusters ${SKDER_EXTRA_ARGS} < /dev/null >> "${RUN_DIR}/cidder-console.log" 2>&1 || STATUS=$?
     rm -rf "${RUN_DIR}/cidder-genomes"
     return "${STATUS}"
 }
@@ -177,7 +206,8 @@ run_cidder() {
 dereplicate_leaf() {
     local THREADS="$1" LEAF="$2"
     local RUN_DIR
-    local PARAMS="method=${DEREP_METHOD} extra=${SKDER_EXTRA_ARGS}"
+    local PARAMS="method=${DEREP_METHOD} extra=${SKDER_EXTRA_ARGS} clusters=yes"
+    local CLUSTER_FILE
     local INPUT_LIST REPS_DIR RESULTS_DIR STATUS
     local -a GENOMES
 
@@ -187,7 +217,7 @@ dereplicate_leaf() {
         RESULTS_DIR="${RUN_DIR}/SKDER-RESULTS"
     else
         # (the input of CiDDER depends on its version: a run made with genome files is not reused by a CiDDER that reads proteomes)
-        PARAMS="${PARAMS} proteomes=${CIDDER_PROTEOMES}"
+        PARAMS="${PARAMS} proteomes=${CIDDER_PROTEOMES} proteins=$(leaf_proteins_kind "${LEAF}")"
         RESULTS_DIR="${RUN_DIR}/CIDDER-RESULTS"
     fi
     INPUT_LIST="$(cut -f2 "${LEAF}/${LIST_NAME}" | LC_ALL=C sort)"
@@ -213,6 +243,7 @@ dereplicate_leaf() {
               --threads "${THREADS}" \
               --max-memory "${MEMORY_GB}" \
               --symlink \
+              --determine-clusters \
               ${SKDER_EXTRA_ARGS} < /dev/null > "${RUN_DIR}/skder-console.log" 2>&1 || STATUS=$?
     else
         run_cidder "${THREADS}" "${LEAF}" "${RUN_DIR}" "${GENOMES[@]}" || STATUS=$?
@@ -233,6 +264,28 @@ dereplicate_leaf() {
         touch "${RUN_DIR}/FAILED"
         log "warning" "${DEREP_METHOD} wrote no representative genome for $(leaf_relative_path "${LEAF}"); its genomes are marked NOT_DEREPLICATED."
         return 0
+    fi
+
+    # Nearest representative of every genome (--determine-clusters): <accession> <nearest accession(s), ";"> <similarity>
+    if [[ "${DEREP_METHOD}" == "skder" ]]; then CLUSTER_FILE="${RESULTS_DIR}/skDER_Clustering.txt"; else CLUSTER_FILE="${RESULTS_DIR}/CiDDER_Clustering.txt"; fi
+    # (the representatives are already known: a missing clustering file only leaves the nearest representative NULL)
+    : > "${RUN_DIR}/nearest-representatives.tsv"
+    if [[ ! -s "${CLUSTER_FILE}" ]]; then
+        log "warning" "${DEREP_METHOD} wrote no clustering file (${CLUSTER_FILE}) for $(leaf_relative_path "${LEAF}"); the nearest representative of its genomes is NULL."
+    else
+    awk -F'\t' -v OFS='\t' '
+        function accessions(text,   n, parts, i, out) {
+            out = ""; n = split(text, parts, ", ")
+            for (i = 1; i <= n; i++) if (match(parts[i], /GC[AF]_[0-9]+[.][0-9]+/)) out = out (out == "" ? "" : ";") substr(parts[i], RSTART, RLENGTH)
+            return out
+        }
+        FNR > 1 {
+            genome = accessions($1); nearest = accessions($2); sim = $3
+            sub(/,.*/, "", sim)
+            if (genome == "") next
+            if (nearest == "" || sim !~ /^[0-9]+([.][0-9]+)?$/) { nearest = "NULL"; sim = "NULL" }
+            print genome, nearest, sim
+        }' "${CLUSTER_FILE}" > "${RUN_DIR}/nearest-representatives.tsv"
     fi
     printf '%s\n' "${INPUT_LIST}" > "${RUN_DIR}/.input-genomes.txt"
     printf '%s\n' "${PARAMS}" > "${RUN_DIR}/.parameters.txt"
@@ -310,16 +363,23 @@ fi
 
 # Per genome (also added to genome-metadata.tsv) and list of representatives
 {
-    printf 'ASSEMBLY_ACCESSION\tREPRESENTATIVE_GENOME\tLEAF_GENOME_COUNT\tLEAF_REPRESENTATIVE_COUNT\n'
+    printf 'ASSEMBLY_ACCESSION\tREPRESENTATIVE_GENOME\tLEAF_GENOME_COUNT\tLEAF_REPRESENTATIVE_COUNT\t'
+    printf 'NEAREST_REPRESENTATIVE\tNEAREST_REPRESENTATIVE_SIMILARITY\n'
     tail -n +2 "${LEAF_TABLE}" | while IFS=$'\t' read -r LEAF _ COUNT; do
-        LINEAGE="$(leaf_relative_path "${LEAF}")"
-        LINEAGE="${LINEAGE//\//;}"
+        REL="$(leaf_relative_path "${LEAF}")"
+        LINEAGE="${REL//\//;}"
+        NEAREST_FILE="${RUNS_DIR}/${REL}/nearest-representatives.tsv"
+        [[ -f "${NEAREST_FILE}" ]] || NEAREST_FILE="/dev/null"
+        # three files: the summary, the nearest representatives of the leaf (none for a single genome or a failure)
+        # and the genomes of the leaf
         awk -F'\t' -v OFS='\t' -v lineage="${LINEAGE}" -v n="${COUNT}" '
-            NR == FNR { if ($1 == lineage) { st = $12; nr = $4; m = split($5, r, ";"); for (i = 1; i <= m; i++) rep[r[i]] = 1 } next }
+            FILENAME == ARGV[1] { if ($1 == lineage) { st = $12; nr = $4; m = split($5, r, ";"); for (i = 1; i <= m; i++) rep[r[i]] = 1 } next }
+            FILENAME == ARGV[2] { near[$1] = $2; sim[$1] = $3; next }
             {
-                if (st == "FAILED") print $1, "NOT_DEREPLICATED", n, "NULL"
-                else print $1, (($1 in rep) ? "yes" : "no"), n, nr
-            }' "${SUMMARY_TABLE}" "${LEAF}/${LIST_NAME}"
+                if (st == "FAILED") print $1, "NOT_DEREPLICATED", n, "NULL", "NULL", "NULL"
+                else if ($1 in rep) print $1, "yes", n, nr, $1, "100"
+                else print $1, "no", n, nr, (($1 in near) ? near[$1] : "NULL"), (($1 in near) ? sim[$1] : "NULL")
+            }' "${SUMMARY_TABLE}" "${NEAREST_FILE}" "${LEAF}/${LIST_NAME}"
     done | LC_ALL=C sort -t $'\t' -k1,1
 } > "${TABLE}"
 

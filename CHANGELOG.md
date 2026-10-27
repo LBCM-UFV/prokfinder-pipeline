@@ -14,7 +14,11 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - `-o, --results-dir` is now `-o, --output-dir`. Without `-o`, a new `search-genomes` in an existing
   `./prokfinder-results` asks for confirmation before running there (also with `run-on-cluster`, before the job).
 - `download-wf` keeps the genomes compressed (`.fna.gz`) by default; `--decompress` replaces `-z, --gzip`.
-- `download-wf --derep-ani` and `--derep-mode` are ignored with a warning when `--derep-method cidder` is used.
+- `download-wf --derep-ani` and `--derep-mode` are ignored with a warning when `--derep-method cidder` is used (the
+  warning was printed twice).
+- `--derep-method cidder` reads the proteins of the complete genes only (`GENOME-GENES/COMPLETE-GENES/`, Pyrodigal with
+  closed ends, as CiDDER does when it predicts the genes itself); the dereplication of the lineages already run is
+  redone once. The help and the README explain when to use skDER (genetic identity) and CiDDER (gene repertoire).
 
 ### Fixed
 - `download-wf --derep-method cidder` with CiDDER < 1.3.7 (genome files given with `--genomes`): CiDDER skips gzipped
@@ -26,6 +30,13 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - `search-genomes -c/--country` and `-C/--country-file`.
 
 ### Added
+- `download-wf` runs skDER and CiDDER with `--determine-clusters` (the representatives do not change) and adds the
+  columns `NEAREST_REPRESENTATIVE` and `NEAREST_REPRESENTATIVE_SIMILARITY` (skDER: ANI; CiDDER: % of shared protein
+  clusters) to `genome-metadata.tsv`; the GTDB status of the genome stays in the taxonomy columns and does not change
+  the choice of the representatives.
+- `predict-genes-pyrodigal.sh --complete-genes` and the column `PREDICTED_COMPLETE_GENES` (see above).
+- `FINAL-RESULTS/genomes-left-out.tsv`: the genomes without GTDB taxonomy (`NOT_CLASSIFIED`) or whose taxon failed in
+  the dereplication (`NOT_DEREPLICATED`), with what to do; the summary also warns about them.
 - `search-genomes` filters `--genome-size <min:max>` (Mb), `--assembly-level` (contig, scaffold, chromosome,
   complete) and, by NCBI taxonomy, `-t/--taxid`, `-f/--taxid-file`, `--ncbi-taxon` and `-N/--ncbi-taxon-file` (names
   converted to TaxIDs with taxonkit; a name without TaxID is an invalid filter).

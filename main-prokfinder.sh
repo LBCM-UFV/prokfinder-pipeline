@@ -198,9 +198,11 @@ EOF
                                    the same output directory: only the genomes not classified yet are placed
 EOF
     pf_help_box "Dereplication (inside each taxon)" << EOF
-  --derep-method <method>          skder (default; ANI) or cidder (clustering of the predicted proteins)
+  --derep-method <method>          skder (default): by genetic identity (ANI), for genome-wide properties and
+                                   relationships between lineages; cidder: by gene repertoire (protein clusters of
+                                   the complete genes), to sample the accessory genes of a taxon with few genomes
   --derep-ani <pct>                skDER only: ANI above which two genomes are redundant (default: 99.5)
-  --derep-mode <mode>              skDER only: greedy (default) or dynamic
+  --derep-mode <mode>              skDER only: greedy (default) or dynamic (fewer representatives, but slower)
   --filter-mge                     Mask the mobile genetic elements (PhiSpy) before comparing the genomes
 EOF
     pf_help_box "Export (OUTPUT/GENOME-DATABASE: genomes, proteins, genes, metadata, MD5)" << EOF
@@ -925,9 +927,6 @@ if [[ -n "${RUN[download-wf]:-}" ]]; then
     [[ "${DEREP_METHOD}" == "skder" || "${DEREP_METHOD}" == "cidder" ]] \
         || cli_error "Invalid --derep-method '${DEREP_METHOD}'. Must be skder or cidder." download-wf
     if [[ "${DEREP_METHOD}" == "cidder" && "${#DEREP_SKDER_FLAGS_GIVEN[@]}" -gt 0 ]]; then
-        log "warning" "${DEREP_SKDER_FLAGS_GIVEN[*]} ignored: they are options of skDER and --derep-method is cidder."
-    fi
-    if [[ "${DEREP_METHOD}" == "cidder" && "${#DEREP_SKDER_FLAGS_GIVEN[@]}" -gt 0 ]]; then
         log "warning" "${DEREP_SKDER_FLAGS_GIVEN[*]} ignored: they are options of skDER, and --derep-method is cidder."
     fi
     if [[ ! "${DEREP_ANI}" =~ ^[0-9]+([.][0-9]+)?$ ]] || ! awk -v v="${DEREP_ANI}" 'BEGIN { exit !(v + 0 > 0 && v + 0 <= 100) }'; then
@@ -1631,8 +1630,10 @@ accessions_where "${STRUCTURE_LIST}" '$STRUCTURE_STATUS == "PASSED"' STRUCTURE_S
 # Step 5: gene prediction (Pyrodigal), used by CheckM2, BUSCO, GTDB-Tk and CiDDER
 GENES_LIST="${WORK_DIR}/genes_predicted.txt"
 if [[ -s "${STRUCTURE_LIST}" ]]; then
+    COMPLETE_GENES_FLAG=()
+    [[ "${DEREP_METHOD}" != "cidder" ]] || COMPLETE_GENES_FLAG=(--complete-genes)
     run_module predict-genes-pyrodigal.sh -l "${STRUCTURE_LIST}" -i "${CLEAN_DIR}" -o "${GENES_DIR}" \
-        -t "${GENES_DIR}/gene-prediction.tsv" -p "${THREADS}"
+        -t "${GENES_DIR}/gene-prediction.tsv" -p "${THREADS}" ${COMPLETE_GENES_FLAG[@]+"${COMPLETE_GENES_FLAG[@]}"}
     add_metadata_columns "${METADATA}" "${GENES_DIR}/gene-prediction.tsv"
     accessions_where "${GENES_LIST}" '$GENE_PREDICTION_STATUS == "PREDICTED"' GENE_PREDICTION_STATUS
 else

@@ -322,6 +322,67 @@ assert_value() {
     assert_value "$(metadata results)" "${HB27}" REPRESENTATIVE_GENOME yes
     assert_value "$(metadata results)" "${HB8}" REPRESENTATIVE_GENOME no
     assert_value "$(metadata results)" "${HB8}" LEAF_REPRESENTATIVE_COUNT 1
+    # --determine-clusters: HB8 is now assigned to HB27 (ANI 98.66); a representative is its own nearest one
+    assert_value "$(metadata results)" "${HB8}" NEAREST_REPRESENTATIVE "${HB27}"
+    assert_value "$(metadata results)" "${HB8}" NEAREST_REPRESENTATIVE_SIMILARITY 98.66
+    assert_value "$(metadata results)" "${HB27}" NEAREST_REPRESENTATIVE "${HB27}"
+    assert_value "$(metadata results)" "${HB27}" NEAREST_REPRESENTATIVE_SIMILARITY 100
+}
+
+@test "skDER and CiDDER run with --determine-clusters: every genome has its nearest representative" {
+    # (the log of the run of setup_file is BATS_FILE_TMPDIR/fake-calls.log)
+    run count_calls '^skder --genomes .*--determine-clusters' "${BATS_FILE_TMPDIR}/fake-calls.log"
+    assert_output_equals "1"
+    assert_value "$(metadata "${BASE}")" "${HB8}" NEAREST_REPRESENTATIVE "${HB8}"
+    assert_value "$(metadata "${BASE}")" "${HB8}" NEAREST_REPRESENTATIVE_SIMILARITY 100
+    assert_value "$(metadata "${BASE}")" "${HB27}" NEAREST_REPRESENTATIVE "${HB27}"
+    # a genome that left the pipeline before the dereplication has none
+    assert_value "$(metadata "${BASE}")" "${FRAGMENTED}" NEAREST_REPRESENTATIVE NULL
+    # (the GTDB status of HB8 does not decide anything: both genomes stay)
+    assert_value "$(metadata "${BASE}")" "${HB8}" GTDB_TYPE_MATERIAL "type strain of species"
+}
+
+@test "the proteins of the complete genes are predicted only for CiDDER, and the first-pass proteins are not rewritten" {
+    assert_file_not_exists "${BASE}/OUTPUT/GENOME-GENES/COMPLETE-GENES"
+    assert_value "$(metadata "${BASE}")" "${HB8}" PREDICTED_COMPLETE_GENES NULL
+    run_wf results
+    local FIRST_PASS="results/OUTPUT/GENOME-GENES/${HB8}.faa"
+    local BEFORE
+    BEFORE="$(stat -c %y "${FIRST_PASS}")"
+    run run_wf results --derep-method cidder
+    assert_success
+    assert_output_contains "Complete genes (closed ends, as CiDDER predicts)"
+    [[ "$(stat -c %y "${FIRST_PASS}")" == "${BEFORE}" ]]
+    local COMPLETE="results/OUTPUT/GENOME-GENES/COMPLETE-GENES"
+    assert_file_exists "${COMPLETE}/${HB8}.faa"
+    # no gene runs off a contig edge
+    run grep -hE 'partial=(01|10|11)' "${COMPLETE}/${HB8}.faa" "${COMPLETE}/${HB27}.faa"
+    assert_failure
+    local ALL COMPLETE_ONLY
+    ALL="$(awk '/^>/ { n++ } END { print n + 0 }' "${FIRST_PASS}")"
+    COMPLETE_ONLY="$(awk '/^>/ { n++ } END { print n + 0 }' "${COMPLETE}/${HB8}.faa")"
+    [[ "${COMPLETE_ONLY}" -gt 0 && "${COMPLETE_ONLY}" -le "${ALL}" ]]
+    assert_value "$(metadata results)" "${HB8}" PREDICTED_COMPLETE_GENES "${COMPLETE_ONLY}"
+    # the same command again predicts nothing
+    run run_wf results --derep-method cidder
+    assert_success
+    assert_output_contains "Complete genes (closed ends, as CiDDER predicts): 0 genome(s) to predict"
+}
+
+@test "the summary lists the genomes left out by a failure: NOT_DEREPLICATED and NOT_CLASSIFIED" {
+    run awk 'END { print NR }' "${BASE}/OUTPUT/FINAL-RESULTS/genomes-left-out.tsv"
+    assert_output_equals "1"
+    awk -F'\t' -v OFS='\t' -v a="${NOT_IN_GTDB}" '$1 == a { $6 = "False" } { print }' \
+        "${PF_TESTS}/data/fake-programs/gtdbtk-ani-closest.tsv" > ani-closest.tsv
+    PF_FAKE_ANI_CLOSEST="${BATS_TEST_TMPDIR}/ani-closest.tsv" PF_FAKE_FAIL="skder" run run_wf results
+    assert_success
+    assert_output_contains "could not be dereplicated (NOT_DEREPLICATED) and are not in the final list"
+    assert_output_contains "have no GTDB taxonomy (NOT_CLASSIFIED) and are not in the final list"
+    local LEFT_OUT="results/OUTPUT/FINAL-RESULTS/genomes-left-out.tsv"
+    run awk -F'\t' -v a="${HB8}" '$1 == a { print $2 }' "${LEFT_OUT}"
+    assert_output_equals "NOT_DEREPLICATED"
+    run awk -F'\t' -v a="${NOT_IN_GTDB}" '$1 == a { print $2 }' "${LEFT_OUT}"
+    assert_output_equals "NOT_CLASSIFIED"
 }
 
 @test "re-execution: new quality thresholds are applied without running CheckM2 again" {
@@ -468,10 +529,12 @@ assert_value() {
     assert_success
     refute_output_contains "cannot read proteomes"
     refute_output_contains "could not use the predicted proteins"
-    run count_calls '^cidder --proteomes .*GENOME-GENES/GCA_000008125.1.faa'
+    # the proteins of the complete genes (closed ends, as CiDDER predicts them itself), and the nearest representatives
+    run count_calls '^cidder --proteomes .*GENOME-GENES/COMPLETE-GENES/GCA_000008125.1.faa .*--determine-clusters'
     assert_output_equals "1"
     run count_calls '^cidder --genomes'
     assert_output_equals "0"
+    assert_value "$(metadata results)" "${HB8}" NEAREST_REPRESENTATIVE "${HB8}"
     local S="results/OUTPUT/GENOME-DEREPLICATION/dereplication-summary.tsv"
     run awk -F'\t' '$12 == "DEREPLICATED" { print $6, $9 }' "${S}"
     assert_output_equals "cidder proteomes"
