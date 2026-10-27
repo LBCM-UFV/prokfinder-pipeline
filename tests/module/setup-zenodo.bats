@@ -26,7 +26,7 @@ setup_file() {
     export PF_FAKE_LOG="${BATS_FILE_TMPDIR}/calls.log"
 
     cd "${BATS_FILE_TMPDIR}" || return 1
-    PATH="${PF_TESTS}/bin:${PATH}" bash "${PF_MAIN}" --refdb-dir refdb -o results setup --refdb-registry "${REGISTRY}" \
+    PATH="${PF_TESTS}/bin:${PATH}" bash "$(pf_main_with_registry "${REGISTRY}")" --refdb-dir refdb -o results setup \
         > setup.log 2>&1
     echo "$?" > setup.status
 }
@@ -69,8 +69,7 @@ setup() {
 
 @test "setup again downloads nothing" {
     : > "${PF_FAKE_LOG}"
-    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir "${REFDB}" -o results setup \
-        --refdb-registry "${REGISTRY}"
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "$(pf_main_with_registry "${REGISTRY}")" --refdb-dir "${REFDB}" -o results setup
     assert_success
     assert_output_contains "NCBI reference data already installed"
     [[ "$(grep -c '^curl' "${PF_FAKE_LOG}" || true)" -eq 0 ]]
@@ -95,8 +94,7 @@ setup() {
     cp "${PF_FAKE_PACKAGES}/${FILE}" "${PF_FAKE_PACKAGES}/newer-${FILE}"
     sed "s/\t${FILE}\t/\tnewer-${FILE}\t/" "${REGISTRY}" > newer-registry.tsv
     : > "${PF_FAKE_LOG}"
-    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir new-refdb -o results setup \
-        --refdb-registry newer-registry.tsv
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "$(pf_main_with_registry newer-registry.tsv)" --refdb-dir new-refdb -o results setup
     assert_success
     assert_output_contains "has a newer Zenodo package of GTDB: it replaces the installed one."
     assert_output_contains "NCBI reference data already installed"
@@ -113,8 +111,7 @@ setup() {
     mkdir -p resume-refdb/.zenodo-download
     head -c 1000 "${PF_FAKE_PACKAGES}/${FILE}" > "resume-refdb/.zenodo-download/${FILE}"
     : > "${PF_FAKE_LOG}"
-    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir resume-refdb -o results setup \
-        --refdb-registry "${REGISTRY}"
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "$(pf_main_with_registry "${REGISTRY}")" --refdb-dir resume-refdb -o results setup
     assert_success
     assert_output_contains "NCBI: resuming the download of ${FILE}"
     run grep -c '^curl .*-C - ' "${PF_FAKE_LOG}"
@@ -130,15 +127,14 @@ setup() {
     mkdir -p stale-refdb/.zenodo-download
     head -c 1000 /dev/urandom > "stale-refdb/.zenodo-download/${FILE}"
     : > "${PF_FAKE_LOG}"
-    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir stale-refdb -o results setup \
-        --refdb-registry "${REGISTRY}"
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "$(pf_main_with_registry "${REGISTRY}")" --refdb-dir stale-refdb -o results setup
     assert_success
     assert_output_contains "NCBI: the partial file ${FILE} could not be completed; downloading it again from the start."
     [[ "$(grep -c '^curl' "${PF_FAKE_LOG}")" -eq 2 ]]
     assert_same_file "${PF_FIXTURE_REFDB}/NCBI/NULL-VALUES-NCBI.tsv" stale-refdb/NCBI/NULL-VALUES-NCBI.tsv
 }
 
-@test "setup --from-source --yes over Zenodo databases is a full update that keeps the current databases until it ends" {
+@test "setup --from-source (confirmed) over Zenodo databases is a full update that keeps the current databases until it ends" {
     local P
     for P in dataformat taxonkit jq gawk unzip; do
         command -v "${P}" >/dev/null 2>&1 || skip "${P} not installed"
@@ -147,11 +143,12 @@ setup() {
     cp full-refdb/NCBI/COMPLETED-DOWNLOAD.txt ncbi-marker.txt
     : > "${PF_FAKE_LOG}"
     # (the fake curl and datasets serve nothing from the sources: the download of NCBI fails)
-    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir full-refdb -o results setup \
-        --from-source --yes
+    # (inside a PBS job there is no terminal: run-on-cluster asked before submitting it)
+    run env PBS_JOBID=1.fake PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir full-refdb -o results setup \
+        --from-source
     assert_failure
     assert_output_contains "is a full update: NCBI BACDIVE GTDB will be downloaded again"
-    assert_output_contains "The full update was confirmed (--yes)."
+    assert_output_contains "The full update was confirmed."
     assert_output_contains "Installing the new NCBI database in the temporary folder"
     [[ -s "${PF_FAKE_LOG}" ]]
     assert_same_file ncbi-marker.txt full-refdb/NCBI/COMPLETED-DOWNLOAD.txt
@@ -162,8 +159,7 @@ setup() {
     cp -r "${REFDB}" old-refdb
     sed -i 's/^format=.*/format=1/' old-refdb/GTDB/COMPLETED-DOWNLOAD.txt
     : > "${PF_FAKE_LOG}"
-    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "${PF_MAIN}" --refdb-dir old-refdb -o results setup \
-        --refdb-registry "${REGISTRY}"
+    run env PATH="${PF_TESTS}/bin:${PATH}" PF_FAKE_LOG="${PF_FAKE_LOG}" bash "$(pf_main_with_registry "${REGISTRY}")" --refdb-dir old-refdb -o results setup
     assert_success
     assert_output_contains "the Zenodo package of the current format replaces them"
     [[ "$(grep -c '^curl' "${PF_FAKE_LOG}")" -eq 1 ]]
@@ -171,7 +167,7 @@ setup() {
 
 @test "a package with a wrong MD5 is refused and removed" {
     sed 's/\t[0-9a-f]\{32\}$/\t00000000000000000000000000000000/' "${REGISTRY}" > bad-registry.tsv
-    run env PATH="${PF_TESTS}/bin:${PATH}" bash "${PF_MAIN}" --refdb-dir bad-refdb -o results setup --refdb-registry bad-registry.tsv
+    run env PATH="${PF_TESTS}/bin:${PATH}" bash "$(pf_main_with_registry bad-registry.tsv)" --refdb-dir bad-refdb -o results setup
     assert_failure
     assert_output_contains "MD5 of refdb-ncbi-format"
     assert_file_not_exists bad-refdb/NCBI/COMPLETED-DOWNLOAD.txt
@@ -180,13 +176,19 @@ setup() {
 
 @test "a registry without a package of the format the code reads says to use --from-source" {
     grep -v $'^PACKAGE\tGTDB' "${REGISTRY}" > partial-registry.tsv
-    run env PATH="${PF_TESTS}/bin:${PATH}" bash "${PF_MAIN}" --refdb-dir partial-refdb -o results setup --refdb-registry partial-registry.tsv
+    run env PATH="${PF_TESTS}/bin:${PATH}" bash "$(pf_main_with_registry partial-registry.tsv)" --refdb-dir partial-refdb -o results setup
     assert_failure
     assert_output_contains "Use setup --from-source"
 }
 
-@test "--ncbi-complete-metadata needs --from-source" {
-    run bash "${PF_MAIN}" --refdb-dir refdb2 -o results setup --ncbi-complete-metadata
+@test "setup has no --yes, --ncbi-complete-metadata or --refdb-registry" {
+    local OPTION
+    for OPTION in --yes --ncbi-complete-metadata; do
+        run bash "${PF_MAIN}" --refdb-dir refdb2 -o results setup "${OPTION}"
+        assert_failure 1
+        assert_output_contains "Unknown option: '${OPTION}'."
+    done
+    run bash "${PF_MAIN}" --refdb-dir refdb2 -o results setup --refdb-registry x.tsv
     assert_failure 1
-    assert_output_contains "--ncbi-complete-metadata is not in the Zenodo packages: add --from-source."
+    assert_output_contains "Unknown option: '--refdb-registry'."
 }

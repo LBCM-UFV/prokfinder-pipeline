@@ -28,6 +28,15 @@ if [[ "${PROGRAM}" == "cidder" && " $* " != *" --genomes "* && "${OLDEST}" != "1
     echo "fake cidder: no genome file given (CiDDER ${CIDDER_VERSION} does not dereplicate proteomes alone)" >&2
     exit 1
 fi
+if [[ "${PROGRAM}" == "cidder" ]]; then
+    # (the real CiDDER skips the gzipped genome files given with --genomes)
+    GZ_FILES="$(fake_option_list --genomes "$@" | awk '/\.gz$/')"
+    if [[ -n "${GZ_FILES}" ]]; then
+        while IFS= read -r FILE; do echo "Warning: genome ${FILE} is gzipped. Skipping ..." >&2; done <<< "${GZ_FILES}"
+        echo "Error: fewer than 2 genomes downloaded / provided. Exiting ..." >&2
+        exit 1
+    fi
+fi
 mapfile -t FILES < <({ fake_option_list --genomes "$@"; fake_option_list --proteomes "$@"; } | awk 'NF')
 [[ "${#FILES[@]}" -gt 0 ]] || { echo "fake ${PROGRAM}: no input genome" >&2; exit 1; }
 mkdir -p "${OUT}/Dereplicated_Representative_Genomes"

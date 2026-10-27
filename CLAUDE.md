@@ -65,6 +65,8 @@ downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values conv
   to `make_temp_dir` (removed on exit).
 - **Never pipe a large output into `head` or `grep -q`** under `pipefail` (SIGPIPE, exit 141): use `awk 'NR <= n'`
   or bash tests.
+- **Help**: written in boxes, one per group of options, with `pf_help_box` (`lib/common.sh`): rows `  <option>  <description>`
+  (ASCII only; `tools/build-catalog.py` reads the rows). A new option goes in the right box of `main-prokfinder.sh`.
 - **Command line**: one flag = one criterion; no environment variables for parameters (only CHECKM2DB,
   GTDBTK_DATA_PATH and NCBI_API_KEY, which configure the programs). Help only with `-h`; a command-line error shows
   only the message and which `-h` to read. Filters must be joined with AND/OR.

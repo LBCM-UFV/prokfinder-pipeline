@@ -78,7 +78,7 @@ def options(main):
             continue
         description, aliases, argument = "", [flag], ""
         for line in help_lines:
-            # "-o, --results-dir <dir>   Output directory ..." -> names and text, separated by 2+ spaces
+            # "-o, --output-dir <dir>   Output directory ..." -> names and text, separated by 2+ spaces
             names, text = (re.split(r"\s{2,}", line, maxsplit=1) + [""])[:2]
             words = [w.strip(",") for w in names.split() if w.startswith("-")]
             if flag in words:

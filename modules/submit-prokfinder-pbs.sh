@@ -183,8 +183,8 @@ for (( i = 0; i < ${#MAIN_ARGS[@]}; i++ )); do
     ARG="${MAIN_ARGS[$i]}"
     NEXT="${MAIN_ARGS[$((i + 1))]:-}"
     case "${ARG}" in
-        -o|--results-dir)    PROKFINDER_DIR="${NEXT}" ;;
-        --results-dir=*)     PROKFINDER_DIR="${ARG#*=}" ;;
+        -o|--output-dir)     PROKFINDER_DIR="${NEXT}" ;;
+        --output-dir=*)      PROKFINDER_DIR="${ARG#*=}" ;;
         -p|--threads)        USER_THREADS="${NEXT}" ;;
         --threads=*)         USER_THREADS="${ARG#*=}" ;;
         --memory)            USER_MEMORY="${NEXT}" ;;

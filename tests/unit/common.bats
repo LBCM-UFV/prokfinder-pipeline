@@ -281,3 +281,25 @@ package=zenodo:1:x.tar.gz
     assert_success
     assert_output_equals $'G/ARCHAEA-GTDB-TAXONOMY/ar53_taxonomy_formatted.tsv\nG/BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv\nN/BACTERIA-NCBI-METADATA/genbank-metadata.tsv'
 }
+
+@test "pf_help_box: title, two columns with the description wrapped, plain text and bullets, every line of the same width" {
+    run pf_eval 'pf_help_box "Options" <<EOF
+  -j, --jobs <n>   Number of jobs, a long description that must be wrapped in more than one line of the box
+  --flag           Short
+                   continued here
+  (a plain note that is also long enough to need wrapping inside the box, with no columns at all)
+  - a bullet that is long enough to wrap, and its second line must be indented under the text of the bullet
+EOF'
+    assert_success
+    assert_output_contains "╭─ Options ─"
+    assert_output_contains "│ -j, --jobs <n>  Number of jobs, a long description that must be"
+    assert_output_contains "│ --flag          Short continued here"
+    assert_output_contains "│ - a bullet that is long enough to wrap"
+    assert_output_contains "│   "
+    [[ "$(printf '%s
+' "${output}" | line_widths)" == "80" ]]
+    [[ "$(printf '%s
+' "${output}" | awk 'NR == 1')" == "╭"* ]]
+    [[ "$(printf '%s
+' "${output}" | awk 'END { print }')" == "╰"* ]]
+}

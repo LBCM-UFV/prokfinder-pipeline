@@ -34,35 +34,38 @@ PROKFINDER_VERSION="0.5.0-dev"
 PROG="$(basename "$0")"
 
 ############ HELP ############
+#   The options are written in the boxes of pf_help_box (lib/common.sh): "  <option>  <description>" rows
+#   (tools/build-catalog.py reads them for catalog.json).
 
 help_global_options() {
-    cat << EOF
-Global options (anywhere in the command line):
-  -o, --results-dir <dir>   Output directory (default: ./prokfinder-results)
-  --refdb-dir <dir>         Reference databases directory (default: \$HOME/prokfinder-refdb)
-  -p, --threads <n>         CPUs used by the programs (default: 4; with run-on-cluster, the CPUs of the job)
-  --memory <ram>            RAM the programs may use: 16gb, 16000mb or the number in GB (default: the RAM of the
-                            computer; with run-on-cluster, the RAM of the job)
+    pf_help_box "Global options (anywhere in the command line)" << EOF
+  -o, --output-dir <dir>   Output directory (default: ./prokfinder-results)
+  --refdb-dir <dir>        Reference databases directory (default: \$HOME/prokfinder-refdb)
+  -p, --threads <n>        CPUs used by the programs (default: 4; with run-on-cluster, the CPUs of the job)
+  --memory <ram>           RAM the programs may use: 16gb, 16000mb or the number in GB (default: the RAM of the
+                           computer; with run-on-cluster, the RAM of the job)
   --check                  Show which dependencies are installed and exit
-  -h, --help                Show the help (of the sub-command, when given after it)
+  -h, --help               Show the help (of the sub-command, when given after it)
 EOF
 }
 
 help_main() {
     cat << EOF
-Prokfinder ${PROKFINDER_VERSION} - selection, download and curation of prokaryote genomes
-
 Usage: ${PROG} <sub-command> [options]
        ${PROG} --check
 
-Sub-commands (several can be given in the same command; they run in this order):
+Prokfinder ${PROKFINDER_VERSION} - selection, download and curation of prokaryote genomes
+
+EOF
+    pf_help_box "Sub-commands (several can be given together; they run in this order)" << EOF
   setup            Installs the reference databases (NCBI, BacDive and GTDB). Run it once, before the others
   search-genomes   Selects the genomes that match the selection filters
   download-wf      Downloads the selected genomes, filters them by quality, assigns the GTDB taxonomy and removes
                    the redundant genomes
   run-on-cluster   Runs the other sub-commands as a job on a cluster (PBS)
-
-$(help_global_options)
+EOF
+    help_global_options
+    cat << EOF
 
 Examples:
   ${PROG} setup
@@ -78,60 +81,54 @@ help_setup() {
     cat << EOF
 Usage: ${PROG} setup [options]
 
-Installs the reference databases (NCBI, BacDive and GTDB) in the reference databases directory. It is made only
-once: the databases are shared by every run. By default it downloads the ready-made tables published on Zenodo
-(refdb-zenodo.tsv; a few minutes); with --from-source it builds them from the NCBI, BacDive and GTDB sources
-(some hours).
+Installs the reference databases (NCBI, BacDive and GTDB) from Zenodo and adds them to the reference
+databases directory.
 
-Run again, setup installs the newer Zenodo packages listed in the registry (the current databases are kept until
-the new ones are complete). Databases built with --from-source are updated only by setup --from-source.
+Zenodo: ${ZENODO_URL}
 
-Options:
-  --from-source              Build the databases from the NCBI, BacDive and GTDB sources instead of downloading the
-                             Zenodo packages. With the databases already installed it is a full update: everything
-                             is downloaded again (some hours), after a confirmation
-  --yes                      Confirm the full update of setup --from-source without asking (needed in scripts and
-                             in jobs written by hand; run-on-cluster asks before submitting the job)
-  --ncbi-complete-metadata   Also write a table with every NCBI metadata field (slow; not used by the search;
-                             needs --from-source)
-  --refdb-registry FILE      List of Zenodo packages to use instead of the one of Prokfinder (refdb-zenodo.tsv)
-
-$(help_global_options)
 EOF
+    pf_help_box "Options" << EOF
+  --from-source   Builds the NCBI, BacDive, and GTDB databases via API using their latest versions (replaces the
+                  default Zenodo packages). Note: This performs a full update and may take several hours.
+EOF
+    help_global_options
 }
 
 help_search() {
     cat << EOF
 Usage: ${PROG} search-genomes <filter> [AND|OR <filter> ...] [options]
 
-Selects, in the NCBI tables, the genomes that match the selection filters and writes
-OUTPUT/GENOME-METADATA/genome-metadata.tsv in the output directory. Invalid values and filters (e.g., a taxon
-name not found) are listed in SEARCH-GENOMES-ERRORS.tsv in the output directory and stop the search, unless
---force-search is given.
+Selects, in the NCBI tables, the genomes that match the selection filters.
 
-How to write the filters:
-  - Each flag below is a filter. Filters are joined with AND or OR:   -T 45:80 AND -c Brazil
-  - Several values of one flag, separated by commas, match ANY value: -c Brazil,Iceland
-  - Values with spaces go between quotes:                             -i "hot spring","hydrothermal vent"
-  - Quoted parentheses group filters:                                 -T 45:80 AND "(" -O rod OR -M anaerobe ")"
-  - Ranges are <min>:<max>; one side may be empty:                    -T 45:80, -T 70:
-  - List files (-A, -I, -C, --gtdb-taxon-file) have one value per line; in a table (TSV), only the first column
-    is read, and a header line is skipped (-A, --gtdb-taxon-file; -I and -C must not have a header)
-
-NCBI filters:
+EOF
+    pf_help_box "How to write the filters" << EOF
+  - Each flag below is a filter. Filters are joined with AND or OR: -T 45:80 AND --genome-size 1:4
+  - Several values of one flag, separated by commas, match ANY value: --assembly-level complete,chromosome
+  - Values with spaces go between quotes: -i "hot spring","hydrothermal vent"
+  - Quoted parentheses group filters: -T 45:80 AND "(" -O rod OR -M anaerobe ")"
+  - Ranges are <min>:<max>; one side may be empty: -T 45:80, -T 70:
+  - List files (-A, -I, -f, -N, --gtdb-taxon-file) have one value per line; in a table (TSV), only the first
+    column is read, and a header line is skipped (-A, -f, -N, --gtdb-taxon-file; -I must not have a header)
+EOF
+    pf_help_box "NCBI filters" << EOF
   -a, --accession <acc>                Accession with version, GCA_ or GCF_ (e.g., GCA_000005845.2)
   -A, --accession-file <file>          List of accessions
+  -t, --taxid <id>                     NCBI TaxID of any rank (e.g., 1239 selects every Bacillota genome)
+  -f, --taxid-file <file>              List of NCBI TaxIDs
+  --ncbi-taxon <name>                  NCBI taxon name, any rank (e.g., Thermus); converted to its TaxID with
+                                       taxonkit
+  -N, --ncbi-taxon-file <file>         List of NCBI taxon names (e.g., Thermus aquaticus)
   -i, --isolation-source <text>        Text or regular expression (extended regex, case-insensitive) found in the
                                        isolation source (e.g., "hot spring", "hot ?springs?", "^soil$")
   -I, --isolation-source-file <file>   List of isolation sources (texts or regular expressions)
-  -c, --country <name>                 Country of the geographic location (e.g., Brazil)
-  -C, --country-file <file>            List of countries
   -g, --genome-type <type>             isolate_genome or mag
   -G, --gc <min:max>                   GC content in % (e.g., 40:65)
-
-BacDive filters (phenotype of the species or strain):
-  -T, --temp-opt <min:max>             Optimal growth temperature in °C (e.g., 45:80)
-  --temp-growth <min:max>              Growth temperature in °C (known for many more species than -T)
+  --genome-size <min:max>              Genome size in Mb (e.g., 1:4)
+  --assembly-level <level>             contig, scaffold, chromosome or complete (complete genome)
+EOF
+    pf_help_box "BacDive filters (phenotype of the species or strain)" << EOF
+  -T, --temp-opt <min:max>             Optimal growth temperature in degrees C (e.g., 45:80)
+  --temp-growth <min:max>              Growth temperature in degrees C (known for many more species than -T)
   -P, --ph-opt <min:max>               Optimal pH (e.g., 5.5:8.5)
   --ph-growth <min:max>                Growth pH
   -S, --salt-opt <min:max>             Optimal NaCl concentration in % (e.g., 0:5)
@@ -144,23 +141,25 @@ BacDive filters (phenotype of the species or strain):
   --energy-source <source>             chemotroph or phototroph
   --electron-donor <donor>             lithotroph or organotroph
   --carbon-source <source>             autotroph or heterotroph
-
-GTDB filters (the taxonomy used by Prokfinder is the GTDB one):
+EOF
+    pf_help_box "GTDB filters (the taxonomy used by Prokfinder is the GTDB one)" << EOF
   --gtdb-taxon <name>                  GTDB taxon name, any rank (e.g., g__Thermus, s__Thermus aquaticus or Thermus)
   --gtdb-taxon-file <file>             List of GTDB taxon names
-
-Options:
+EOF
+    pf_help_box "Options" << EOF
   -s, --assembly-source <src>          NCBI table searched: genbank (default) or refseq
   --force-selection                    Search again, even if the filters did not change
   --force-search                       Ignore the invalid values and filters (with a warning) and search with the
                                        valid ones. Note: a filter left without valid values is removed
-
-$(help_global_options)
+EOF
+    help_global_options
+    cat << EOF
 
 Examples:
-  ${PROG} search-genomes -T 45:80 AND -O rod,coccus AND -g isolate_genome
+  ${PROG} search-genomes -T 45:80 AND -O rod,coccus AND --genome-size 1:4
   ${PROG} search-genomes --gtdb-taxon-file taxa.txt OR "(" --temp-growth 70: AND -i "hot spring","hydrothermal vent" ")"
-  ${PROG} search-genomes --gtdb-taxon g__Thermus AND -c Brazil,Iceland -s refseq
+  ${PROG} search-genomes --gtdb-taxon g__Thermus AND --assembly-level complete,chromosome -s refseq
+  ${PROG} search-genomes --ncbi-taxon Thermus AND --genome-size 2:3.5
 EOF
 }
 
@@ -173,43 +172,45 @@ structure (seqkit), predicts their genes once (Pyrodigal), evaluates their compl
 predicted proteins), assigns the GTDB taxonomy and removes the redundant genomes of each taxon. Writes the final
 genomes, tables and graphs in the output directory (the same one used by search-genomes).
 
-Download:
+EOF
+    pf_help_box "Download" << EOF
   -j, --download-threads <n>       Concurrent genome downloads, 1-30 (default: 10)
-  -z, --gzip                       Keep the genome files compressed (.fna.gz)
-
-Contig filtering:
+  --decompress                     Decompress the genome files (.fna); by default they stay compressed (.fna.gz)
+EOF
+    pf_help_box "Contig filtering" << EOF
   --min-contig-length <bp>         Contigs shorter than this are removed (default: 1000)
-
-Structural evaluation (seqkit):
+EOF
+    pf_help_box "Structural evaluation (seqkit)" << EOF
   --max-contigs <n>                Maximum number of contigs (default: 1000)
   --max-n-bases <n>                Maximum number of ambiguous bases, N (default: 100000)
   --min-n50 <bp>                   Minimum N50 (default: 5000)
-
-Biological evaluation (CheckM2 and BUSCO):
+EOF
+    pf_help_box "Biological evaluation (CheckM2 and BUSCO)" << EOF
   --min-completeness <pct>         Minimum CheckM2 completeness (default: 75)
   --max-contamination <pct>        Maximum CheckM2 contamination (default: 5)
   --skip-busco                     Do not run BUSCO (by default it is reported, not used as a filter)
   (CheckM2 needs about 18 GB of RAM; with less --memory it runs in its low-memory mode, which is slower)
-
-Taxonomy (GTDB tables; then, for the genomes not in them, ANI to the GTDB representative genomes with GTDB-Tk):
+EOF
+    pf_help_box "Taxonomy (GTDB tables, then GTDB-Tk for the other genomes)" << EOF
   --use-gtdbtk-tree                Place in the GTDB tree (GTDB-Tk) the genomes that the ANI did not classify (needs
                                    much more RAM; on the cluster, the high_mem queue). Can be given in a new run with
                                    the same output directory: only the genomes not classified yet are placed
-
-Dereplication (inside each taxon):
+EOF
+    pf_help_box "Dereplication (inside each taxon)" << EOF
   --derep-method <method>          skder (default; ANI) or cidder (clustering of the predicted proteins)
-  --derep-ani <pct>                skDER: ANI above which two genomes are redundant (default: 99.5)
-  --derep-mode <mode>              skDER: greedy (default) or dynamic
+  --derep-ani <pct>                skDER only: ANI above which two genomes are redundant (default: 99.5)
+  --derep-mode <mode>              skDER only: greedy (default) or dynamic
   --filter-mge                     Mask the mobile genetic elements (PhiSpy) before comparing the genomes
-
-Re-running:
+EOF
+    pf_help_box "Re-running" << EOF
   --force-curation                 Redo the curation from the downloaded genomes (by default, finished work is reused)
-
-$(help_global_options)
+EOF
+    help_global_options
+    cat << EOF
 
 Examples:
   ${PROG} download-wf --min-completeness 90 --max-contamination 2
-  ${PROG} search-genomes -T 45:80 AND -O rod download-wf --derep-ani 99 --filter-mge -z
+  ${PROG} search-genomes -T 45:80 AND -O rod download-wf --derep-ani 99 --filter-mge
 EOF
 }
 
@@ -217,25 +218,22 @@ help_cluster() {
     cat << EOF
 Usage: ${PROG} run-on-cluster [options] <sub-commands>
 
-Runs the other sub-commands as a job on a cluster node, with the PBS queue manager. The job script and its log are
-written to PBS-JOBS/ in the output directory; the progress of the run goes to prokfinder.log in the output
-directory. Only one run may use an output directory at a time: if another job is still queued or running there,
-Prokfinder asks whether to cancel it (qdel). The programs use the CPUs and the RAM of the job (-p and --memory
-cannot be larger).
+Runs the other sub-commands as a job on a cluster node, with the PBS queue manager.
 
-Options:
-  --queue <queue>         Submission queue (default: roteamento):
-                            qtime       tests and short runs (walltime of at most 72:00:00)
-                            roteamento  common runs (at most 24024 MB of RAM per job)
-                            high_mem    runs that need a lot of RAM (25 GB or more; e.g., --use-gtdbtk-tree)
+EOF
+    pf_help_box "Options" << EOF
+  --queue <queue>         Submission queue (default: roteamento). qtime: tests and short runs (walltime of at
+                          most 72:00:00); roteamento: common runs (at most 24024 MB of RAM per job); high_mem: runs
+                          that need a lot of RAM (25 GB or more; e.g., --use-gtdbtk-tree)
   --mem <ram>             RAM of the job: 20gb, 20000mb or only the number in GB (default: 20gb; at least 4gb,
                           and 8gb with download-wf)
   --cpus <n>              CPUs of the job (default: 20; at least 4)
   --walltime <HH:MM:SS>   Maximum run time of the job (default: 2160:00:00; 72:00:00 with qtime)
   --test                  Submit only a short job that shows the version of every program
   --dry-run               Only write the job script (do not submit it)
-
-$(help_global_options)
+EOF
+    help_global_options
+    cat << EOF
 
 Examples:
   ${PROG} run-on-cluster setup
@@ -269,16 +267,17 @@ SUBCOMMANDS=" setup search-genomes download-wf run-on-cluster "
 
 # Options of each section: flags (no value) and options with a value
 GLOBAL_FLAGS=" -h --help --check "
-GLOBAL_VALUES=" -o --results-dir --refdb-dir -p --threads --memory "
-SETUP_FLAGS=" --from-source --yes --ncbi-complete-metadata "
-SETUP_VALUES=" --refdb-registry "
+GLOBAL_VALUES=" -o --output-dir --refdb-dir -p --threads --memory "
+SETUP_FLAGS=" --from-source "
+SETUP_VALUES=" "
 SEARCH_FLAGS=" --force-selection --force-search "
 SEARCH_VALUES=" -s --assembly-source "
-SEARCH_FILTERS=" --gtdb-taxon --gtdb-taxon-file -a --accession -A --accession-file -i --isolation-source -I --isolation-source-file -c --country -C --country-file -g --genome-type -G --gc
+SEARCH_FILTERS=" --gtdb-taxon --gtdb-taxon-file -a --accession -A --accession-file -t --taxid -f --taxid-file --ncbi-taxon -N --ncbi-taxon-file
+ -i --isolation-source -I --isolation-source-file -g --genome-type -G --gc --genome-size --assembly-level
  -T --temp-opt -P --ph-opt -S --salt-opt --temp-growth --ph-growth --salt-growth -O --cell-shape -M --oxygen
  --gram-stain --motility --spore-formation --energy-source --electron-donor --carbon-source "
 SEARCH_FILTERS="${SEARCH_FILTERS//$'\n'/ }"
-DOWNLOAD_FLAGS=" -z --gzip --use-gtdbtk-tree --filter-mge --force-curation --skip-busco "
+DOWNLOAD_FLAGS=" --decompress --use-gtdbtk-tree --filter-mge --force-curation --skip-busco "
 DOWNLOAD_VALUES=" -j --download-threads --min-contig-length --max-contigs --max-n-bases --min-n50 --min-completeness
  --max-contamination --derep-method --derep-mode --derep-ani "
 DOWNLOAD_VALUES="${DOWNLOAD_VALUES//$'\n'/ }"
@@ -307,12 +306,12 @@ MEMORY=""
 CHECK_DEPS=0
 FROM_SOURCE=0
 REFDB_REGISTRY="${SCRIPT_DIR}/refdb-zenodo.tsv"
-CONFIRM_YES=0
-NCBI_COMPLETE=0
+ZENODO_URL="https://$(pf_registry_value "${REFDB_REGISTRY}" HOST)/records/$(pf_registry_value "${REFDB_REGISTRY}" RECORD)"
+OUTPUT_DIR_GIVEN=0
 FORCE_SELECTION=0
 ASSEMBLY_SOURCE="genbank"
 DOWNLOAD_THREADS=10
-GZIP=0
+DECOMPRESS=0
 MIN_CONTIG_LENGTH=1000
 QC_ARGS=()
 USE_GTDBTK_TREE=0
@@ -320,6 +319,7 @@ SKIP_BUSCO=0
 DEREP_METHOD="skder"
 DEREP_MODE="greedy"
 DEREP_ANI="99.5"
+DEREP_SKDER_FLAGS_GIVEN=()   # --derep-mode / --derep-ani given (they are ignored with cidder)
 FILTER_MGE=0
 FORCE_CURATION=0
 PBS_ARGS=()
@@ -368,7 +368,8 @@ add_values_file() {
         LINE="${LINE#"${LINE%%[![:space:]]*}"}"
         LINE="${LINE%"${LINE##*[![:space:]]}"}"
         [[ -n "${LINE}" ]] || continue
-        if [[ "${N}" -eq 0 && "$1" == "ACCESSION" && ! "${LINE^^}" =~ ^GC[AF]_[0-9]+[.][0-9]+$ ]]; then
+        if [[ "${N}" -eq 0 ]] && { [[ "$1" == "ACCESSION" && ! "${LINE^^}" =~ ^GC[AF]_[0-9]+[.][0-9]+$ ]] \
+                                   || [[ "$1" == "TAXID" && ! "${LINE}" =~ ^[0-9]+$ ]]; }; then
             log "warning" "First line of '$2' ('${LINE}') taken as a header and skipped."
             N=-1
             continue
@@ -426,7 +427,6 @@ expression_token() {
 COMMAND_LINE="$0 $*"
 SECTION=""
 JOB_ARGS=()   # the command line without the run-on-cluster sub-command and its options (for the PBS job)
-SETUP_JOB_INDEX=0   # position in JOB_ARGS just after "setup" (where --yes is added when run-on-cluster confirms)
 
 while [[ $# -gt 0 ]]; do
     ARG="$1"
@@ -444,7 +444,6 @@ while [[ $# -gt 0 ]]; do
         RUN["${ARG}"]=1
         SECTION="${ARG}"
         [[ "${ARG}" == "run-on-cluster" ]] || JOB_ARGS+=("${ARG}")
-        [[ "${ARG}" != "setup" ]] || SETUP_JOB_INDEX="${#JOB_ARGS[@]}"
         shift
         continue
     fi
@@ -472,7 +471,7 @@ while [[ $# -gt 0 ]]; do
         if [[ -z "${SECTION}" ]]; then
             cli_error "Unknown sub-command: '${ARG}'. Sub-commands: setup, search-genomes, download-wf, run-on-cluster."
         fi
-        cli_error "Unexpected argument '${ARG}': it is neither an option nor the value of one. Several values of the same option are separated by commas, without spaces (e.g., -c Brazil,Iceland), each value with spaces between its own double quotes (e.g., -i \"hot spring\",geyser), and two filters are joined with AND or OR." "${SECTION}"
+        cli_error "Unexpected argument '${ARG}': it is neither an option nor the value of one. Several values of the same option are separated by commas, without spaces (e.g., --assembly-level complete,chromosome), each value with spaces between its own double quotes (e.g., -i \"hot spring\",geyser), and two filters are joined with AND or OR." "${SECTION}"
     fi
     if [[ "${OWNER}" != "global" && "${OWNER}" != "${SECTION}" ]]; then
         if [[ -z "${SECTION}" ]]; then
@@ -504,16 +503,13 @@ while [[ $# -gt 0 ]]; do
 
     case "${ARG}" in
         # Global
-        -o|--results-dir)             PROKFINDER_DIR="${VAL%/}" ;;
+        -o|--output-dir)              PROKFINDER_DIR="${VAL%/}"; OUTPUT_DIR_GIVEN=1 ;;
         --refdb-dir)                  REFDB_DIR="${VAL%/}" ;;
         -p|--threads)                 THREADS="${VAL}" ;;
         --memory)                     MEMORY="${VAL}" ;;
         --check)                      CHECK_DEPS=1 ;;
         # setup
         --from-source)                FROM_SOURCE=1 ;;
-        --refdb-registry)             REFDB_REGISTRY="${VAL}" ;;
-        --yes)                        CONFIRM_YES=1 ;;
-        --ncbi-complete-metadata)     NCBI_COMPLETE=1 ;;
         # search-genomes: options
         -s|--assembly-source)         ASSEMBLY_SOURCE="${VAL,,}"; QUERY_LINES+=("ASSEMBLY_SOURCE"$'\t'"${VAL,,}") ;;
         --force-selection)            FORCE_SELECTION=1 ;;
@@ -525,10 +521,14 @@ while [[ $# -gt 0 ]]; do
         -A|--accession-file)          start_filter "${ARG}"; add_values_file ACCESSION "${VAL}" ;;
         -i|--isolation-source)        start_filter "${ARG}"; add_values_csv ISOLATION_SOURCE "${VAL}" ;;
         -I|--isolation-source-file)   start_filter "${ARG}"; add_values_file ISOLATION_SOURCE "${VAL}" ;;
-        -c|--country)                 start_filter "${ARG}"; add_values_csv COUNTRY "${VAL}" ;;
-        -C|--country-file)            start_filter "${ARG}"; add_values_file COUNTRY "${VAL}" ;;
+        -t|--taxid)                   start_filter "${ARG}"; add_values_csv TAXID "${VAL}" ;;
+        -f|--taxid-file)              start_filter "${ARG}"; add_values_file TAXID "${VAL}" ;;
+        --ncbi-taxon)                 start_filter "${ARG}"; add_values_csv TAXON_NAME "${VAL}" ;;
+        -N|--ncbi-taxon-file)         start_filter "${ARG}"; add_values_file TAXON_NAME_LIST "${VAL}" ;;
         -g|--genome-type)             start_filter "${ARG}"; add_value GENOME_TYPE "${VAL}" ;;
         -G|--gc)                      start_filter "${ARG}"; add_value GC "${VAL}" ;;
+        --genome-size)                start_filter "${ARG}"; add_value GENOME_SIZE "${VAL}" ;;
+        --assembly-level)             start_filter "${ARG}"; add_values_csv ASSEMBLY_LEVEL "${VAL}" ;;
         -T|--temp-opt)                start_filter "${ARG}"; add_value BACDIVE_RANGE "temperature_opt=${VAL}" ;;
         -P|--ph-opt)                  start_filter "${ARG}"; add_value BACDIVE_RANGE "ph_opt=${VAL}" ;;
         -S|--salt-opt)                start_filter "${ARG}"; add_value BACDIVE_RANGE "halophily_opt=${VAL}" ;;
@@ -545,14 +545,14 @@ while [[ $# -gt 0 ]]; do
         --carbon-source)              start_filter "${ARG}"; add_value BACDIVE_CLASS "carbon_source=${VAL}" ;;
         # download-wf
         -j|--download-threads)        DOWNLOAD_THREADS="${VAL}" ;;
-        -z|--gzip)                    GZIP=1 ;;
+        --decompress)                 DECOMPRESS=1 ;;
         --min-contig-length)          MIN_CONTIG_LENGTH="${VAL}" ;;
         --max-contigs|--max-n-bases|--min-n50|--min-completeness|--max-contamination) QC_ARGS+=("${ARG}" "${VAL}") ;;
         --use-gtdbtk-tree)            USE_GTDBTK_TREE=1 ;;
         --skip-busco)                 SKIP_BUSCO=1 ;;
         --derep-method)               DEREP_METHOD="${VAL,,}" ;;
-        --derep-mode)                 DEREP_MODE="${VAL,,}" ;;
-        --derep-ani)                  DEREP_ANI="${VAL}" ;;
+        --derep-mode)                 DEREP_MODE="${VAL,,}"; DEREP_SKDER_FLAGS_GIVEN+=("${ARG}") ;;
+        --derep-ani)                  DEREP_ANI="${VAL}"; DEREP_SKDER_FLAGS_GIVEN+=("${ARG}") ;;
         --filter-mge)                 FILTER_MGE=1 ;;
         --force-curation)             FORCE_CURATION=1 ;;
     esac
@@ -917,6 +917,12 @@ if [[ -n "${RUN[download-wf]:-}" ]]; then
         || cli_error "Invalid --derep-mode '${DEREP_MODE}'. Must be greedy or dynamic." download-wf
     [[ "${DEREP_METHOD}" == "skder" || "${DEREP_METHOD}" == "cidder" ]] \
         || cli_error "Invalid --derep-method '${DEREP_METHOD}'. Must be skder or cidder." download-wf
+    if [[ "${DEREP_METHOD}" == "cidder" && "${#DEREP_SKDER_FLAGS_GIVEN[@]}" -gt 0 ]]; then
+        log "warning" "${DEREP_SKDER_FLAGS_GIVEN[*]} ignored: they are options of skDER and --derep-method is cidder."
+    fi
+    if [[ "${DEREP_METHOD}" == "cidder" && "${#DEREP_SKDER_FLAGS_GIVEN[@]}" -gt 0 ]]; then
+        log "warning" "${DEREP_SKDER_FLAGS_GIVEN[*]} ignored: they are options of skDER, and --derep-method is cidder."
+    fi
     if [[ ! "${DEREP_ANI}" =~ ^[0-9]+([.][0-9]+)?$ ]] || ! awk -v v="${DEREP_ANI}" 'BEGIN { exit !(v + 0 > 0 && v + 0 <= 100) }'; then
         cli_error "Invalid --derep-ani '${DEREP_ANI}'. It must be a percentage greater than 0 and at most 100 (e.g., 99.5)." download-wf
     fi
@@ -941,23 +947,13 @@ if [[ -n "${RUN[search-genomes]:-}" ]]; then
     ERRORS_ARGS=(--errors-file "${SEARCH_ERRORS}")
     [[ "${#ACTIVE_JOBS[@]}" -eq 0 && -z "${ACTIVE_PROCESS}" ]] || ERRORS_ARGS=()
     bash "${MODULES_DIR}/search-genomes-in-reference-db.sh" -q "${QUERY_TMP}" --validate-only \
-        --gtdb-dir "${GTDB_DIR}" ${ERRORS_ARGS[@]+"${ERRORS_ARGS[@]}"} \
+        --gtdb-dir "${GTDB_DIR}" --taxdump-dir "$(pf_ncbi_taxdump_dir "${NCBI_DIR}")" ${ERRORS_ARGS[@]+"${ERRORS_ARGS[@]}"} \
         || { echo "Use ${PROG} search-genomes -h (or --help) to see the options." >&2; exit 1; }
-fi
-
-# setup: the complete NCBI table is not in the Zenodo packages; a registry given must exist
-if [[ -n "${RUN[setup]:-}" ]]; then
-    if [[ "${NCBI_COMPLETE}" -eq 1 && "${FROM_SOURCE}" -eq 0 ]]; then
-        cli_error "--ncbi-complete-metadata is not in the Zenodo packages: add --from-source." setup
-    fi
-    if [[ "${FROM_SOURCE}" -eq 0 && ! -f "${REFDB_REGISTRY}" ]]; then
-        cli_error "Registry of the Zenodo packages not found: ${REFDB_REGISTRY}." setup
-    fi
 fi
 
 # setup --from-source with databases already installed (from the sources or from Zenodo) is a full update: they are
 # downloaded again from the sources. It takes hours, so it is confirmed on the terminal of the user (with
-# run-on-cluster, here, before the job is submitted; the job gets --yes) or with --yes. The databases installed by a
+# run-on-cluster, here, before the job is submitted; the job, with no terminal, does not ask). The databases installed by a
 # first setup --from-source that was interrupted (listed in <refdb>/.from-source-install.state) are not updated: the
 # same command goes on with the ones that are missing.
 SOURCE_INSTALL_STATE="${REF_DIR}/.from-source-install.state"
@@ -979,18 +975,17 @@ full_update_warning() {
     SIZE="$(du -shc "${DIRS[@]}" 2>/dev/null | awk 'END { print $1 }')" || SIZE="?"
     echo "setup --from-source with reference databases already installed is a full update: ${DBS[*]} will be downloaded again from their sources (NCBI, BacDive API, GTDB) and their tables rebuilt. It takes some hours, needs the network the whole time and free disk space for a second copy of each database (${SIZE:-?} now in ${REF_DIR}): the current database is replaced only when its new copy is complete."
 }
-if [[ "${#REFDB_FULL_UPDATE[@]}" -gt 0 && "${CONFIRM_YES}" -eq 0 ]]; then
-    if [[ -t 0 && -z "${PBS_JOBID:-}" ]]; then
+# (inside a PBS job there is no terminal: run-on-cluster asked before submitting it)
+if [[ "${#REFDB_FULL_UPDATE[@]}" -gt 0 && -z "${PBS_JOBID:-}" ]]; then
+    if [[ -t 0 ]]; then
         log "warning" "$(full_update_warning)"
         read -r -p "Continue? [y/N] " ANSWER || ANSWER=""
         if [[ ! "${ANSWER}" =~ ^[yYsS] ]]; then
             log "message" "Full update cancelled: nothing was changed."
             exit 1
         fi
-        # The job of run-on-cluster runs without a terminal: it gets the confirmation on its command line
-        JOB_ARGS=("${JOB_ARGS[@]:0:${SETUP_JOB_INDEX}}" --yes "${JOB_ARGS[@]:${SETUP_JOB_INDEX}}")
     else
-        cli_error "$(full_update_warning) It must be confirmed: run it on a terminal (with run-on-cluster too: it asks before submitting the job) or add --yes to setup." setup
+        cli_error "$(full_update_warning) It must be confirmed on a terminal (run-on-cluster asks before submitting the job)." setup
     fi
 fi
 
@@ -1006,7 +1001,21 @@ fi
 
 # download-wf works on the genomes selected by search-genomes (in this command or before, in the same results folder)
 if [[ -n "${RUN[download-wf]:-}" && -z "${RUN[search-genomes]:-}" && ! -f "${SEARCH_CHECKPOINT}" ]]; then
-    cli_error "download-wf needs the genomes selected by search-genomes, but ${SEARCH_CHECKPOINT} was not found. Run search-genomes first (it can be in the same command: ${PROG} search-genomes ... download-wf ...), with the same -o/--results-dir." download-wf
+    cli_error "download-wf needs the genomes selected by search-genomes, but ${SEARCH_CHECKPOINT} was not found. Run search-genomes first (it can be in the same command: ${PROG} search-genomes ... download-wf ...), with the same -o/--output-dir." download-wf
+fi
+
+# No -o: a new search in the default output directory, which already has the files of a previous run, can replace
+# its results. It is confirmed on a terminal (with run-on-cluster, before the job is submitted; the job does not ask)
+if [[ "${OUTPUT_DIR_GIVEN}" -eq 0 && "${CHECK_ACTIVE_RUNS}" -eq 1 && -z "${PBS_JOBID:-}" && -n "${RUN[search-genomes]:-}" \
+        && -d "${PROKFINDER_DIR}" && -n "$(ls -A "${PROKFINDER_DIR}" 2>/dev/null)" ]]; then
+    log "warning" "The default output directory $(absolute_path "${PROKFINDER_DIR}") already has the results of a previous run: running here again can replace them. Use -o <dir> to write somewhere else."
+    if [[ -t 0 ]]; then
+        read -r -p "Run in the same output directory? [y/N] " ANSWER || ANSWER=""
+        if [[ ! "${ANSWER}" =~ ^[yYsS] ]]; then
+            log "message" "Nothing was run. Choose another output directory with -o <dir>."
+            exit 1
+        fi
+    fi
 fi
 
 # The command line is valid: another run using the results folder must be cancelled now (or this one stops)
@@ -1069,14 +1078,14 @@ fi
 #   - full update (REFDB_FULL_UPDATE, confirmed): downloaded again from the sources;
 #   - installed from Zenodo: replaced when the registry has a newer package or the table format changed;
 #   - built from the sources, of an older table format: rebuilt from the raw files already downloaded;
-# and NCBI when --ncbi-complete-metadata asks for a complete table that is missing
+
 declare -A REFDB_NEEDED=()
 # ... and, among them, those installed from a Zenodo package
 declare -A REFDB_PACKAGE=()
 # ... and those installed from Zenodo that have a newer package in the registry (only for the log)
 declare -A REFDB_NEW_PACKAGE=()
 refdb_needed() {
-    local DB DOMAIN DB_DIR FORMAT_VAR
+    local DB DB_DIR FORMAT_VAR
     REFDB_NEEDED=()
     REFDB_PACKAGE=()
     REFDB_NEW_PACKAGE=()
@@ -1105,11 +1114,6 @@ refdb_needed() {
             REFDB_NEEDED["${DB}"]=1
         fi
     done
-    if [[ "${NCBI_COMPLETE}" -eq 1 ]]; then
-        for DOMAIN in "${PF_DOMAINS[@]}"; do
-            [[ -s "$(pf_ncbi_complete_table "${NCBI_DIR}" "${DOMAIN}")" ]] || REFDB_NEEDED[NCBI]=1
-        done
-    fi
 }
 if [[ -n "${RUN[setup]:-}" ]]; then
     refdb_needed
@@ -1274,7 +1278,7 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     fi
     if [[ "${#REFDB_FULL_UPDATE[@]}" -gt 0 ]]; then
         log "warning" "$(full_update_warning)"
-        log "message" "The full update was confirmed$([[ "${CONFIRM_YES}" -eq 1 ]] && echo " (--yes)")."
+        log "message" "The full update was confirmed."
     fi
     for DB in NCBI BACDIVE GTDB; do
         mkdir -p "${REF_DIR}/${DB}"
@@ -1311,9 +1315,7 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     done
 
     if [[ -n "${REFDB_NEEDED[NCBI]:-}" ]]; then
-        NCBI_ARGS=(--assembly-source all)
-        [[ "${NCBI_COMPLETE}" -eq 0 ]] || NCBI_ARGS+=(--complete-table)
-        install_refdb NCBI "${NCBI_DIR}" download-reference-db-ncbi.sh "${NCBI_ARGS[@]}"
+        install_refdb NCBI "${NCBI_DIR}" download-reference-db-ncbi.sh --assembly-source all
     else
         log "message" "NCBI reference data already installed ($(head -n 1 "$(pf_completed_marker "${NCBI_DIR}")"))."
     fi
@@ -1439,7 +1441,7 @@ mkdir -p "${RAW_DIR}" "${CLEAN_DIR}" "${GENES_DIR}" "${QUALITY_DIR}" "${TAXONOMY
     "${FINAL_DIR}/STATISTICS/TABLES" "${FINAL_DIR}/STATISTICS/GRAPHS"
 
 GZIP_FLAG=()
-if [[ "${GZIP}" -eq 1 ]]; then
+if [[ "${DECOMPRESS}" -eq 0 ]]; then
     GZIP_FLAG=(-z)
 fi
 
@@ -1533,7 +1535,7 @@ write_run_record() {
         printf -- '--memory\t%sgb\n' "${MEMORY_GB}"
         printf -- '--refdb-dir\t%s\n' "$(absolute_path "${REF_DIR}")"
         printf -- '--download-threads\t%s\n' "${DOWNLOAD_THREADS}"
-        printf -- '--gzip\t%s\n' "$([[ "${GZIP}" -eq 1 ]] && echo yes || echo no)"
+        printf -- '--decompress\t%s\n' "$([[ "${DECOMPRESS}" -eq 1 ]] && echo yes || echo no)"
         printf -- '--min-contig-length\t%s\n' "${MIN_CONTIG_LENGTH}"
         printf -- '--max-contigs\t%s\n' "${QC_MAX_CONTIGS}"
         printf -- '--min-n50\t%s\n' "${QC_MIN_N50}"
@@ -1543,8 +1545,10 @@ write_run_record() {
         printf -- '--skip-busco\t%s\n' "$([[ "${SKIP_BUSCO}" -eq 1 ]] && echo yes || echo no)"
         printf -- '--use-gtdbtk-tree\t%s\n' "$([[ "${USE_GTDBTK_TREE}" -eq 1 ]] && echo yes || echo no)"
         printf -- '--derep-method\t%s\n' "${DEREP_METHOD}"
-        printf -- '--derep-mode\t%s\n' "${DEREP_MODE}"
-        printf -- '--derep-ani\t%s\n' "${DEREP_ANI}"
+        if [[ "${DEREP_METHOD}" == "skder" ]]; then
+            printf -- '--derep-mode\t%s\n' "${DEREP_MODE}"
+            printf -- '--derep-ani\t%s\n' "${DEREP_ANI}"
+        fi
         printf -- '--filter-mge\t%s\n' "$([[ "${FILTER_MGE}" -eq 1 ]] && echo yes || echo no)"
     } | format_tsv 0 > "${PARAMETERS}.tmp"
     mv "${PARAMETERS}.tmp" "${PARAMETERS}"

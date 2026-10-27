@@ -1,10 +1,10 @@
 PARAMETER
+--decompress
 --derep-ani
 --derep-method
 --derep-mode
 --download-threads
 --filter-mge
---gzip
 --max-contamination
 --max-contigs
 --max-n-bases

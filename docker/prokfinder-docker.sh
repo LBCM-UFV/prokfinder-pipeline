@@ -8,7 +8,7 @@
 # Folders mounted in the container (at the same paths, so every path of the command line keeps working):
 #   - the current folder (results: -o, list files of the filters...)
 #   - the reference databases folder: --refdb-dir if given, otherwise $HOME/prokfinder-refdb
-#   - the results folder of -o/--results-dir, when it is outside the current folder
+#   - the results folder of -o/--output-dir, when it is outside the current folder
 #   - the folders of CHECKM2DB and GTDBTK_DATA_PATH, when they are set (they are passed to the container), and
 #     NCBI_API_KEY is passed when it is set
 # The container runs with the user and group of the caller, so the results belong to the caller.
@@ -43,8 +43,8 @@ for (( I = 0; I < ${#ARGS[@]}; I++ )); do
     case "${ARGS[$I]}" in
         --refdb-dir)        REFDB="${ARGS[$((I + 1))]:-}" ;;
         --refdb-dir=*)      REFDB="${ARGS[$I]#*=}" ;;
-        -o|--results-dir)   RESULTS="${ARGS[$((I + 1))]:-}" ;;
-        --results-dir=*)    RESULTS="${ARGS[$I]#*=}" ;;
+        -o|--output-dir)   RESULTS="${ARGS[$((I + 1))]:-}" ;;
+        --output-dir=*)    RESULTS="${ARGS[$I]#*=}" ;;
     esac
 done
 

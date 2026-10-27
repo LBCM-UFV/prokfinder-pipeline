@@ -183,3 +183,96 @@ refute_genome_selected() {
     fixture_state > after.txt
     assert_same_file before.txt after.txt
 }
+
+############ GENOME SIZE, ASSEMBLY LEVEL, TAXID AND TAXON NAME ################
+
+# Prints the rows of the selected genomes of <results> where the awk condition on a column fails
+# Usage: rows_violating <results> <column> '<awk condition on $c that must hold>'
+rows_violating() {
+    awk -F'\t' -v name="$2" 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == name) c = i; next } !('"$3"')' "$(metadata "$1")"
+}
+
+@test "--genome-size <min:max> (Mb): only the genomes with that total length" {
+    run search_fixture size --gtdb-taxon g__Thermus AND --genome-size 2:2.2
+    assert_success
+    [[ "$(selected_accessions size | wc -l)" -gt 0 ]]
+    run rows_violating size ASSEMBLY_STATS_TOTAL_SEQUENCE_LENGTH '$c >= 2000000 && $c <= 2200000'
+    assert_output_equals ""
+    run search_fixture size-open --genome-size 3:
+    assert_success
+    assert_genome_selected size-open "${D_RADIODURANS}"
+    run rows_violating size-open ASSEMBLY_STATS_TOTAL_SEQUENCE_LENGTH '$c >= 3000000'
+    assert_output_equals ""
+}
+
+@test "--genome-size: an invalid range is listed and stops the search" {
+    run search_fixture bad-size --genome-size 4
+    assert_failure
+    assert_output_contains "invalid range"
+}
+
+@test "--assembly-level: complete, chromosome, scaffold and contig (several values = OR)" {
+    run search_fixture complete --assembly-level complete
+    assert_success
+    [[ "$(selected_accessions complete | wc -l)" -gt 0 ]]
+    run rows_violating complete ASSEMBLY_LEVEL '$c == "Complete Genome"'
+    assert_output_equals ""
+    run search_fixture two --assembly-level contig,scaffold
+    assert_success
+    run rows_violating two ASSEMBLY_LEVEL '$c == "Contig" || $c == "Scaffold"'
+    assert_output_equals ""
+    [[ "$(selected_accessions two | wc -l)" -gt "$(selected_accessions complete | wc -l)" ]]
+}
+
+@test "--assembly-level: an unknown level is listed and stops the search" {
+    run search_fixture bad-level --assembly-level draft
+    assert_failure
+    assert_output_contains "invalid assembly level"
+}
+
+@test "-t/--taxid: the TaxID of the organism or of any rank of its lineage" {
+    run search_fixture strain -t 262724
+    assert_success
+    assert_genome_selected strain GCA_000008125.1
+    refute_genome_selected strain "${D_RADIODURANS}"
+    run search_fixture genus --taxid 270
+    assert_success
+    assert_genome_selected genus GCA_000008125.1
+    assert_genome_selected genus GCA_000091545.1
+    refute_genome_selected genus "${D_RADIODURANS}"
+}
+
+@test "-f/--taxid-file: a list of TaxIDs; the header is skipped" {
+    printf 'taxid\n262724\n300852\n' > taxids.txt
+    run search_fixture list -f taxids.txt
+    assert_success
+    assert_genome_selected list GCA_000008125.1
+    assert_genome_selected list GCA_000091545.1
+    refute_genome_selected list "${D_RADIODURANS}"
+}
+
+@test "-t: a value that is not a number is an invalid filter" {
+    run search_fixture bad-taxid -t abc
+    assert_failure
+    assert_output_contains "invalid NCBI TaxID"
+    assert_file_exists bad-taxid/SEARCH-GENOMES-ERRORS.tsv
+}
+
+@test "--ncbi-taxon and -N: the names are converted to TaxIDs with taxonkit; a name without TaxID is an invalid filter" {
+    command -v taxonkit >/dev/null 2>&1 || skip "taxonkit not installed"
+    cp -r "${PF_FIXTURE_REFDB}" refdb-with-taxdump
+    cp -r "${PF_FIXTURE_RAW}/NCBI/TAXDUMP" refdb-with-taxdump/NCBI/TAXDUMP
+    run bash "${PF_MAIN}" --refdb-dir refdb-with-taxdump -o taxon search-genomes --ncbi-taxon "Thermus thermophilus"
+    assert_success
+    assert_genome_selected taxon GCA_000008125.1
+    assert_genome_selected taxon GCA_000091545.1
+    refute_genome_selected taxon "${D_RADIODURANS}"
+    printf 'Species Name\nPyrococcus horikoshii\n' > names.txt
+    run bash "${PF_MAIN}" --refdb-dir refdb-with-taxdump -o names search-genomes -N names.txt
+    assert_success
+    assert_genome_selected names GCA_000011105.1
+    run bash "${PF_MAIN}" --refdb-dir refdb-with-taxdump -o missing search-genomes --ncbi-taxon "Thermus nonexistentus"
+    assert_failure
+    assert_output_contains "taxon name not found in the NCBI taxonomy"
+    assert_file_exists missing/SEARCH-GENOMES-ERRORS.tsv
+}

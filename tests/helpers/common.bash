@@ -181,3 +181,25 @@ assert_expected_tsv() {
     assert_file_exists "${EXPECTED}" || { echo "(create it with: tests/run-tests.sh --update-expected)" >&2; return 1; }
     assert_same_file "${EXPECTED}" "${NORMALIZED}"
 }
+
+# Prints the main script of a copy of Prokfinder whose Zenodo registry (refdb-zenodo.tsv) is the file <registry>
+# (setup has no option to choose another registry)
+# Usage: pf_main_with_registry <registry>
+pf_main_with_registry() {
+    local DIR
+    DIR="${BATS_FILE_TMPDIR}/prokfinder-copy-$(basename "$1" .tsv)"
+    if [[ ! -d "${DIR}" ]]; then
+        mkdir -p "${DIR}"
+        cp -r "${PF_ROOT}/main-prokfinder.sh" "${PF_ROOT}/lib" "${PF_ROOT}/modules" "${DIR}/"
+        cp "$1" "${DIR}/refdb-zenodo.tsv"
+    fi
+    echo "${DIR}/main-prokfinder.sh"
+}
+
+# Prints the different widths, in characters (UTF-8), of the lines read from stdin that start with a box character
+# (╭ │ ╰), separated by spaces
+line_widths() {
+    python3 -c 'import io, sys
+widths = {len(l.rstrip("\n")) for l in io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8") if l[:1] in "╭│╰"}
+print(" ".join(str(w) for w in sorted(widths)))'
+}

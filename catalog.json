@@ -37,10 +37,10 @@
       "description": "Show which dependencies are installed and exit"
     },
     {
-      "name": "--results-dir",
+      "name": "--output-dir",
       "aliases": [
         "-o",
-        "--results-dir"
+        "--output-dir"
       ],
       "section": "global",
       "kind": "option",
@@ -91,40 +91,7 @@
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Build the databases from the NCBI, BacDive and GTDB sources instead of downloading the Zenodo packages. With the databases already installed it is a full update: everything is downloaded again (some hours), after a confirmation"
-    },
-    {
-      "name": "--yes",
-      "aliases": [
-        "--yes"
-      ],
-      "section": "setup",
-      "kind": "option",
-      "takes_value": false,
-      "argument": "",
-      "description": "Confirm the full update of setup --from-source without asking (needed in scripts and in jobs written by hand; run-on-cluster asks before submitting the job)"
-    },
-    {
-      "name": "--ncbi-complete-metadata",
-      "aliases": [
-        "--ncbi-complete-metadata"
-      ],
-      "section": "setup",
-      "kind": "option",
-      "takes_value": false,
-      "argument": "",
-      "description": "Also write a table with every NCBI metadata field (slow; not used by the search; needs --from-source)"
-    },
-    {
-      "name": "--refdb-registry",
-      "aliases": [
-        "--refdb-registry"
-      ],
-      "section": "setup",
-      "kind": "option",
-      "takes_value": true,
-      "argument": "",
-      "description": "List of Zenodo packages to use instead of the one of Prokfinder (refdb-zenodo.tsv)"
+      "description": "Builds the NCBI, BacDive, and GTDB databases via API using their latest versions (replaces the"
     },
     {
       "name": "--force-selection",
@@ -207,6 +174,53 @@
       "description": "List of accessions"
     },
     {
+      "name": "--taxid",
+      "aliases": [
+        "-t",
+        "--taxid"
+      ],
+      "section": "search-genomes",
+      "kind": "filter",
+      "takes_value": true,
+      "argument": "<id>",
+      "description": "NCBI TaxID of any rank (e.g., 1239 selects every Bacillota genome)"
+    },
+    {
+      "name": "--taxid-file",
+      "aliases": [
+        "-f",
+        "--taxid-file"
+      ],
+      "section": "search-genomes",
+      "kind": "filter",
+      "takes_value": true,
+      "argument": "<file>",
+      "description": "List of NCBI TaxIDs"
+    },
+    {
+      "name": "--ncbi-taxon",
+      "aliases": [
+        "--ncbi-taxon"
+      ],
+      "section": "search-genomes",
+      "kind": "filter",
+      "takes_value": true,
+      "argument": "<name>",
+      "description": "NCBI taxon name, any rank (e.g., Thermus); converted to its TaxID with taxonkit"
+    },
+    {
+      "name": "--ncbi-taxon-file",
+      "aliases": [
+        "-N",
+        "--ncbi-taxon-file"
+      ],
+      "section": "search-genomes",
+      "kind": "filter",
+      "takes_value": true,
+      "argument": "<file>",
+      "description": "List of NCBI taxon names (e.g., Thermus aquaticus)"
+    },
+    {
       "name": "--isolation-source",
       "aliases": [
         "-i",
@@ -229,30 +243,6 @@
       "takes_value": true,
       "argument": "<file>",
       "description": "List of isolation sources (texts or regular expressions)"
-    },
-    {
-      "name": "--country",
-      "aliases": [
-        "-c",
-        "--country"
-      ],
-      "section": "search-genomes",
-      "kind": "filter",
-      "takes_value": true,
-      "argument": "<name>",
-      "description": "Country of the geographic location (e.g., Brazil)"
-    },
-    {
-      "name": "--country-file",
-      "aliases": [
-        "-C",
-        "--country-file"
-      ],
-      "section": "search-genomes",
-      "kind": "filter",
-      "takes_value": true,
-      "argument": "<file>",
-      "description": "List of countries"
     },
     {
       "name": "--genome-type",
@@ -279,6 +269,28 @@
       "description": "GC content in % (e.g., 40:65)"
     },
     {
+      "name": "--genome-size",
+      "aliases": [
+        "--genome-size"
+      ],
+      "section": "search-genomes",
+      "kind": "filter",
+      "takes_value": true,
+      "argument": "<min:max>",
+      "description": "Genome size in Mb (e.g., 1:4)"
+    },
+    {
+      "name": "--assembly-level",
+      "aliases": [
+        "--assembly-level"
+      ],
+      "section": "search-genomes",
+      "kind": "filter",
+      "takes_value": true,
+      "argument": "<level>",
+      "description": "contig, scaffold, chromosome or complete (complete genome)"
+    },
+    {
       "name": "--temp-opt",
       "aliases": [
         "-T",
@@ -288,7 +300,7 @@
       "kind": "filter",
       "takes_value": true,
       "argument": "<min:max>",
-      "description": "Optimal growth temperature in °C (e.g., 45:80)"
+      "description": "Optimal growth temperature in degrees C (e.g., 45:80)"
     },
     {
       "name": "--ph-opt",
@@ -323,7 +335,7 @@
       "kind": "filter",
       "takes_value": true,
       "argument": "<min:max>",
-      "description": "Growth temperature in °C (known for many more species than -T)"
+      "description": "Growth temperature in degrees C (known for many more species than -T)"
     },
     {
       "name": "--ph-growth",
@@ -438,16 +450,15 @@
       "description": "autotroph or heterotroph"
     },
     {
-      "name": "--gzip",
+      "name": "--decompress",
       "aliases": [
-        "-z",
-        "--gzip"
+        "--decompress"
       ],
       "section": "download-wf",
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Keep the genome files compressed (.fna.gz)"
+      "description": "Decompress the genome files (.fna); by default they stay compressed (.fna.gz)"
     },
     {
       "name": "--use-gtdbtk-tree",
@@ -591,7 +602,7 @@
       "kind": "option",
       "takes_value": true,
       "argument": "<mode>",
-      "description": "skDER: greedy (default) or dynamic"
+      "description": "skDER only: greedy (default) or dynamic"
     },
     {
       "name": "--derep-ani",
@@ -602,7 +613,7 @@
       "kind": "option",
       "takes_value": true,
       "argument": "<pct>",
-      "description": "skDER: ANI above which two genomes are redundant (default: 99.5)"
+      "description": "skDER only: ANI above which two genomes are redundant (default: 99.5)"
     },
     {
       "name": "--test",
@@ -635,7 +646,7 @@
       "kind": "option",
       "takes_value": true,
       "argument": "<queue>",
-      "description": "Submission queue (default: roteamento): qtime       tests and short runs (walltime of at most 72:00:00) roteamento  common runs (at most 24024 MB of RAM per job) high_mem    runs that need a lot of RAM (25 GB or more; e.g., --use-gtdbtk-tree)"
+      "description": "Submission queue (default: roteamento). qtime: tests and short runs (walltime of at most 72:00:00); roteamento: common runs (at most 24024 MB of RAM per job); high_mem: runs that need a lot of RAM (25 GB or more; e.g., --use-gtdbtk-tree)"
     },
     {
       "name": "--mem",
@@ -811,7 +822,7 @@
       "usage": [
         "search-genomes-in-reference-db.sh - Prokfinder module 1: genome search in the reference database",
         "Usage:",
-        "search-genomes-in-reference-db.sh -q <query_file> --validate-only [--gtdb-dir <dir>]",
+        "search-genomes-in-reference-db.sh -q <query_file> --validate-only [--gtdb-dir <dir>] [--taxdump-dir <dir>]",
         "search-genomes-in-reference-db.sh -q <query_file> -r <reference_db_dir> -o <selected_metadata.tsv>"
       ],
       "language": "bash"
@@ -1095,6 +1106,16 @@
       "name": "pf_install_refdb_package",
       "summary": "Downloads the Zenodo package of a database, checks its MD5 and extracts it into <target_dir> (which must be empty or new). The package must record the table format the code expects. Stops with an error otherwise. A download interrupted (a partial file in <download_dir>) is resumed by the next call.",
       "usage": "Usage: pf_install_refdb_package <registry> <DB> <format> <target_dir> <download_dir>"
+    },
+    {
+      "name": "pf_help_width",
+      "summary": "Width of the help boxes: the terminal width (60-100) when the output is a terminal, otherwise 80",
+      "usage": ""
+    },
+    {
+      "name": "pf_help_box",
+      "summary": "Prints the rows read from stdin inside a box with a title (the help of the options, as in rich/typer programs). A row \"  <names>  <description>\" (two spaces, then a name that is not \"- \", and two or more spaces before the description) is shown in two columns, with the description wrapped; a line indented by 4 or more spaces continues the row above; any other line is plain text, wrapped. Only ASCII text is allowed in the rows (the widths are counted in characters).",
+      "usage": "Usage: pf_help_box <title> < rows"
     }
   ],
   "reference_database_formats": {

@@ -628,3 +628,83 @@ pf_install_refdb_package() {
     printf 'package=zenodo:%s:%s\npackage_md5=%s\n' "${RECORD}" "${FILE}" "${MD5}" >> "$(pf_completed_marker "${TARGET}")"
     rm -f "${WORK}/${FILE}"
 }
+
+############ HELP IN BOXES ############
+
+# Width of the help boxes: the terminal width (60-100) when the output is a terminal, otherwise 80
+pf_help_width() {
+    local WIDTH=80
+    if [[ -t 1 ]]; then
+        WIDTH="${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}"
+        [[ "${WIDTH}" =~ ^[0-9]+$ ]] || WIDTH=80
+        (( WIDTH >= 60 )) || WIDTH=60
+        (( WIDTH <= 100 )) || WIDTH=100
+    fi
+    echo "${WIDTH}"
+}
+
+# Prints the rows read from stdin inside a box with a title (the help of the options, as in rich/typer programs).
+# A row "  <names>  <description>" (two spaces, then a name that is not "- ", and two or more spaces before the
+# description) is shown in two columns, with the description wrapped; a line indented by 4 or more spaces continues
+# the row above; any other line is plain text, wrapped. Only ASCII text is allowed in the rows (the widths are counted
+# in characters).
+# Usage: pf_help_box <title> < rows
+pf_help_box() {
+    awk -v title="$1" -v width="$(pf_help_width)" '
+    function wrap(text, w, indent,   out, line, n, i, words, pad) {
+        # words of text, lines of at most w characters, the next lines indented by "indent" spaces
+        n = split(text, words, " ")
+        out = ""; line = ""; pad = sprintf("%" indent "s", "")
+        for (i = 1; i <= n; i++) {
+            if (line == "") line = words[i]
+            else if (length(line) + 1 + length(words[i]) <= w - (out == "" ? 0 : indent)) line = line " " words[i]
+            else { out = out (out == "" ? "" : "\n" pad) line; line = words[i] }
+        }
+        return out (out == "" ? "" : (line == "" ? "" : "\n" pad)) line
+    }
+    function emit(s, w) { printf "\342\224\202 %s%*s \342\224\202\n", s, w - length(s), "" }
+    BEGIN { inner = width - 4 }
+    {
+        sub(/\r$/, "")
+        if ($0 ~ /^ {4,}[^ ]/ && n > 0) { v = $0; sub(/^ +/, "", v); desc[n] = desc[n] (desc[n] == "" ? "" : " ") v; next }
+        n++
+        line = substr($0, 3)
+        if (($0 ~ /^  [^ -]/ || $0 ~ /^  -[^ ]/) && (match(line, /  +/) || $0 ~ /^  -/)) {
+            if (match(line, /  +/)) { name[n] = substr(line, 1, RSTART - 1); desc[n] = substr(line, RSTART + RLENGTH) }
+            else { name[n] = line; desc[n] = "" }
+            kind[n] = "row"
+            if (length(name[n]) > wname && length(name[n]) <= 40) wname = length(name[n])
+        } else {
+            kind[n] = "text"; desc[n] = ($0 ~ /^  / ? line : $0); sub(/[ ]+$/, "", desc[n])
+        }
+    }
+    END {
+        # top border: "+- Title ----+"
+        printf "\342\225\255\342\224\200 %s ", title
+        for (i = 0; i < width - length(title) - 5; i++) printf "\342\224\200"
+        printf "\342\225\256\n"
+        for (r = 1; r <= n; r++) {
+            if (kind[r] == "row") {
+                dw = inner - wname - 2
+                text = wrap(desc[r], dw, 0)
+                m = split(text, dl, "\n")
+                if (m == 0) { m = 1; dl[1] = "" }
+                nm = name[r]
+                if (length(nm) > wname) { emit(nm, inner); nm = "" }
+                for (k = 1; k <= m; k++) {
+                    emit(sprintf("%-" wname "s  %s", (k == 1 ? nm : ""), dl[k]), inner)
+                }
+            } else {
+                if (desc[r] == "") { emit("", inner); continue }
+                lead = match(desc[r], /[^ ]/) - 1
+                hang = lead + (substr(desc[r], lead + 1, 2) == "- " ? 2 : 0)
+                text = wrap(substr(desc[r], lead + 1), inner - lead, hang - lead)
+                m = split(text, dl, "\n")
+                for (k = 1; k <= m; k++) emit(sprintf("%" lead "s%s", "", dl[k]), inner)
+            }
+        }
+        printf "\342\225\260"
+        for (i = 0; i < width - 2; i++) printf "\342\224\200"
+        printf "\342\225\257\n"
+    }'
+}

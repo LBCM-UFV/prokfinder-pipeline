@@ -152,9 +152,23 @@ run_cidder() {
         rm -rf "${RUN_DIR}/CIDDER-RESULTS"
     fi
     echo "genomes" > "${RUN_DIR}/.cidder-input"
+    # CiDDER skips the gzipped genome files given with --genomes ("is gzipped. Skipping"; skDER reads them): they are
+    # decompressed into a temporary folder of the run
+    local -a INPUTS=()
+    local FILE STATUS=0
+    for FILE in "$@"; do
+        if [[ "${FILE}" == *.gz ]]; then
+            mkdir -p "${RUN_DIR}/cidder-genomes"
+            gzip -dc "${FILE}" > "${RUN_DIR}/cidder-genomes/$(basename "${FILE%.gz}")"
+            FILE="${RUN_DIR}/cidder-genomes/$(basename "${FILE%.gz}")"
+        fi
+        INPUTS+=("${FILE}")
+    done
     # shellcheck disable=SC2086
-    cidder --genomes "$@" --output-directory "${RUN_DIR}/CIDDER-RESULTS" --threads "${THREADS}" \
-        --max-memory "${MEMORY_GB}" --symlink ${SKDER_EXTRA_ARGS} < /dev/null >> "${RUN_DIR}/cidder-console.log" 2>&1
+    cidder --genomes "${INPUTS[@]}" --output-directory "${RUN_DIR}/CIDDER-RESULTS" --threads "${THREADS}" \
+        --max-memory "${MEMORY_GB}" --symlink ${SKDER_EXTRA_ARGS} < /dev/null >> "${RUN_DIR}/cidder-console.log" 2>&1 || STATUS=$?
+    rm -rf "${RUN_DIR}/cidder-genomes"
+    return "${STATUS}"
 }
 
 # Dereplicates one leaf with skDER or CiDDER (one leaf at a time, with every CPU), in RUNS/<leaf path>/. Writes

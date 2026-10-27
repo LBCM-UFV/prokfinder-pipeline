@@ -182,12 +182,12 @@ assert_cli_error() {
     assert_cli_error "download-wf needs the genomes selected by search-genomes, but results/SEARCH-GENOMES-COMPLETED.txt was not found."
 }
 
-@test "setup --from-source over installed databases without a terminal and without --yes stops" {
+@test "setup --from-source over installed databases without a terminal stops" {
     make_refdb_markers refdb
     rm refdb/GTDB/COMPLETED-DOWNLOAD.txt
     run bash "${PF_MAIN}" --refdb-dir refdb -o results setup --from-source
     assert_cli_error "setup --from-source with reference databases already installed is a full update: NCBI BACDIVE will be downloaded again"
-    assert_output_contains "add --yes to setup."
+    assert_output_contains "It must be confirmed on a terminal"
     assert_file_not_exists results
 }
 
@@ -216,9 +216,9 @@ assert_cli_error() {
     refute_output_contains "full update"
 }
 
-@test "--yes belongs to setup" {
-    run bash "${PF_MAIN}" search-genomes --yes
-    assert_cli_error "Option --yes belongs to the sub-command setup, not to search-genomes."
+@test "--from-source belongs to setup" {
+    run bash "${PF_MAIN}" search-genomes --from-source
+    assert_cli_error "Option --from-source belongs to the sub-command setup, not to search-genomes."
 }
 
 @test "a command line error writes nothing in the results folder" {
@@ -237,4 +237,83 @@ assert_cli_error() {
         assert_output_contains "${TOOL}"
     done
     assert_file_not_exists prokfinder-results
+}
+
+############ HELP IN BOXES, REMOVED AND RENAMED OPTIONS ############
+
+@test "the help of each sub-command is written in boxes with the same width" {
+    local SUB WIDTHS
+    for SUB in "" setup search-genomes download-wf run-on-cluster; do
+        run bash "${PF_MAIN}" ${SUB} -h
+        assert_success
+        assert_output_contains "╭─ Global options"
+        WIDTHS="$(printf '%s\n' "${output}" | line_widths)"
+        [[ "${WIDTHS}" == "80" ]] || { echo "sub-command '${SUB}': box lines of width ${WIDTHS}" >&2; return 1; }
+    done
+}
+
+@test "-h of search-genomes: NCBI filters in a box, with TaxID, genome size and assembly level, without country" {
+    run bash "${PF_MAIN}" search-genomes -h
+    assert_success
+    assert_output_contains "╭─ NCBI filters"
+    assert_output_contains "--taxid <id>"
+    assert_output_contains "--ncbi-taxon-file <file>"
+    assert_output_contains "--genome-size <min:max>"
+    assert_output_contains "--assembly-level <level>"
+    refute_output_contains "country"
+}
+
+@test "-h of setup is short and has only --from-source" {
+    run bash "${PF_MAIN}" setup -h
+    assert_success
+    assert_output_contains "from Zenodo and adds them to the reference"
+    assert_output_contains "--from-source"
+    refute_output_contains "--yes"
+    refute_output_contains "--ncbi-complete-metadata"
+    refute_output_contains "--refdb-registry"
+}
+
+@test "removed options: --country, --country-file, -z/--gzip and --results-dir are unknown" {
+    local OPTION
+    for OPTION in -c --country -C --country-file; do
+        run bash "${PF_MAIN}" search-genomes "${OPTION}" Brazil
+        assert_cli_error "Unknown option: '${OPTION}'."
+    done
+    for OPTION in -z --gzip; do
+        run bash "${PF_MAIN}" download-wf "${OPTION}"
+        assert_cli_error "Unknown option: '${OPTION}'."
+    done
+    run bash "${PF_MAIN}" --results-dir x download-wf
+    assert_cli_error "Unknown option: '--results-dir'."
+}
+
+@test "--output-dir is the output directory" {
+    make_refdb_markers refdb
+    run bash "${PF_MAIN}" --refdb-dir refdb --output-dir out download-wf
+    assert_cli_error "download-wf needs the genomes selected by search-genomes, but out/SEARCH-GENOMES-COMPLETED.txt was not found."
+}
+
+@test "--derep-ani and --derep-mode are ignored with cidder, with a warning" {
+    make_refdb_markers refdb
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results download-wf --derep-method cidder --derep-ani 99 --derep-mode dynamic
+    assert_output_contains "[WARNING] --derep-ani --derep-mode ignored: they are options of skDER, and --derep-method is cidder."
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results download-wf --derep-ani 99
+    refute_output_contains "ignored: they are options of skDER"
+}
+
+@test "default output directory that already has results: asks before a new search; -o is not asked" {
+    make_refdb_markers refdb
+    mkdir prokfinder-results
+    echo old > prokfinder-results/prokfinder.log
+    run_on_terminal n --refdb-dir refdb search-genomes -G 40:65
+    assert_failure 1
+    assert_output_contains "already has the results of a previous run"
+    assert_output_contains "Run in the same output directory? [y/N]"
+    assert_output_contains "Nothing was run."
+    run cat prokfinder-results/prokfinder.log
+    assert_output_equals "old"
+    mkdir other
+    echo old > other/prokfinder.log
+    run_on_terminal n --refdb-dir refdb -o other search-genomes -G 40:65
+    refute_output_contains "Run in the same output directory?"
 }

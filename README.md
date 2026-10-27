@@ -38,7 +38,7 @@ Vários sub-comandos podem ser dados juntos; eles sempre rodam na ordem `setup` 
 
 | Opção | Padrão | Descrição |
 |---|---|---|
-| `-o, --results-dir <dir>` | `./prokfinder-results` | pasta de resultados desta execução |
+| `-o, --output-dir <dir>` | `./prokfinder-results` | pasta de resultados desta execução. Sem `-o`, se `./prokfinder-results` já tiver resultados de uma execução anterior, o `search-genomes` avisa e pergunta `Run in the same output directory? [y/N]` antes de rodar (com `run-on-cluster`, a pergunta vem antes do `qsub`) |
 | `--refdb-dir <dir>` | `~/prokfinder-refdb` | pasta dos bancos de referência, compartilhada por todas as execuções |
 | `-p, --threads <n>` | 4 (com `run-on-cluster`: as CPUs do job) | CPUs usadas por todos os programas (seqkit, CheckM2, GTDB-Tk, skDER) |
 | `--memory <ram>` | RAM do computador (com `run-on-cluster`: a RAM do job) | RAM que os programas podem usar (`16gb`, `16000mb` ou só o número em GB). O CheckM2 precisa de ~18 GB: com menos, roda com `--lowmem` (mais lento, com aviso). O skDER/CiDDER recebem o limite (`--max-memory`); com menos de 200 GB o posicionamento na árvore do GTDB-Tk grava em disco (`--scratch_dir`) |
@@ -138,7 +138,6 @@ de uma vez. No cluster, o job de `run-on-cluster` carrega só os módulos `ncbi_
 ```bash
 ./main-prokfinder.sh setup                 # baixa os bancos prontos do Zenodo para ~/prokfinder-refdb (minutos)
 ./main-prokfinder.sh setup --from-source   # monta os bancos a partir do NCBI, BacDive e GTDB (horas)
-./main-prokfinder.sh setup --from-source --ncbi-complete-metadata   # opcional: também converte todos os metadados do NCBI para TSV
 ```
 
 Há só dois caminhos: os bancos prontos do Zenodo ou os bancos montados a partir das fontes.
@@ -150,7 +149,7 @@ Há só dois caminhos: os bancos prontos do Zenodo ou os bancos montados a parti
 
 - Por padrão o `setup` baixa os três bancos já formatados, publicados no **Zenodo** (um pacote `.tar.gz` por banco,
   com o MD5 conferido; um download interrompido é retomado). O registro usado (servidor, número do registro e MD5 de
-  cada pacote) está em [`refdb-zenodo.tsv`](refdb-zenodo.tsv); `--refdb-registry ARQUIVO` usa outro. Cada pacote tem
+  cada pacote) está em [`refdb-zenodo.tsv`](refdb-zenodo.tsv). Cada pacote tem
   o formato de tabela que o código lê (`format=` em `COMPLETED-DOWNLOAD.txt`): se o registro não tiver o formato
   certo, o `setup` pede `--from-source`. Rodar `setup` de novo instala os pacotes mais novos do registro (outro
   registro, arquivo ou MD5 do que está em `COMPLETED-DOWNLOAD.txt`, linhas `package=` e `package_md5=`).
@@ -159,8 +158,8 @@ Há só dois caminhos: os bancos prontos do Zenodo ou os bancos montados a parti
 - **Atualização completa** (`setup --from-source` com os bancos já instalados, das fontes ou do Zenodo): o
   Prokfinder avisa que vai demorar horas, que precisa de rede o tempo todo e de espaço para uma segunda cópia de cada
   banco, e pergunta `Continue? [y/N]` (outra resposta sai sem mudar nada). Com `run-on-cluster`, a pergunta é feita no
-  seu terminal antes do `qsub`, e o job recebe `--yes`. Sem terminal (scripts, jobs escritos à mão), é preciso
-  `setup --from-source --yes`.
+  seu terminal antes do `qsub`; o job, que não tem terminal, não pergunta de novo. Sem terminal e fora de um job, a
+  atualização completa não roda.
 - Os bancos são instalados **uma única vez** e compartilhados por todas as execuções e pastas de resultados.
 - `search-genomes` e `download-wf` **não rodam sem o `setup`**: se os bancos não forem encontrados, o Prokfinder
   para com o erro `Reference databases not found in ~/prokfinder-refdb` e pede o `setup` (que pode vir no mesmo
@@ -175,10 +174,6 @@ Há só dois caminhos: os bancos prontos do Zenodo ou os bancos montados a parti
   arquivos já baixados, sem baixar nada de novo** (a versão do formato fica em `COMPLETED-DOWNLOAD.txt`, linha
   `format=`).
 - Se duas execuções precisarem instalar os bancos ao mesmo tempo, a segunda espera a primeira terminar.
-- `--ncbi-complete-metadata` (opcional; exige `--from-source`): converte **todos** os campos dos metadados do NCBI (o
-  `assembly_data_report.jsonl` inteiro, ~180 colunas) para TSV em `NCBI/<DOMÍNIO>-NCBI-METADATA/complete-metadata.tsv`.
-  É lento (mais de 15 h só para Bacteria) e a busca não usa essa tabela; por isso fica desligado por padrão. Com os
-  bancos já instalados, faz parte da atualização completa.
 
 **Tabelas do BacDive (estilo BactoTraits).** Uma cepa pode ter vários valores para o mesmo traço, vindos de
 referências diferentes (em `BACDIVE_DATA_FORMATTED.tsv`, `;` separa referências e `:` separa valores da mesma
@@ -194,34 +189,38 @@ referência). Cada referência e depois cada cepa tem o mesmo peso:
 ## search-genomes: seleção dos genomas
 
 ```bash
-./main-prokfinder.sh search-genomes -T 45:80 AND -O rod,coccus AND -g isolate_genome
+./main-prokfinder.sh search-genomes -T 45:80 AND -O rod,coccus AND --genome-size 1:4
 ./main-prokfinder.sh search-genomes --gtdb-taxon-file taxons.txt OR "(" --temp-growth 70: AND -i "hot spring","hydrothermal vent" ")"
-./main-prokfinder.sh -o termofilos search-genomes --gtdb-taxon g__Thermus AND -c Brazil,Iceland
+./main-prokfinder.sh -o termofilos search-genomes --gtdb-taxon g__Thermus AND --assembly-level complete,chromosome
+./main-prokfinder.sh search-genomes --ncbi-taxon Thermus AND --genome-size 2:3.5
 ```
 
 ### Como escrever os filtros
 
 1. Cada flag de seleção é **um filtro**; é preciso pelo menos um.
 2. Vários valores da **mesma flag** são separados por **vírgula, sem espaço**, e combinados com **OR** (o filtro
-   passa se qualquer um dos valores corresponder): `-c Brazil,Iceland`. Cada valor com espaço fica entre as suas próprias
+   passa se qualquer um dos valores corresponder): `--assembly-level complete,chromosome`. Cada valor com espaço fica entre as suas próprias
    aspas duplas: `-i "hot spring","hydrothermal vent",geyser`.
 3. **Entre dois filtros é obrigatório escrever `AND` ou `OR`**; sem isso o Prokfinder dá erro:
 
    ```bash
-   -i "hot spring",geyser AND -c Brazil    # fonte termal ou gêiser, E do Brasil
-   -i "hot spring",geyser OR -c Brazil     # fonte termal ou gêiser, OU do Brasil
+   -i "hot spring",geyser AND --genome-size 1:4    # fonte termal ou gêiser, E genoma de 1 a 4 Mb
+   -i "hot spring",geyser OR --genome-size 1:4     # fonte termal ou gêiser, OU genoma de 1 a 4 Mb
    ```
 
 4. `AND` é avaliado antes de `OR` (`A AND B OR C` = `(A AND B) OR C`). **Parênteses** agrupam filtros; no terminal
    eles precisam estar entre aspas ou com `\`: `-T 45:80 AND "(" -O rod OR -M anaerobe ")"`.
-5. Arquivos de lista (`--gtdb-taxon-file`, `-A`, `-I`, `-C`): um valor por linha. Os `\r` (fim de linha do Windows)
+5. Arquivos de lista (`--gtdb-taxon-file`, `-A`, `-f`, `-N`, `-I`): um valor por linha. Os `\r` (fim de linha do Windows)
    e os espaços no começo/fim das linhas são removidos, e linhas vazias são ignoradas. Em uma **tabela (TSV)** só a
    **primeira coluna** é lida. A primeira linha é tratada como **cabeçalho** e ignorada (com um aviso) quando não é
-   um valor válido: um nome que não está na taxonomia do GTDB (`--gtdb-taxon-file`) ou um código de acesso inválido
-   (`-A`). `-I` e `-C` não podem ter cabeçalho.
+   um valor válido: um nome que não está na taxonomia do GTDB (`--gtdb-taxon-file`), um código de acesso inválido
+   (`-A`), um TaxID que não é número (`-f`) ou um nome sem TaxID de Bacteria/Archaea (`-N`). `-I` não pode ter
+   cabeçalho.
 
-A **taxonomia usada pelo Prokfinder é a do GTDB**, tanto na busca (`--gtdb-taxon`) quanto na classificação dos
-genomas (`download-wf`); não há filtros pela taxonomia do NCBI.
+A **taxonomia usada pelo Prokfinder é a do GTDB** na classificação dos genomas (`download-wf`) e no filtro
+`--gtdb-taxon`. Como a busca lê as tabelas do NCBI, ela também aceita a taxonomia do **NCBI**, só para selecionar
+(`-t`/`-f` por TaxID; `--ncbi-taxon`/`-N` por nome, convertido em TaxID com o taxonkit): um nome sem TaxID de Bacteria
+ou Archaea é um filtro inválido.
 
 ### Filtros
 
@@ -230,9 +229,12 @@ genomas (`download-wf`); não há filtros pela taxonomia do NCBI.
 | `--gtdb-taxon` / `--gtdb-taxon-file` | GTDB | nome de um táxon da linhagem GTDB (sem diferenciar maiúsculas). Com o prefixo do rank (`g__Thermus`, `s__Thermus aquaticus`), só aquele rank; sem prefixo (`Thermus`), qualquer rank. Um nome que não está nas tabelas do GTDB (ex.: `g_Thermus`, com um `_` só) é um valor inválido |
 | `-a, --accession` / `-A, --accession-file` | NCBI | código de acesso **com versão** (`GCA_000005845.2`). GCA_ e GCF_ podem vir misturados (GCF_x.1 seleciona o par GenBank GCA_x.1). Todas as linhas inválidas são listadas no erro |
 | `-i` / `-I` | NCBI | texto **ou expressão regular** (ERE do POSIX, sem diferenciar maiúsculas) procurado na fonte de isolamento (ex.: `"hot spring","hydrothermal vent"`, `"hot ?springs?"`, `"^soil$"`). Um texto simples também funciona; para procurar literalmente `( ) [ ] . * + ? \| ^ $`, use `\` antes (ex.: `"soil \(forest\)"`). Uma expressão inválida dá erro antes da busca |
-| `-c` / `-C` | NCBI | país/local da localização geográfica (ex.: `Brazil,Iceland`) |
+| `-t, --taxid` / `-f, --taxid-file` | NCBI | TaxID do NCBI de qualquer rank, do organismo ou de qualquer nível da sua linhagem (ex.: `1239` seleciona todos os genomas de Bacillota) |
+| `--ncbi-taxon` / `-N, --ncbi-taxon-file` | NCBI | nome de um táxon do NCBI de qualquer rank (ex.: `Thermus`, `Thermus aquaticus`), convertido em TaxID com `taxonkit name2taxid` (só Bacteria e Archaea; homônimos mantêm todos os TaxIDs). Nome sem TaxID é um valor inválido |
 | `-g` | NCBI | `isolate_genome` ou `mag` |
 | `-G` | NCBI | faixa de GC (%) da montagem (`min:max`) |
+| `--genome-size` | NCBI | tamanho do genoma em Mb (`min:max`, um dos lados pode ficar vazio; ex.: `1:4`) |
+| `--assembly-level` | NCBI | estado da montagem: `contig`, `scaffold`, `chromosome` ou `complete` (Complete Genome); vários valores separados por vírgula |
 | `-T` / `-P` / `-S` | BacDive | temperatura, pH e NaCl **ótimos** (`min:max`, um dos lados pode ficar vazio) |
 | `--temp-growth` / `--ph-growth` / `--salt-growth` | BacDive | valores em que houve crescimento |
 | `-O, --cell-shape` | BacDive | formato celular: `rod`, `coccus`, `ovoid`, `curved`, `spiral`, `filament`, `pleomorphic`, `other` |
@@ -338,7 +340,7 @@ Usa os genomas do último `search-genomes` da mesma pasta de resultados (`-o`). 
 | Etapa | Opção | Padrão | Descrição |
 |---|---|---|---|
 | Download | `-j, --download-threads <n>` | 10 | downloads simultâneos (1-30) |
-| | `-z, --gzip` | | guarda os genomas comprimidos (`.fna.gz`) |
+| | `--decompress` | | descomprime os genomas (`.fna`); por padrão ficam comprimidos (`.fna.gz`) |
 | Contigs | `--min-contig-length <pb>` | 1000 | contigs menores são removidos |
 | Estrutura | `--max-contigs <n>` | 1000 | o genoma precisa ter menos contigs que isso |
 | | `--max-n-bases <n>` | 100000 | o genoma precisa ter menos bases ambíguas (N) que isso |
@@ -348,8 +350,8 @@ Usa os genomas do último `search-genomes` da mesma pasta de resultados (`-o`). 
 | | `--skip-busco` | desligado | não roda o BUSCO |
 | Taxonomia | `--use-gtdbtk-tree` | desligado | posiciona na árvore do GTDB os genomas que não estão nas tabelas nem foram classificados por ANI (**precisa de > 200 GB de RAM**: fila `high_mem`) |
 | Desreplicação | `--derep-method <m>` | `skder` | `skder` (ANI) ou `cidder` (agrupamento das proteínas com CD-HIT, parâmetros padrão do CiDDER) |
-| | `--derep-ani <%>` | 99,5 | skDER: identidade (ANI) acima da qual dois genomas do mesmo táxon são redundantes |
-| | `--derep-mode <modo>` | `greedy` | skDER: `greedy` ou `dynamic` (fração alinhada fixa em 90 %) |
+| | `--derep-ani <%>` | 99,5 | só skDER (ignorada, com aviso, com `--derep-method cidder`): identidade (ANI) acima da qual dois genomas do mesmo táxon são redundantes |
+| | `--derep-mode <modo>` | `greedy` | só skDER (ignorada, com aviso, com `cidder`): `greedy` ou `dynamic` (fração alinhada fixa em 90 %) |
 | | `--filter-mge` | desligado | mascara os elementos genéticos móveis (profagos e plasmídeos, previstos com o PhiSpy) antes de comparar os genomas |
 | Re-execução | `--force-curation` | | descarta os genomas limpos, os genes preditos e todos os resultados de qualidade, taxonomia e desreplicação (os genomas baixados são mantidos) |
 
@@ -483,7 +485,6 @@ Bancos de referência (compartilhados, `--refdb-dir`):
 ├── NCBI/
 │   ├── BACTERIA-NCBI-GENOMES/fetch.txt                # só o manifesto, não os FASTA
 │   ├── BACTERIA-NCBI-METADATA/{genbank,refseq}-metadata.tsv   # tabelas usadas na busca (campos selecionados)
-│   ├── BACTERIA-NCBI-METADATA/complete-metadata.tsv   # opcional (--ncbi-complete-metadata): todos os campos do NCBI
 │   ├── ARCHAEA-NCBI-GENOMES/  ARCHAEA-NCBI-METADATA/
 │   └── TAXDUMP/                                       # taxonomia NCBI (rank dos TaxIDs do BacDive, no setup)
 ├── BACDIVE/
@@ -497,7 +498,7 @@ Bancos de referência (compartilhados, `--refdb-dir`):
     └── {ARCHAEA,BACTERIA}-GTDB-METADATA/              # ar53/bac120_metadata (bruto + formatado)
 ```
 
-Resultados de uma execução (`-o`/`--results-dir`):
+Resultados de uma execução (`-o`/`--output-dir`):
 
 ```
 prokfinder-results/

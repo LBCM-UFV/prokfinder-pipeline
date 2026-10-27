@@ -150,7 +150,7 @@ assert_value() {
     assert_value "$(metadata "${BASE}")" "${HB8}" DOWNLOAD_STATUS DOWNLOADED
     run cat "${BATS_FILE_TMPDIR}/base.log"
     assert_output_contains "1 genome(s) could not be downloaded in this run"
-    assert_file_exists "${BASE}/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna"
+    assert_file_exists "${BASE}/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna.gz"
 }
 
 @test "download-wf: the fragmented genome fails the structural evaluation (N50) and gets no genes nor CheckM2" {
@@ -239,7 +239,7 @@ assert_value() {
 @test "the same command run again reuses every step: no CheckM2, BUSCO, GTDB-Tk nor skDER call" {
     run_wf results
     cp "$(metadata results)" first.tsv
-    local RAW="results/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna"
+    local RAW="results/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna.gz"
     local MTIME
     MTIME="$(stat -c %Y "${RAW}")"
     : > "${PF_FAKE_LOG}"
@@ -304,7 +304,7 @@ assert_value() {
     run run_wf results --force-curation
     assert_success
     assert_output_contains "Option --force-curation"
-    assert_file_exists "results/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna"
+    assert_file_exists "results/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna.gz"
     run count_calls '^checkm2 predict'
     assert_output_equals "1"
     run count_calls '^skder --genomes'
@@ -330,14 +330,14 @@ assert_value() {
     assert_output_equals "0"
 }
 
-@test "-z: genome files written with gzip, same quality and taxonomy as without it" {
-    run run_wf results -z
+@test "--decompress: genome files written decompressed, same quality and taxonomy as the default (compressed)" {
+    run run_wf results --decompress
     assert_success
-    assert_file_exists "results/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna.gz"
-    assert_file_exists "results/OUTPUT/GENOME-FILES/clean_genomes/${HB8}.fna.gz"
+    assert_file_exists "results/OUTPUT/GENOME-FILES/raw_genomes/${HB8}.fna"
+    assert_file_exists "results/OUTPUT/GENOME-FILES/clean_genomes/${HB8}.fna"
+    assert_file_not_exists "results/OUTPUT/GENOME-FILES/clean_genomes/${HB8}.fna.gz"
     assert_same_file "${BASE}/OUTPUT/GENOME-QUALITY/genome-quality.tsv" results/OUTPUT/GENOME-QUALITY/genome-quality.tsv
-    assert_same_file "${BASE}/OUTPUT/GENOME-TAXONOMY/taxonomy-classification.tsv" \
-        results/OUTPUT/GENOME-TAXONOMY/taxonomy-classification.tsv
+    assert_same_file "${BASE}/OUTPUT/GENOME-TAXONOMY/taxonomy-classification.tsv"         results/OUTPUT/GENOME-TAXONOMY/taxonomy-classification.tsv
 }
 
 @test "--memory below 18 GB: CheckM2 runs with --lowmem and a warning; with 18 GB, in its normal mode" {
@@ -385,7 +385,7 @@ assert_value() {
     assert_output_equals "1"
     run count_calls '^cidder --proteomes'
     assert_output_equals "0"
-    run count_calls '^cidder --genomes .*clean_genomes/GCA_000008125.1.fna'
+    run count_calls '^cidder --genomes .*cidder-genomes/GCA_000008125.1.fna'
     assert_output_equals "1"
     local S="results/OUTPUT/GENOME-DEREPLICATION/dereplication-summary.tsv"
     run awk -F'\t' '$12 == "DEREPLICATED" { print $6, $9 }' "${S}"

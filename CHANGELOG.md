@@ -8,7 +8,27 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 
 ## [Unreleased] - 0.5.0-dev
 
+### Changed
+- The help (`-h`) is written in boxes, one per group of options, as in `fastq-dl` and Bactopia; the descriptions of
+  `setup`, `search-genomes` and `run-on-cluster` are one line.
+- `-o, --results-dir` is now `-o, --output-dir`. Without `-o`, a new `search-genomes` in an existing
+  `./prokfinder-results` asks for confirmation before running there (also with `run-on-cluster`, before the job).
+- `download-wf` keeps the genomes compressed (`.fna.gz`) by default; `--decompress` replaces `-z, --gzip`.
+- `download-wf --derep-ani` and `--derep-mode` are ignored with a warning when `--derep-method cidder` is used.
+
+### Fixed
+- `download-wf --derep-method cidder` with CiDDER < 1.3.7 (genome files given with `--genomes`): CiDDER skips gzipped
+  genomes, so they are decompressed into a temporary folder of the run first (the default is now `.fna.gz`).
+
+### Removed
+- `setup --yes` (the full update of `--from-source` is confirmed on the terminal; `run-on-cluster` asks before the
+  job is submitted and the job does not ask again), `setup --ncbi-complete-metadata` and `setup --refdb-registry`.
+- `search-genomes -c/--country` and `-C/--country-file`.
+
 ### Added
+- `search-genomes` filters `--genome-size <min:max>` (Mb), `--assembly-level` (contig, scaffold, chromosome,
+  complete) and, by NCBI taxonomy, `-t/--taxid`, `-f/--taxid-file`, `--ncbi-taxon` and `-N/--ncbi-taxon-file` (names
+  converted to TaxIDs with taxonkit; a name without TaxID is an invalid filter).
 - `download-wf` writes `FINAL-RESULTS/versions.tsv` (programs, reference databases, CheckM2 database, BUSCO lineages
   and GTDB-Tk reference package used) and `FINAL-RESULTS/parameters.tsv` (command line, genome selection and the
   effective value of every option).
