@@ -4,6 +4,7 @@ PARAMETER
 --derep-method
 --derep-mode
 --download-threads
+--export-all-hq
 --filter-mge
 --max-contamination
 --max-contigs

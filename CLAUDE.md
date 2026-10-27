@@ -40,6 +40,7 @@ modules/                    one script per step; each one runs alone too (-h sho
   build-taxonomic-dir-hierarchy.sh               8  Domain/.../Species folders (lists of paths)
   dereplicate-genomes.sh                         9  skDER or CiDDER inside each leaf
   summarize-final-results.sh (+ plot-statistics.R) 10 tables and graphs
+  export-genome-database.sh                      11 GENOME-DATABASE: genomes, proteins, genes, metadata, MD5 (hard links)
   submit-prokfinder-pbs.sh                       run-on-cluster
 docker/                     Dockerfile (micromamba; CheckM2, BUSCO and GTDB-Tk in their own environments) and
                             prokfinder-docker.sh; image published by .github/workflows/docker-publish.yml

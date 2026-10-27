@@ -16,6 +16,7 @@
 #                    8. build-taxonomic-dir-hierarchy.sh                         Domain/.../Species directory hierarchy
 #                    9. dereplicate-genomes.sh                                   dereplication inside each taxon
 #                   10. summarize-final-results.sh                               final tables and graphs
+#                   11. export-genome-database.sh                                self-contained genome database
 #   run-on-cluster   submit-prokfinder-pbs.sh: the other sub-commands run as a PBS job on a compute node
 #
 # This script only controls the execution: it reads the command line, checks the programs and the reference
@@ -202,6 +203,10 @@ EOF
   --derep-mode <mode>              skDER only: greedy (default) or dynamic
   --filter-mge                     Mask the mobile genetic elements (PhiSpy) before comparing the genomes
 EOF
+    pf_help_box "Export (OUTPUT/GENOME-DATABASE: genomes, proteins, genes, metadata, MD5)" << EOF
+  --export-all-hq                  Export every genome that passed the quality filters (by default, only the
+                                   representatives left by the dereplication)
+EOF
     pf_help_box "Re-running" << EOF
   --force-curation                 Redo the curation from the downloaded genomes (by default, finished work is reused)
 EOF
@@ -277,7 +282,7 @@ SEARCH_FILTERS=" --gtdb-taxon --gtdb-taxon-file -a --accession -A --accession-fi
  -T --temp-opt -P --ph-opt -S --salt-opt --temp-growth --ph-growth --salt-growth -O --cell-shape -M --oxygen
  --gram-stain --motility --spore-formation --energy-source --electron-donor --carbon-source "
 SEARCH_FILTERS="${SEARCH_FILTERS//$'\n'/ }"
-DOWNLOAD_FLAGS=" --decompress --use-gtdbtk-tree --filter-mge --force-curation --skip-busco "
+DOWNLOAD_FLAGS=" --decompress --use-gtdbtk-tree --filter-mge --force-curation --skip-busco --export-all-hq "
 DOWNLOAD_VALUES=" -j --download-threads --min-contig-length --max-contigs --max-n-bases --min-n50 --min-completeness
  --max-contamination --derep-method --derep-mode --derep-ani "
 DOWNLOAD_VALUES="${DOWNLOAD_VALUES//$'\n'/ }"
@@ -316,6 +321,7 @@ MIN_CONTIG_LENGTH=1000
 QC_ARGS=()
 USE_GTDBTK_TREE=0
 SKIP_BUSCO=0
+EXPORT_ALL_HQ=0
 DEREP_METHOD="skder"
 DEREP_MODE="greedy"
 DEREP_ANI="99.5"
@@ -550,6 +556,7 @@ while [[ $# -gt 0 ]]; do
         --max-contigs|--max-n-bases|--min-n50|--min-completeness|--max-contamination) QC_ARGS+=("${ARG}" "${VAL}") ;;
         --use-gtdbtk-tree)            USE_GTDBTK_TREE=1 ;;
         --skip-busco)                 SKIP_BUSCO=1 ;;
+        --export-all-hq)              EXPORT_ALL_HQ=1 ;;
         --derep-method)               DEREP_METHOD="${VAL,,}" ;;
         --derep-mode)                 DEREP_MODE="${VAL,,}"; DEREP_SKDER_FLAGS_GIVEN+=("${ARG}") ;;
         --derep-ani)                  DEREP_ANI="${VAL}"; DEREP_SKDER_FLAGS_GIVEN+=("${ARG}") ;;
@@ -1051,6 +1058,7 @@ TAXONOMY_DIR="${OUTPUT_DIR}/GENOME-TAXONOMY"
 HIERARCHY_DIR="${OUTPUT_DIR}/GENOME-DIR-HIERARCHY"
 DEREPLICATION_DIR="${OUTPUT_DIR}/GENOME-DEREPLICATION"
 FINAL_DIR="${OUTPUT_DIR}/FINAL-RESULTS"
+EXPORT_DIR="${OUTPUT_DIR}/GENOME-DATABASE"
 
 mkdir -p "${PROKFINDER_DIR}"
 # This run now owns the results folder (the marker is removed when it ends, also on errors and qdel)
@@ -1550,6 +1558,7 @@ write_run_record() {
             printf -- '--derep-ani\t%s\n' "${DEREP_ANI}"
         fi
         printf -- '--filter-mge\t%s\n' "$([[ "${FILTER_MGE}" -eq 1 ]] && echo yes || echo no)"
+        printf -- '--export-all-hq\t%s\n' "$([[ "${EXPORT_ALL_HQ}" -eq 1 ]] && echo yes || echo no)"
     } | format_tsv 0 > "${PARAMETERS}.tmp"
     mv "${PARAMETERS}.tmp" "${PARAMETERS}"
     log "message" "Versions and parameters of this run: ${VERSIONS} and ${PARAMETERS}"
@@ -1684,5 +1693,22 @@ add_metadata_columns "${METADATA}" "${DEREPLICATION_DIR}/genome-dereplication.ts
 write_run_record
 run_module summarize-final-results.sh -m "${METADATA}" -r "${NCBI_DIR}" -s "${ASSEMBLY_SOURCE}" -o "${FINAL_DIR}"
 
+# Step 11: self-contained genome database (the representatives, or every genome that passed the quality filters)
+EXPORT_LIST="${WORK_DIR}/exported.txt"
+if [[ "${EXPORT_ALL_HQ}" -eq 1 ]]; then
+    EXPORT_CRITERION="every genome that passed the quality filters"
+    accessions_where "${EXPORT_LIST}" '$QC_STATUS == "PASSED"' QC_STATUS
+else
+    EXPORT_CRITERION="the representative genomes left by the dereplication"
+    accessions_where "${EXPORT_LIST}" '$QC_STATUS == "PASSED" && $REPRESENTATIVE_GENOME == "yes"' QC_STATUS REPRESENTATIVE_GENOME
+fi
+if [[ -s "${EXPORT_LIST}" ]]; then
+    run_module export-genome-database.sh -m "${METADATA}" -l "${EXPORT_LIST}" -g "${GENES_DIR}" -f "${FINAL_DIR}" \
+        -o "${EXPORT_DIR}" -c "${EXPORT_CRITERION}" -p "${THREADS}"
+else
+    log "warning" "No genome to export to ${EXPORT_DIR}."
+fi
+
 log "message" "Prokfinder finished successfully. Genome metadata (every step): ${METADATA}"
 log "message" "High-quality representative genomes: ${FINAL_DIR}/high-quality-selected-genomes.txt"
+log "message" "Self-contained genome database: ${EXPORT_DIR}"

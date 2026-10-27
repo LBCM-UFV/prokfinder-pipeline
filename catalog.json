@@ -505,6 +505,17 @@
       "description": "Do not run BUSCO (by default it is reported, not used as a filter)"
     },
     {
+      "name": "--export-all-hq",
+      "aliases": [
+        "--export-all-hq"
+      ],
+      "section": "download-wf",
+      "kind": "option",
+      "takes_value": false,
+      "argument": "",
+      "description": "Export every genome that passed the quality filters (by default, only the representatives left by the dereplication)"
+    },
+    {
       "name": "--download-threads",
       "aliases": [
         "-j",
@@ -773,6 +784,16 @@
       "usage": [
         "evaluate-genome-structure-seqkit.sh - Prokfinder module 4: structural evaluation of the genomes (seqkit)",
         "Usage: evaluate-genome-structure-seqkit.sh -l <accession_list> -i <clean_genomes_dir> -o <quality_dir> [-p <threads>]"
+      ],
+      "language": "bash"
+    },
+    {
+      "file": "modules/export-genome-database.sh",
+      "step": "11",
+      "description": "self-contained genome database",
+      "usage": [
+        "export-genome-database.sh - Prokfinder module 11: self-contained genome database",
+        "Usage: export-genome-database.sh -m <genome_metadata.tsv> -l <accession_list> -g <genes_dir> -f <final_results_dir>"
       ],
       "language": "bash"
     },

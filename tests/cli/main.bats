@@ -263,6 +263,13 @@ assert_cli_error() {
     refute_output_contains "country"
 }
 
+@test "-h of download-wf: --export-all-hq in the Export box" {
+    run bash "${PF_MAIN}" download-wf -h
+    assert_success
+    assert_output_contains "Export (OUTPUT/GENOME-DATABASE"
+    assert_output_contains "--export-all-hq"
+}
+
 @test "-h of setup is short and has only --from-source" {
     run bash "${PF_MAIN}" setup -h
     assert_success

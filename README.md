@@ -336,6 +336,8 @@ Usa os genomas do último `search-genomes` da mesma pasta de resultados (`-o`). 
 7. **Hierarquia** de diretórios Domínio/.../Espécie.
 8. **Desreplicação** dentro de cada táxon: skDER (ANI, padrão) ou CiDDER (agrupamento das proteínas preditas).
 9. Tabelas e gráficos finais.
+10. **Banco de genomas** autocontido em `OUTPUT/GENOME-DATABASE/` (ver [Estrutura de saída](#estrutura-de-saída)):
+    genomas, proteínas e genes dos representantes, comprimidos, com metadados, versões, parâmetros e MD5.
 
 | Etapa | Opção | Padrão | Descrição |
 |---|---|---|---|
@@ -353,6 +355,7 @@ Usa os genomas do último `search-genomes` da mesma pasta de resultados (`-o`). 
 | | `--derep-ani <%>` | 99,5 | só skDER (ignorada, com aviso, com `--derep-method cidder`): identidade (ANI) acima da qual dois genomas do mesmo táxon são redundantes |
 | | `--derep-mode <modo>` | `greedy` | só skDER (ignorada, com aviso, com `cidder`): `greedy` ou `dynamic` (fração alinhada fixa em 90 %) |
 | | `--filter-mge` | desligado | mascara os elementos genéticos móveis (profagos e plasmídeos, previstos com o PhiSpy) antes de comparar os genomas |
+| Exportação | `--export-all-hq` | desligado | exporta para `GENOME-DATABASE` todos os genomas aprovados na qualidade, não só os representantes |
 | Re-execução | `--force-curation` | | descarta os genomas limpos, os genes preditos e todos os resultados de qualidade, taxonomia e desreplicação (os genomas baixados são mantidos) |
 
 Os limites de qualidade são reaplicados a cada execução sobre os resultados já guardados: mudá-los não faz o CheckM2
@@ -526,6 +529,14 @@ prokfinder-results/
     │   ├── representative-genomes.tsv                 # acesso e linhagem de cada genoma representativo
     │   ├── genome-dereplication.tsv                   # uma linha por genoma (representativo: yes/no)
     │   └── RUNS/Domínio/.../Espécie/                  # saída bruta do skDER/CiDDER de cada linhagem (cache)
+    ├── GENOME-DATABASE/                               # banco final autocontido (pode ser movido e compartilhado)
+    │   ├── genomes/<ACESSO>.fna.gz                    # hard link do genoma limpo (cópia se não der)
+    │   ├── proteins/<ACESSO>.faa.gz                   # proteínas do Pyrodigal
+    │   ├── genes/<ACESSO>.gff.gz                      # genes do Pyrodigal
+    │   ├── genome-database-metadata.tsv               # só os genomas exportados, com caminhos relativos
+    │   ├── versions.tsv, parameters.tsv               # cópias dos de FINAL-RESULTS
+    │   ├── README.txt                                 # o que é cada arquivo e como citar
+    │   └── MD5SUMS.txt                                # conferir com: md5sum -c MD5SUMS.txt
     └── FINAL-RESULTS/
         ├── high-quality-selected-genomes.txt          # acessos + caminho do FASTA dos genomas finais
         ├── high-quality-selected-genomes-metadata.txt
@@ -539,6 +550,13 @@ prokfinder-results/
 `FINAL-RESULTS/versions.tsv` e `parameters.tsv` registram o que produziu o resultado (versões instaladas no momento
 da execução, bancos de referência com a origem do pacote, linhagens do BUSCO e valores efetivos das opções, inclusive
 os padrões); citem-nos no método do trabalho.
+
+`GENOME-DATABASE/` é o produto do `download-wf`: só tem arquivos (sem links simbólicos para a execução), então a
+pasta inteira pode ser copiada ou movida e conferida com `md5sum -c MD5SUMS.txt`. Por padrão leva os representantes
+da desreplicação; com `--export-all-hq`, todos os genomas aprovados na qualidade (a coluna `REPRESENTATIVE_GENOME` de
+`genome-database-metadata.tsv` diz quais são os representantes). Os genomas já comprimidos entram por *hard link*
+(quase sem espaço extra, quando origem e destino estão no mesmo sistema de arquivos); com `--decompress` o arquivo é
+comprimido de novo. Numa nova execução só entram os genomas novos ou alterados, e os que saíram da lista são removidos.
 
 `GENOME-DEREPLICATION/dereplication-summary.tsv` resume a desreplicação, uma linha por linhagem (o diretório-folha da
 hierarquia):

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# download-wf (modules 2-10) on the reference database fixture and the genomes of tests/data/genomes (first ~300 kb of
+# download-wf (modules 2-11) on the reference database fixture and the genomes of tests/data/genomes (first ~300 kb of
 # each genome, tests/data/make-genomes.sh). seqkit and Pyrodigal are the real programs; datasets, checkm2, busco,
 # gtdbtk, skder and cidder are the fake programs of tests/bin, with the results of tests/data/fake-programs.
 #   HB8 GCA_000091545.1 and HB27 GCA_000008125.1   Thermus thermophilus (GTDB table), ANI 98.66 between them
@@ -234,6 +234,44 @@ assert_value() {
     fi
 }
 
+@test "download-wf: GENOME-DATABASE has the genomes, proteins and genes of the 5 representatives and their metadata" {
+    local DB="${BASE}/OUTPUT/GENOME-DATABASE"
+    for ACC in "${HB8}" "${HB27}" "${P_HORIKOSHII}" "${UNNAMED_ARCHAEON}" "${NOT_IN_GTDB}"; do
+        assert_file_exists "${DB}/genomes/${ACC}.fna.gz"
+        assert_file_exists "${DB}/proteins/${ACC}.faa.gz"
+        assert_file_exists "${DB}/genes/${ACC}.gff.gz"
+    done
+    for SUB in genomes proteins genes; do
+        run bash -c "ls \"${DB}/${SUB}\" | wc -l"
+        assert_output_equals "5"
+    done
+    assert_file_not_exists "${DB}/genomes/${FRAGMENTED}.fna.gz"
+    assert_expected_tsv download-wf/genome-database-metadata.tsv "${DB}/genome-database-metadata.tsv"
+    # No absolute path in the metadata, and the paths written in it exist
+    run grep -c "${BATS_FILE_TMPDIR}" "${DB}/genome-database-metadata.tsv"
+    assert_output_equals "0"
+    assert_value "${DB}/genome-database-metadata.tsv" "${HB8}" GENOME_FILE "genomes/${HB8}.fna.gz"
+    [[ -s "${DB}/$(tsv_value "${DB}/genome-database-metadata.tsv" "${HB8}" PROTEIN_FILE)" ]]
+    [[ -s "${DB}/$(tsv_value "${DB}/genome-database-metadata.tsv" "${HB8}" GENE_FILE)" ]]
+    assert_file_exists "${DB}/versions.tsv"
+    assert_file_exists "${DB}/parameters.tsv"
+    assert_file_exists "${DB}/README.txt"
+    # The compressed clean genome is hard-linked, not copied
+    [[ "$(stat -c %h "${DB}/genomes/${HB8}.fna.gz")" -gt 1 ]]
+    [[ "$(stat -c %h "${DB}/proteins/${HB8}.faa.gz")" -eq 1 ]]
+}
+
+@test "download-wf: a copy of GENOME-DATABASE elsewhere has no links to the run and md5sum -c passes" {
+    cp -r "${BASE}/OUTPUT/GENOME-DATABASE" moved
+    run find moved -type l
+    assert_output_equals ""
+    cd moved
+    run md5sum -c MD5SUMS.txt
+    assert_success
+    run gzip -t "genomes/${HB8}.fna.gz" "proteins/${HB8}.faa.gz" "genes/${HB8}.gff.gz"
+    assert_success
+}
+
 ############ RE-EXECUTION (CACHES) ################
 
 @test "the same command run again reuses every step: no CheckM2, BUSCO, GTDB-Tk nor skDER call" {
@@ -311,6 +349,31 @@ assert_value() {
     assert_output_equals "1"
 }
 
+@test "re-execution: the genome database is not written again when nothing changed" {
+    run_wf results
+    local DB="results/OUTPUT/GENOME-DATABASE"
+    stat -c "%n %i %Y" "${DB}"/genomes/* "${DB}"/proteins/* "${DB}"/genes/* > files-before.txt
+    grep -E "^[0-9a-f]{32}  (genomes|proteins|genes)/" "${DB}/MD5SUMS.txt" > md5-before.txt
+    run run_wf results
+    assert_success
+    assert_output_contains "5 reused; 0 to export"
+    stat -c "%n %i %Y" "${DB}"/genomes/* "${DB}"/proteins/* "${DB}"/genes/* > files-after.txt
+    assert_same_file files-before.txt files-after.txt
+    grep -E "^[0-9a-f]{32}  (genomes|proteins|genes)/" "${DB}/MD5SUMS.txt" > md5-after.txt
+    assert_same_file md5-before.txt md5-after.txt
+}
+
+@test "re-execution: a file missing in the genome database is exported again" {
+    run_wf results
+    local DB="results/OUTPUT/GENOME-DATABASE"
+    rm "${DB}/proteins/${HB8}.faa.gz"
+    run run_wf results
+    assert_success
+    assert_output_contains "4 reused; 1 to export"
+    assert_file_exists "${DB}/proteins/${HB8}.faa.gz"
+    (cd "${DB}" && md5sum -c MD5SUMS.txt)
+}
+
 ############ OPTIONS ################
 
 @test "--min-n50 0 --min-contig-length 2500: the fragmented genome loses contigs and fails CheckM2" {
@@ -338,6 +401,45 @@ assert_value() {
     assert_file_not_exists "results/OUTPUT/GENOME-FILES/clean_genomes/${HB8}.fna.gz"
     assert_same_file "${BASE}/OUTPUT/GENOME-QUALITY/genome-quality.tsv" results/OUTPUT/GENOME-QUALITY/genome-quality.tsv
     assert_same_file "${BASE}/OUTPUT/GENOME-TAXONOMY/taxonomy-classification.tsv"         results/OUTPUT/GENOME-TAXONOMY/taxonomy-classification.tsv
+}
+
+@test "--export-all-hq exports every genome that passed the quality filters; without it the others are removed again" {
+    local DB="results/OUTPUT/GENOME-DATABASE"
+    # --derep-ani 98: HB8 is redundant (not a representative)
+    run run_wf results --derep-ani 98
+    assert_success
+    assert_file_exists "${DB}/genomes/${HB27}.fna.gz"
+    assert_file_not_exists "${DB}/genomes/${HB8}.fna.gz"
+    run run_wf results --derep-ani 98 --export-all-hq
+    assert_success
+    assert_file_exists "${DB}/genomes/${HB8}.fna.gz"
+    assert_file_exists "${DB}/proteins/${HB8}.faa.gz"
+    assert_value "${DB}/genome-database-metadata.tsv" "${HB8}" REPRESENTATIVE_GENOME no
+    assert_value "results/OUTPUT/FINAL-RESULTS/parameters.tsv" --export-all-hq VALUE yes
+    run grep -c "${HB8}" "${DB}/MD5SUMS.txt"
+    assert_output_equals "3"
+    (cd "${DB}" && md5sum -c MD5SUMS.txt)
+    run run_wf results --derep-ani 98
+    assert_success
+    assert_output_contains "Removed 3 file(s) of genomes that are no longer exported."
+    assert_file_not_exists "${DB}/genomes/${HB8}.fna.gz"
+    run grep -c "${HB8}" "${DB}/MD5SUMS.txt"
+    assert_output_equals "0"
+    run grep -c "${HB8}" "${DB}/genome-database-metadata.tsv"
+    assert_output_equals "0"
+    (cd "${DB}" && md5sum -c MD5SUMS.txt)
+}
+
+@test "--decompress: the genome database still has compressed genomes (a gzip of the decompressed file)" {
+    run run_wf results --decompress
+    assert_success
+    local DB="results/OUTPUT/GENOME-DATABASE"
+    assert_file_exists "${DB}/genomes/${HB8}.fna.gz"
+    assert_file_not_exists "${DB}/genomes/${HB8}.fna"
+    [[ "$(stat -c %h "${DB}/genomes/${HB8}.fna.gz")" -eq 1 ]]
+    run gzip -t "${DB}/genomes/${HB8}.fna.gz"
+    assert_success
+    (cd "${DB}" && md5sum -c MD5SUMS.txt)
 }
 
 @test "--memory below 18 GB: CheckM2 runs with --lowmem and a warning; with 18 GB, in its normal mode" {

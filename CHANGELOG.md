@@ -32,6 +32,11 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - `download-wf` writes `FINAL-RESULTS/versions.tsv` (programs, reference databases, CheckM2 database, BUSCO lineages
   and GTDB-Tk reference package used) and `FINAL-RESULTS/parameters.tsv` (command line, genome selection and the
   effective value of every option).
+- `download-wf` step 11 (`modules/export-genome-database.sh`): `OUTPUT/GENOME-DATABASE/`, a self-contained genome
+  database that can be moved and shared: `genomes/*.fna.gz`, `proteins/*.faa.gz`, `genes/*.gff.gz` (hard links when the
+  file is already compressed, copies otherwise), `genome-database-metadata.tsv` (relative paths), `versions.tsv`,
+  `parameters.tsv`, `README.txt` and `MD5SUMS.txt`. It has the representatives; `--export-all-hq` exports every genome
+  that passed the quality filters.
 - Gene prediction once per genome with Pyrodigal (translation table 11 or 4 chosen as GTDB-Tk does; meta mode only
   for genomes < 100 kbp); the proteins are used by CheckM2, BUSCO, GTDB-Tk and CiDDER.
 - BUSCO (proteins mode, lineage chosen by the NCBI domain) on the genomes that pass CheckM2; reported, not filtered

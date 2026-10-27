@@ -63,7 +63,7 @@ copiar `refdb`, `refdb-raw`, `FIXTURE.txt` e `fixture-accession-numbers.txt` par
 
 ## O download-wf nos testes (tests/module/download-wf.bats)
 
-O `download-wf` roda inteiro (módulos 2 a 10) sobre a fixture, com os genomas de `data/genomes`:
+O `download-wf` roda inteiro (módulos 2 a 11) sobre a fixture, com os genomas de `data/genomes`:
 
 | Genoma | Papel no teste |
 |---|---|
