@@ -9,3 +9,7 @@ context.md
 # R / editors
 .Rhistory
 .vscode/
+*.code-workspace
+
+# Local test outputs
+test-tiny-genomes/
