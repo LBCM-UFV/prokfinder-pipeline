@@ -431,7 +431,9 @@ representativos.
 são preditos uma única vez), mas só as dos **genes completos**: o CiDDER, quando prediz sozinho, usa o Pyrodigal com `-c`
 (sem genes parciais nas bordas dos contigs), então o Prokfinder roda o Pyrodigal uma segunda vez desse modo e grava
 `GENOME-GENES/COMPLETE-GENES/<ACESSO>.faa` (a coluna `PREDICTED_COMPLETE_GENES` conta esses genes; os `.faa` com
-genes completos e parciais, usados pelo CheckM2, BUSCO e GTDB-Tk, não mudam). Isso exige o **CiDDER 1.3.7 ou mais novo**: o 1.3.6 (a versão do módulo `skder` do cluster)
+genes completos e parciais, usados pelo CheckM2, BUSCO e GTDB-Tk, não mudam). Essa segunda predição é feita **sempre**,
+com qualquer método de desreplicação: os genes não fragmentados também servem como selo de qualidade do genoma em usos
+posteriores, como a anotação funcional. Isso exige o **CiDDER 1.3.7 ou mais novo**: o 1.3.6 (a versão do módulo `skder` do cluster)
 falha quando recebe só proteomas. Com um CiDDER mais antigo, o Prokfinder registra **um aviso** no log e entrega os
 genomas ao CiDDER, que então **prediz os genes de novo** (tabela de tradução 11, não os genes do Pyrodigal); o resumo da
 desreplicação mostra `CIDDER_INPUT = genomes`. Com o 1.3.7 ou mais novo, uma falha do CiDDER nas proteínas **não** é

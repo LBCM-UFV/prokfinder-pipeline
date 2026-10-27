@@ -1630,10 +1630,8 @@ accessions_where "${STRUCTURE_LIST}" '$STRUCTURE_STATUS == "PASSED"' STRUCTURE_S
 # Step 5: gene prediction (Pyrodigal), used by CheckM2, BUSCO, GTDB-Tk and CiDDER
 GENES_LIST="${WORK_DIR}/genes_predicted.txt"
 if [[ -s "${STRUCTURE_LIST}" ]]; then
-    COMPLETE_GENES_FLAG=()
-    [[ "${DEREP_METHOD}" != "cidder" ]] || COMPLETE_GENES_FLAG=(--complete-genes)
     run_module predict-genes-pyrodigal.sh -l "${STRUCTURE_LIST}" -i "${CLEAN_DIR}" -o "${GENES_DIR}" \
-        -t "${GENES_DIR}/gene-prediction.tsv" -p "${THREADS}" ${COMPLETE_GENES_FLAG[@]+"${COMPLETE_GENES_FLAG[@]}"}
+        -t "${GENES_DIR}/gene-prediction.tsv" -p "${THREADS}"
     add_metadata_columns "${METADATA}" "${GENES_DIR}/gene-prediction.tsv"
     accessions_where "${GENES_LIST}" '$GENE_PREDICTION_STATUS == "PREDICTED"' GENE_PREDICTION_STATUS
 else

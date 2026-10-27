@@ -18,7 +18,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
   warning was printed twice).
 - `--derep-method cidder` reads the proteins of the complete genes only (`GENOME-GENES/COMPLETE-GENES/`, Pyrodigal with
   closed ends, as CiDDER does when it predicts the genes itself); the dereplication of the lineages already run is
-  redone once. The help and the README explain when to use skDER (genetic identity) and CiDDER (gene repertoire).
+  redone once. These proteins are always predicted, with every method, so that the non-fragmented genes can also serve
+  as a quality mark for later uses (e.g., functional annotation). The help and the README explain when to use skDER (genetic identity) and CiDDER (gene repertoire).
 
 ### Fixed
 - `download-wf --derep-method cidder` with CiDDER < 1.3.7 (genome files given with `--genomes`): CiDDER skips gzipped
@@ -34,7 +35,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
   columns `NEAREST_REPRESENTATIVE` and `NEAREST_REPRESENTATIVE_SIMILARITY` (skDER: ANI; CiDDER: % of shared protein
   clusters) to `genome-metadata.tsv`; the GTDB status of the genome stays in the taxonomy columns and does not change
   the choice of the representatives.
-- `predict-genes-pyrodigal.sh --complete-genes` and the column `PREDICTED_COMPLETE_GENES` (see above).
+- A second Pyrodigal prediction with closed ends in `predict-genes-pyrodigal.sh` (always) and the column
+  `PREDICTED_COMPLETE_GENES` (see above).
 - `FINAL-RESULTS/genomes-left-out.tsv`: the genomes without GTDB taxonomy (`NOT_CLASSIFIED`) or whose taxon failed in
   the dereplication (`NOT_DEREPLICATED`), with what to do; the summary also warns about them.
 - `search-genomes` filters `--genome-size <min:max>` (Mb), `--assembly-level` (contig, scaffold, chromosome,

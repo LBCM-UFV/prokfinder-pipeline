@@ -342,18 +342,10 @@ assert_value() {
     assert_value "$(metadata "${BASE}")" "${HB8}" GTDB_TYPE_MATERIAL "type strain of species"
 }
 
-@test "the proteins of the complete genes are predicted only for CiDDER, and the first-pass proteins are not rewritten" {
-    assert_file_not_exists "${BASE}/OUTPUT/GENOME-GENES/COMPLETE-GENES"
-    assert_value "$(metadata "${BASE}")" "${HB8}" PREDICTED_COMPLETE_GENES NULL
-    run_wf results
-    local FIRST_PASS="results/OUTPUT/GENOME-GENES/${HB8}.faa"
-    local BEFORE
-    BEFORE="$(stat -c %y "${FIRST_PASS}")"
-    run run_wf results --derep-method cidder
-    assert_success
-    assert_output_contains "Complete genes (closed ends, as CiDDER predicts)"
-    [[ "$(stat -c %y "${FIRST_PASS}")" == "${BEFORE}" ]]
-    local COMPLETE="results/OUTPUT/GENOME-GENES/COMPLETE-GENES"
+@test "the proteins of the complete genes are always predicted (closed ends); the first-pass proteins are not rewritten" {
+    # with the default method (skDER), which does not read them
+    local COMPLETE="${BASE}/OUTPUT/GENOME-GENES/COMPLETE-GENES"
+    local FIRST_PASS="${BASE}/OUTPUT/GENOME-GENES/${HB8}.faa"
     assert_file_exists "${COMPLETE}/${HB8}.faa"
     # no gene runs off a contig edge
     run grep -hE 'partial=(01|10|11)' "${COMPLETE}/${HB8}.faa" "${COMPLETE}/${HB27}.faa"
@@ -362,11 +354,17 @@ assert_value() {
     ALL="$(awk '/^>/ { n++ } END { print n + 0 }' "${FIRST_PASS}")"
     COMPLETE_ONLY="$(awk '/^>/ { n++ } END { print n + 0 }' "${COMPLETE}/${HB8}.faa")"
     [[ "${COMPLETE_ONLY}" -gt 0 && "${COMPLETE_ONLY}" -le "${ALL}" ]]
-    assert_value "$(metadata results)" "${HB8}" PREDICTED_COMPLETE_GENES "${COMPLETE_ONLY}"
-    # the same command again predicts nothing
+    assert_value "$(metadata "${BASE}")" "${HB8}" PREDICTED_COMPLETE_GENES "${COMPLETE_ONLY}"
+    # a genome that did not pass the structural evaluation has none
+    assert_value "$(metadata "${BASE}")" "${FRAGMENTED}" PREDICTED_COMPLETE_GENES NULL
+    # changing to CiDDER predicts nothing again and rewrites no file
+    run_wf results
+    local BEFORE
+    BEFORE="$(stat -c %y "results/OUTPUT/GENOME-GENES/${HB8}.faa" "results/OUTPUT/GENOME-GENES/COMPLETE-GENES/${HB8}.faa")"
     run run_wf results --derep-method cidder
     assert_success
     assert_output_contains "Complete genes (closed ends, as CiDDER predicts): 0 genome(s) to predict"
+    [[ "$(stat -c %y "results/OUTPUT/GENOME-GENES/${HB8}.faa" "results/OUTPUT/GENOME-GENES/COMPLETE-GENES/${HB8}.faa")" == "${BEFORE}" ]]
 }
 
 @test "the summary lists the genomes left out by a failure: NOT_DEREPLICATED and NOT_CLASSIFIED" {
