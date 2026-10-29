@@ -9,6 +9,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 ## [Unreleased] - 0.5.0-dev
 
 ### Changed
+- The repository is renamed from `LBCM-UFV/prokfinder-pipeline` to `LBCM-UFV/prokfinder` (GitHub redirects the old
+  address; existing clones can run `git remote set-url origin https://github.com/LBCM-UFV/prokfinder.git`).
 - The help (`-h`) is written in boxes, one per group of options, as in `fastq-dl` and Bactopia; the descriptions of
   `setup`, `search-genomes` and `run-on-cluster` are one line.
 - `-o, --results-dir` is now `-o, --output-dir`. Without `-o`, a new `search-genomes` in an existing
@@ -37,6 +39,11 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - `search-genomes -c/--country` and `-C/--country-file`.
 
 ### Added
+- `CITATIONS.md`: the references (with DOI) of the programs and databases Prokfinder uses and of its inspirations
+  (BactoTraits, Bactopia); `CITATION.cff` lists the main ones in `references:`, and the README has a "Como citar"
+  section.
+- `versions.tsv` has a `CITATION` column (DOIs of each program and database); the end of `download-wf` and the
+  `README.txt` of `GENOME-DATABASE` remind to cite them.
 - `download-wf` runs skDER and CiDDER with `--determine-clusters` (the representatives do not change) and adds the
   columns `NEAREST_REPRESENTATIVE` and `NEAREST_REPRESENTATIVE_SIMILARITY` (skDER: ANI; CiDDER: % of shared protein
   clusters) to `genome-metadata.tsv`; the GTDB status of the genome stays in the taxonomy columns and does not change

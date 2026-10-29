@@ -40,12 +40,19 @@ dependencies, re-execution. Keep the README in Portuguese and the help/log messa
 Only when the architecture, a convention or the way to test changes (a new module, a new shared rule, a new
 folder). Keep it short.
 
-## 6. Before committing
+## 6. Citations
+
+A new program, database or criterion used by the code (not a planned one) goes, in the same commit, into
+`CITATIONS.md` (full reference, DOI opened and checked before writing it), `pf_citation` in `lib/common.sh` (when it
+is a component of `versions.tsv`) and, for the main tools, `references:` of `CITATION.cff`. The unit test of
+`pf_citation` checks that every DOI it prints is in `CITATIONS.md`.
+
+## 7. Before committing
 
 ```bash
 tests/run-tests.sh      # syntax (bash -n), shellcheck -S warning, catalog --check, command line, shared functions
 chmod +x main-prokfinder.sh modules/*.sh modules/*.py modules/plot-statistics.R docker/*.sh tools/*.py tests/run-tests.sh \
-    tests/data/*.sh tests/bin/{datasets,checkm2,busco,gtdbtk,skder}
+    tests/data/*.sh tests/bin/{datasets,checkm2,busco,gtdbtk,skder,curl}
 ```
 
 A new option, error message or shared function gets a test in `tests/` (see `tests/README.md`).

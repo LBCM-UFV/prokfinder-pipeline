@@ -439,6 +439,28 @@ pf_version_ge() {
 # shellcheck disable=SC2034  # used by the modules
 PF_CIDDER_MIN_PROTEOME_VERSION=1.3.7
 
+############ CITATIONS ################
+
+# Prints the DOIs (or the website) to cite for a component of versions.tsv, separated by "; " (CITATIONS.md has the
+# full references; a new program or database gets a line here and in CITATIONS.md). Nothing for an unknown component.
+# Usage: pf_citation <component>
+pf_citation() {
+    case "$1" in
+        prokfinder)                 echo "https://github.com/LBCM-UFV/prokfinder" ;;
+        datasets|NCBI)              echo "10.1038/s41597-024-03571-y" ;;
+        seqkit)                     echo "10.1002/imt2.191" ;;
+        pyrodigal)                  echo "10.21105/joss.04296; 10.1186/1471-2105-11-119" ;;
+        checkm2|checkm2-database)   echo "10.1038/s41592-023-01940-w" ;;
+        busco|busco-lineages)       echo "10.1093/nar/gkae987; 10.1093/molbev/msab199" ;;
+        gtdbtk)                     echo "10.1093/bioinformatics/btac672; 10.1038/s41592-023-02018-3" ;;
+        skder)                      echo "10.1099/mgen.0.001438; 10.1038/s41592-023-02018-3" ;;
+        cidder)                     echo "10.1099/mgen.0.001438" ;;
+        BACDIVE)                    echo "10.1093/nar/gkae959; 10.1093/nar/gkab961" ;;
+        GTDB|gtdbtk-reference)      echo "10.1093/nar/gkaf1040; 10.1093/nar/gkab776" ;;
+        Rscript)                    echo "https://www.r-project.org" ;;
+    esac
+}
+
 ############ RESOURCES ################
 
 # RAM (GB) that CheckM2 needs in its normal mode: it used 17.3 GB with 166 genomes and 8 CPUs on the UFV cluster.

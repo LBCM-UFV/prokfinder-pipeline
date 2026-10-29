@@ -2,7 +2,8 @@
 
 > **Manuscrito em preparação.** O artigo que descreve o Prokfinder ainda está sendo escrito. Até a publicação, se
 > você usar o Prokfinder em artigos, dissertações, teses ou apresentações, cite o repositório (botão "Cite this
-> repository" do GitHub, a partir do arquivo [`CITATION.cff`](CITATION.cff)).
+> repository" do GitHub, a partir do arquivo [`CITATION.cff`](CITATION.cff)) e também as ferramentas e os bancos
+> usados (ver [Como citar](#como-citar)).
 
 Pipeline para **busca, download e curadoria de genomas de procariotos** (Bacteria e Archaea) do NCBI, combinando
 os metadados das montagens (NCBI), os dados fenotípicos das linhagens (BacDive) e a taxonomia filogenômica
@@ -52,8 +53,8 @@ Vários sub-comandos podem ser dados juntos; eles sempre rodam na ordem `setup` 
 O Prokfinder é um conjunto de scripts em Bash: basta clonar o repositório (não há compilação).
 
 ```bash
-git clone https://github.com/LBCM-UFV/prokfinder-pipeline.git
-cd prokfinder-pipeline
+git clone https://github.com/LBCM-UFV/prokfinder.git
+cd prokfinder
 chmod +x main-prokfinder.sh modules/*.sh modules/plot-statistics.R   # se o bit de execução tiver se perdido
 ./main-prokfinder.sh --check                                         # confere as dependências
 ```
@@ -69,8 +70,8 @@ GTDB-Tk e R), sem precisar instalar dependências na máquina. Os **bancos** nã
 máquina e são montados no contêiner.
 
 ```bash
-git clone https://github.com/LBCM-UFV/prokfinder-pipeline.git
-cd prokfinder-pipeline
+git clone https://github.com/LBCM-UFV/prokfinder.git
+cd prokfinder
 docker build -f docker/Dockerfile -t prokfinder .                       # imagem completa (~15-20 min; ~14 GB em disco)
 docker build -f docker/Dockerfile --build-arg WITH_GTDBTK=0 -t prokfinder .   # sem GTDB-Tk (menor)
 
@@ -567,7 +568,7 @@ prokfinder-results/
     └── FINAL-RESULTS/
         ├── high-quality-selected-genomes.txt          # acessos + caminho do FASTA dos genomas finais
         ├── high-quality-selected-genomes-metadata.txt
-        ├── versions.tsv                               # programas e bancos desta execução (COMPONENT, TYPE, VERSION, SOURCE)
+        ├── versions.tsv                               # programas e bancos desta execução (COMPONENT, TYPE, VERSION, SOURCE, CITATION)
         ├── parameters.tsv                             # linha de comando, consulta e valor efetivo de cada opção (PARAMETER, VALUE)
         ├── genomes-left-out.tsv                       # genomas fora da lista final por falha (NOT_CLASSIFIED, NOT_DEREPLICATED) e o que fazer
         └── STATISTICS/
@@ -639,6 +640,14 @@ Sem o `main-prokfinder.sh`, cada módulo grava seu próprio arquivo `.log` na pa
   os dois bancos é feito pelo código de acesso.
 - A extração do BacDive foi reescrita em Bash a partir do script #1 do BactoTraits (originalmente em R); um intervalo
   como "5-30 °C" é guardado apenas pelos extremos (5:30).
+
+## Como citar
+
+Cite o Prokfinder ([`CITATION.cff`](CITATION.cff)) **e também as ferramentas e os bancos que ele usou**: NCBI
+Datasets, BacDive, GTDB (dados CC BY-SA 4.0, a atribuição é obrigatória), SeqKit, Pyrodigal/Prodigal, CheckM2, BUSCO,
+GTDB-Tk, skani, skDER ou CiDDER. As referências completas estão em [`CITATIONS.md`](CITATIONS.md), junto com as
+inspirações do Prokfinder (BactoTraits e Bactopia). Os componentes de cada execução, com versão e DOI (coluna
+`CITATION`), ficam em `FINAL-RESULTS/versions.tsv` e no `GENOME-DATABASE/versions.tsv`.
 
 ## Próximos passos
 

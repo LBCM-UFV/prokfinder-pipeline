@@ -2,7 +2,7 @@
   "name": "Prokfinder",
   "version": "0.5.0-dev",
   "description": "Selection, download and curation of prokaryote genomes (NCBI metadata, BacDive phenotypes, GTDB taxonomy)",
-  "repository": "https://github.com/LBCM-UFV/prokfinder-pipeline",
+  "repository": "https://github.com/LBCM-UFV/prokfinder",
   "license": "GPL-3.0-or-later",
   "entry_point": "main-prokfinder.sh",
   "generated_by": "tools/build-catalog.py (do not edit by hand)",
@@ -1002,6 +1002,11 @@
       "name": "pf_version_ge",
       "summary": "Returns 0 if the version <version> is the same as or newer than <minimum> (numbers separated by dots)",
       "usage": "Usage: pf_version_ge <version> <minimum>"
+    },
+    {
+      "name": "pf_citation",
+      "summary": "Prints the DOIs (or the website) to cite for a component of versions.tsv, separated by \"; \" (CITATIONS.md has the full references; a new program or database gets a line here and in CITATIONS.md). Nothing for an unknown component.",
+      "usage": "Usage: pf_citation <component>"
     },
     {
       "name": "pf_memory_gb",

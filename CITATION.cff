@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use Prokfinder, please cite it as below. A manuscript describing Prokfinder is in preparation."
+message: "If you use Prokfinder, please cite it as below, and also the programs and databases it used (CITATIONS.md; the ones of each run are in FINAL-RESULTS/versions.tsv). A manuscript describing Prokfinder is in preparation."
 title: "Prokfinder: selection, download and curation of prokaryote genomes"
 type: software
 authors:
@@ -14,7 +14,7 @@ authors:
 version: "0.5.0-dev"
 date-released: "2026-10-22"
 license: GPL-3.0-or-later
-repository-code: "https://github.com/LBCM-UFV/prokfinder-pipeline"
+repository-code: "https://github.com/LBCM-UFV/prokfinder"
 keywords:
   - bioinformatics
   - prokaryotes
@@ -23,3 +23,137 @@ keywords:
   - BacDive
   - NCBI
   - thermophiles
+references:
+  - type: article
+    title: "Exploring and retrieving sequence and metadata for species across the tree of life with NCBI Datasets"
+    authors:
+      - family-names: "O'Leary"
+        given-names: "Nuala A."
+      - name: "et al."
+    journal: "Scientific Data"
+    year: 2024
+    volume: 11
+    start: 732
+    doi: "10.1038/s41597-024-03571-y"
+  - type: article
+    title: "BacDive in 2025: the core database for prokaryotic strain data"
+    authors:
+      - family-names: "Schober"
+        given-names: "Isabel"
+      - name: "et al."
+    journal: "Nucleic Acids Research"
+    year: 2025
+    volume: 53
+    issue: "D1"
+    start: D748
+    end: D756
+    doi: "10.1093/nar/gkae959"
+  - type: article
+    title: "GTDB release 10: a complete and systematic taxonomy for 715 230 bacterial and 17 245 archaeal genomes"
+    authors:
+      - family-names: "Parks"
+        given-names: "Donovan H."
+      - name: "et al."
+    journal: "Nucleic Acids Research"
+    year: 2026
+    volume: 54
+    issue: "D1"
+    start: D743
+    end: D754
+    doi: "10.1093/nar/gkaf1040"
+  - type: article
+    title: "GTDB-Tk v2: memory friendly classification with the genome taxonomy database"
+    authors:
+      - family-names: "Chaumeil"
+        given-names: "Pierre-Alain"
+      - name: "et al."
+    journal: "Bioinformatics"
+    year: 2022
+    volume: 38
+    start: 5315
+    end: 5316
+    doi: "10.1093/bioinformatics/btac672"
+  - type: article
+    title: "CheckM2: a rapid, scalable and accurate tool for assessing microbial genome quality using machine learning"
+    authors:
+      - family-names: "Chklovski"
+        given-names: "Alex"
+      - name: "et al."
+    journal: "Nature Methods"
+    year: 2023
+    volume: 20
+    start: 1203
+    end: 1212
+    doi: "10.1038/s41592-023-01940-w"
+  - type: article
+    title: "OrthoDB and BUSCO update: annotation of orthologs with wider sampling of genomes"
+    authors:
+      - family-names: "Tegenfeldt"
+        given-names: "Fredrik"
+      - name: "et al."
+    journal: "Nucleic Acids Research"
+    year: 2025
+    volume: 53
+    issue: "D1"
+    start: D516
+    end: D522
+    doi: "10.1093/nar/gkae987"
+  - type: article
+    title: "Pyrodigal: Python bindings and interface to Prodigal, an efficient method for gene prediction in prokaryotes"
+    authors:
+      - family-names: "Larralde"
+        given-names: "Martin"
+    journal: "Journal of Open Source Software"
+    year: 2022
+    volume: 7
+    start: 4296
+    doi: "10.21105/joss.04296"
+  - type: article
+    title: "SeqKit2: A Swiss army knife for sequence and alignment processing"
+    authors:
+      - family-names: "Shen"
+        given-names: "Wei"
+      - name: "et al."
+    journal: "iMeta"
+    year: 2024
+    volume: 3
+    start: e191
+    doi: "10.1002/imt2.191"
+  - type: article
+    title: "skDER and CiDDER: two scalable approaches for microbial genome dereplication"
+    authors:
+      - family-names: "Salamzade"
+        given-names: "Rauf"
+      - family-names: "Kottapalli"
+        given-names: "Aamuktha"
+      - family-names: "Kalan"
+        given-names: "Lindsay R."
+    journal: "Microbial Genomics"
+    year: 2025
+    volume: 11
+    doi: "10.1099/mgen.0.001438"
+  - type: article
+    title: "BactoTraits – A functional trait database to evaluate how natural and man-induced changes influence the assembly of bacterial communities"
+    notes: "Inspiration: formatting and aggregation of the BacDive traits"
+    authors:
+      - family-names: "Cébron"
+        given-names: "Aurélie"
+      - name: "et al."
+    journal: "Ecological Indicators"
+    year: 2021
+    volume: 130
+    start: 108047
+    doi: "10.1016/j.ecolind.2021.108047"
+  - type: article
+    title: "Bactopia: a Flexible Pipeline for Complete Analysis of Bacterial Genomes"
+    notes: "Inspiration: architecture (hub of independent modules) and style of the help"
+    authors:
+      - family-names: "Petit"
+        given-names: "Robert A."
+      - family-names: "Read"
+        given-names: "Timothy D."
+    journal: "mSystems"
+    year: 2020
+    volume: 5
+    start: e00190-20
+    doi: "10.1128/mSystems.00190-20"

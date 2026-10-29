@@ -1475,7 +1475,7 @@ done
 # options of this run, with their default values, and where the genome selection came from)
 write_run_record() {
     local VERSIONS="${FINAL_DIR}/versions.tsv" PARAMETERS="${FINAL_DIR}/parameters.tsv"
-    local PROGRAM PYTHON DB DB_DIR VALUE SOURCE LINEAGES
+    local PROGRAM PYTHON DB DB_DIR VALUE SOURCE LINEAGES LINE
     local -a PROGRAMS=(datasets seqkit checkm2)
     [[ "${SKIP_BUSCO}" -eq 1 ]] || PROGRAMS+=(busco)
     PROGRAMS+=("${DEREP_METHOD}")
@@ -1526,7 +1526,14 @@ write_run_record() {
             VALUE="$(sed -n 's/^VERSION_DATA=//p' "${GTDBTK_DATA_PATH%/}/metadata/metadata.txt" 2>/dev/null | awk 'NR == 1')" || true
             printf 'gtdbtk-reference\tdatabase\t%s\t%s\n' "${VALUE:-$(basename "${GTDBTK_DATA_PATH%/}")}" "${GTDBTK_DATA_PATH}"
         fi
-    } | format_tsv 0 > "${VERSIONS}.tmp"
+    } | while IFS= read -r LINE; do
+        # last column: what to cite (CITATIONS.md has the full references)
+        if [[ "${LINE}" == COMPONENT$'\t'* ]]; then
+            printf '%s\tCITATION\n' "${LINE}"
+        else
+            printf '%s\t%s\n' "${LINE}" "$(pf_citation "${LINE%%$'\t'*}")"
+        fi
+    done | format_tsv 0 > "${VERSIONS}.tmp"
     mv "${VERSIONS}.tmp" "${VERSIONS}"
 
     {
@@ -1713,3 +1720,4 @@ fi
 log "message" "Prokfinder finished successfully. Genome metadata (every step): ${METADATA}"
 log "message" "High-quality representative genomes: ${FINAL_DIR}/high-quality-selected-genomes.txt"
 log "message" "Self-contained genome database: ${EXPORT_DIR}"
+log "message" "Please cite Prokfinder and the programs and databases of this run: DOIs in ${FINAL_DIR}/versions.tsv (CITATION column), full references in ${SCRIPT_DIR}/CITATIONS.md"

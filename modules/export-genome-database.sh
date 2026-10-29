@@ -221,7 +221,7 @@ Prokfinder genome database
 ==========================
 
 ${N_GENOMES} prokaryote genome(s): ${CRITERION}.
-Built by Prokfinder ${PROKFINDER_VERSION_USED:-(version in parameters.tsv)} (https://github.com/LBCM-UFV/prokfinder-pipeline).
+Built by Prokfinder ${PROKFINDER_VERSION_USED:-(version in parameters.tsv)} (https://github.com/LBCM-UFV/prokfinder).
 
 Files
   genomes/<ACCESSION>.fna.gz      genome sequences (contigs shorter than the minimum length removed), gzip
@@ -230,7 +230,7 @@ Files
   genome-database-metadata.tsv    one row per genome: NCBI assembly metadata, BacDive phenotypes, quality (CheckM2,
                                   BUSCO, seqkit), GTDB taxonomy and dereplication; GENOME_FILE, PROTEIN_FILE and
                                   GENE_FILE are the paths of the files above, relative to this folder
-  versions.tsv                    versions of the programs and databases used
+  versions.tsv                    versions of the programs and databases used, with what to cite (CITATION)
   parameters.tsv                  command line and options of the run
   MD5SUMS.txt                     MD5 of every file; check with: md5sum -c MD5SUMS.txt
 
@@ -238,7 +238,9 @@ This folder has no links to other places: it can be moved or copied.
 
 How to cite
   Cite Prokfinder and the programs and databases listed in versions.tsv (NCBI, BacDive, GTDB, CheckM2, BUSCO,
-  GTDB-Tk, Pyrodigal, seqkit, skDER or CiDDER, as used in the run).
+  GTDB-Tk, Pyrodigal, seqkit, skDER or CiDDER, as used in the run): their DOIs are in the CITATION column, and the
+  full references in CITATIONS.md of Prokfinder (https://github.com/LBCM-UFV/prokfinder/blob/main/CITATIONS.md).
+  The GTDB taxonomy is licensed CC BY-SA 4.0: attribution is required.
 EOF
 
 # 6. MD5 of every file; the lines of the genome files that were not exported again are reused

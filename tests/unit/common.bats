@@ -176,6 +176,20 @@ null_rules() {
     assert_failure
 }
 
+@test "pf_citation: every component of versions.tsv has a citation, and every DOI is in CITATIONS.md" {
+    local COMPONENT DOI
+    for COMPONENT in prokfinder datasets seqkit pyrodigal checkm2 busco gtdbtk skder cidder Rscript \
+            NCBI BACDIVE GTDB checkm2-database busco-lineages gtdbtk-reference; do
+        run pf_eval "pf_citation ${COMPONENT}"
+        [[ -n "${output}" ]] || { echo "no citation for ${COMPONENT}" >&2; return 1; }
+        for DOI in $(printf '%s\n' "${output}" | tr ';' '\n' | awk '$1 ~ /^10\./ { print $1 }'); do
+            grep -qF "doi.org/${DOI})" "${PF_ROOT}/CITATIONS.md" || { echo "${DOI} (${COMPONENT}) not in CITATIONS.md" >&2; return 1; }
+        done
+    done
+    run pf_eval 'pf_citation unknown-program'
+    assert_output_equals ""
+}
+
 @test "die: logs the error and exits with the given code" {
     run pf_eval 'die "something failed" 3'
     assert_failure 3
