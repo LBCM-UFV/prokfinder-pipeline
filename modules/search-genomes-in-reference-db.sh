@@ -30,7 +30,8 @@
 #                                                        Both ways, they are listed in the file of --errors-file
 #
 #   KEY (values of the same filter combined with OR)
-#     ACCESSION         GCA_/GCF_ accession with version (GCA_x.1 also matches its paired GCF_x.1)
+#     ACCESSION         GCA_/GCF_ accession with version, matched whole: GCA_ only in the GenBank table, GCF_ only
+#                       in the RefSeq table (an accession of the other table is not selected, with a warning)
 #     ISOLATION_SOURCE  extended regular expression (POSIX ERE; a plain text is one too) found in the isolation
 #                       source (case-insensitive)
 #     TAXID             NCBI TaxID of the organism or of any rank of its lineage (descendant taxa included)
@@ -1056,8 +1057,10 @@ for RANK in DOMAIN PHYLUM CLASS ORDER FAMILY GENUS SPECIES STRAIN; do
 done
 
 SELECTED_TMP="${WORK_DIR}/selected.tsv"
+ACC_NOT_FOUND="${WORK_DIR}/accessions-not-found.txt"
+: > "${ACC_NOT_FOUND}"
 
-awk -F'\t' -v OFS='\t' \
+awk -F'\t' -v OFS='\t' -v missing="${ACC_NOT_FOUND}" \
     -v c_acc="${C_ACC}" -v c_taxid="${C_TAXID}" -v c_iso="${C_ISO}" -v c_level="${C_LEVEL}" -v c_size="${C_SIZE}" -v taxid_cols="${LINEAGE_TAXID_COLS}" \
     -v c_gtype="${C_GTYPE}" -v c_gc="${C_GC}" -v c_species_taxid="${C_SPECIES_TAXID}" -v c_strain_taxid="${C_STRAIN_TAXID}" \
     -v spec="${FILTERS_SPEC}" -v values="${FILTER_VALUES}" -v bd_file="${BD_LINKS_FILE}" \
@@ -1074,7 +1077,7 @@ BEGIN {
     # Values of the filters with a list (nv[i] values; for the text filters, the text to search and the original)
     while ((getline line < values) > 0) {
         split(line, f, "\t"); i = f[1]; v = f[2]
-        if (key[i] == "ACCESSION")             set[i, acc_number(v)] = 1
+        if (key[i] == "ACCESSION")             { set[i, v] = 1; acc_asked[v] = 1 }
         else if (key[i] == "ISOLATION_SOURCE") { nv[i]++; txt[i, nv[i]] = tolower(v); orig[i, nv[i]] = v }
         else if (key[i] == "TAXID")            set[i, v] = v
         else if (key[i] == "ASSEMBLY_LEVEL")   set[i, tolower(v)] = v
@@ -1120,7 +1123,9 @@ FNR == 1 {
         m = ""
         k = key[i]
         if (k == "ACCESSION") {
-            p = ((i, acc_number($c_acc)) in set)
+            # the whole accession: GCA_ only in the GenBank table, GCF_ only in the RefSeq table
+            p = ((i, $c_acc) in set)
+            if (p) acc_found[$c_acc] = 1
         } else if (k == "TAXID" || k == "TAXON_NAME" || k == "TAXON_NAME_LIST") {
             for (j = 1; j <= n_taxid_cols; j++) if ((i, $(taxid_col[j])) in set) m = add_unique(m, set[i, $(taxid_col[j])])
             p = (m != "")
@@ -1172,11 +1177,19 @@ END {
     printf "NCBI genome assemblies searched\t%d\n", n_in > stats
     for (i = 1; i <= n; i++) printf "  ... matching %s [%s]\t%d\n", label[i], sel[i], n_true[i] > stats
     printf "Selected by the expression\t%d\n", n_sel > stats
+    for (a in acc_asked) if (!(a in acc_found)) print a > missing
 }' "${NCBI_TABLES[@]}" > "${SELECTED_TMP}"
 
 while IFS=$'\t' read -r LABEL VALUE; do
     log "message" "${LABEL}: ${VALUE}"
 done < "${WORK_DIR}/selection.stats"
+
+# Accessions of the accession filters that are not in the searched table (e.g., GCF_ with the GenBank table)
+if [[ -s "${ACC_NOT_FOUND}" ]]; then
+    sort -o "${ACC_NOT_FOUND}" "${ACC_NOT_FOUND}"
+    N_NOT_FOUND="$(count_lines "${ACC_NOT_FOUND}")"
+    log "warning" "${N_NOT_FOUND} accession(s) not found in the NCBI ${Q_ASSEMBLY_SOURCE} table, so not selected: $(awk 'NR <= 10' "${ACC_NOT_FOUND}" | paste -sd ' ')$( (( N_NOT_FOUND > 10 )) && echo ' ...'). GCA_ accessions are in the genbank table and GCF_ in the refseq table (-s/--assembly-source)."
+fi
 TOTAL_SELECTED="$(count_records "${SELECTED_TMP}")"
 
 ############ BACDIVE ANNOTATION ################

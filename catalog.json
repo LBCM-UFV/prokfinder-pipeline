@@ -159,7 +159,7 @@
       "kind": "filter",
       "takes_value": true,
       "argument": "<acc>",
-      "description": "Accession with version, GCA_ or GCF_ (e.g., GCA_000005845.2)"
+      "description": "Accession with version (e.g., GCA_000005845.2): GCA_ with the genbank table (default), GCF_ with -s refseq; the others are left out, with a warning"
     },
     {
       "name": "--accession-file",

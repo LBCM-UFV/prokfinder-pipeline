@@ -112,7 +112,8 @@ EOF
     column is read, and a header line is skipped (-A, -f, -N, --gtdb-taxon-file; -I must not have a header)
 EOF
     pf_help_box "NCBI filters" << EOF
-  -a, --accession <acc>                Accession with version, GCA_ or GCF_ (e.g., GCA_000005845.2)
+  -a, --accession <acc>                Accession with version (e.g., GCA_000005845.2): GCA_ with the genbank table
+                                       (default), GCF_ with -s refseq; the others are left out, with a warning
   -A, --accession-file <file>          List of accessions
   -t, --taxid <id>                     NCBI TaxID of any rank (e.g., 1239 selects every Bacillota genome)
   -f, --taxid-file <file>              List of NCBI TaxIDs
@@ -1072,10 +1073,11 @@ log "message" "Sub-commands: $(for S in setup search-genomes download-wf; do [[ 
 log "message" "Results folder: $(absolute_path "${PROKFINDER_DIR}") (log: ${LOG_FILE})"
 mkdir -p "${REF_DIR}"
 log "message" "Reference databases folder: $(absolute_path "${REF_DIR}")"
-log "message" "Resources used by the programs: ${THREADS} CPU(s), ${MEMORY_GB:-?} GB of RAM"
-# Run on the cluster (run-on-cluster): the PBS job and the resources it asked for (written in the .pbs script)
+# Run on the cluster (run-on-cluster): the PBS job, the resources it asked for (written in the .pbs script) and the
+# resources the programs use (only logged inside a job: on a personal computer they are just the computer's)
 if [[ -n "${PBS_JOBID:-}" ]]; then
     log "message" "PBS job ${PBS_JOBID} on $(hostname): ${PROKFINDER_JOB_RESOURCES:-queue ${PBS_QUEUE:-?}, ${NCPUS:-?} CPUs}"
+    log "message" "Resources used by the programs: ${THREADS} CPU(s), ${MEMORY_GB:-?} GB of RAM"
 fi
 
 ############ CHECKING THE DEPENDENCIES ############

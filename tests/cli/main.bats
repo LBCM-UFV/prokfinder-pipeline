@@ -308,6 +308,16 @@ assert_cli_error() {
     refute_output_contains "ignored: they are options of skDER"
 }
 
+@test "the resources used by the programs are logged only inside a PBS job" {
+    make_refdb_markers refdb
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results -p 2 --memory 3gb search-genomes -G 40:65
+    assert_output_contains "Reference databases folder:"
+    refute_output_contains "Resources used by the programs"
+    run env PBS_JOBID=1.fake NCPUS=4 bash "${PF_MAIN}" --refdb-dir refdb -o results -p 2 --memory 3gb search-genomes -G 40:65
+    assert_output_contains "PBS job 1.fake on"
+    assert_output_contains "Resources used by the programs: 2 CPU(s), 3 GB of RAM"
+}
+
 @test "default output directory that already has results: asks before a new search; -o is not asked" {
     make_refdb_markers refdb
     mkdir prokfinder-results

@@ -20,6 +20,12 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
   closed ends, as CiDDER does when it predicts the genes itself); the dereplication of the lineages already run is
   redone once. These proteins are always predicted, with every method, so that the non-fragmented genes can also serve
   as a quality mark for later uses (e.g., functional annotation). The help and the README explain when to use skDER (genetic identity) and CiDDER (gene repertoire).
+- `search-genomes -a/-A` (accessions) compares the whole accession with the searched table: `GCA_` only with the
+  GenBank table (default) and `GCF_` only with `-s refseq` (before, `GCF_x.1` selected its GenBank pair `GCA_x.1`).
+  Accessions not in the table are left out with a warning that lists them, so a genome never enters twice through
+  its GCA/GCF pair.
+- The log line "Resources used by the programs" is written only inside a PBS job; on a personal computer it showed
+  only the computer's RAM.
 
 ### Fixed
 - `download-wf --derep-method cidder` with CiDDER < 1.3.7 (genome files given with `--genomes`): CiDDER skips gzipped

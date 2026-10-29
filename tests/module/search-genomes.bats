@@ -103,6 +103,22 @@ refute_genome_selected() {
     assert_genome_selected growth "${M_JANNASCHII}"
 }
 
+@test "accessions: GCA_ only with genbank, GCF_ only with -s refseq; the others are left out with a warning" {
+    # GCF_000008565.1 is the RefSeq pair of GCA_000008565.1 (the same genome): never both
+    run search_fixture genbank -a GCA_000008565.1,GCF_000008565.1,GCA_000008545.1
+    assert_success
+    assert_output_contains "[WARNING] 1 accession(s) not found in the NCBI genbank table, so not selected: GCF_000008565.1."
+    assert_selected genbank 2
+    assert_genome_selected genbank "${D_RADIODURANS}"
+    run search_fixture refseq -s refseq -a GCA_000008565.1,GCF_000008565.1
+    assert_success
+    assert_output_contains "not found in the NCBI refseq table, so not selected: GCA_000008565.1."
+    assert_selected refseq 1
+    assert_genome_selected refseq GCF_000008565.1
+    run search_fixture all-found -a GCA_000008565.1
+    refute_output_contains "not found in the NCBI"
+}
+
 ############ AND, OR AND PARENTHESES ################
 
 @test "A AND B is the intersection of A and B" {
