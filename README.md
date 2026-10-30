@@ -1,8 +1,15 @@
 # Prokfinder
 
+> **Manuscrito em preparação.** O artigo que descreve o Prokfinder ainda está sendo escrito. Até a publicação, se
+> você usar o Prokfinder em artigos, dissertações, teses ou apresentações, cite o repositório (botão "Cite this
+> repository" do GitHub, a partir do arquivo [`CITATION.cff`](CITATION.cff)) e também as ferramentas e os bancos
+> usados (ver [Como citar](#como-citar)).
+
 Pipeline para **busca, download e curadoria de genomas de procariotos** (Bacteria e Archaea) do NCBI, combinando
 os metadados das montagens (NCBI), os dados fenotípicos das linhagens (BacDive) e a taxonomia filogenômica
 (GTDB).
+
+Licença: [GNU GPL v3.0](LICENSE).
 
 ---
 
@@ -32,9 +39,10 @@ Vários sub-comandos podem ser dados juntos; eles sempre rodam na ordem `setup` 
 
 | Opção | Padrão | Descrição |
 |---|---|---|
-| `-o, --results-dir <dir>` | `./prokfinder-results` | pasta de resultados desta execução |
+| `-o, --output-dir <dir>` | `./prokfinder-results` | pasta de resultados desta execução. Sem `-o`, se `./prokfinder-results` já tiver resultados de uma execução anterior, o `search-genomes` avisa e pergunta `Run in the same output directory? [y/N]` antes de rodar (com `run-on-cluster`, a pergunta vem antes do `qsub`) |
 | `--refdb-dir <dir>` | `~/prokfinder-refdb` | pasta dos bancos de referência, compartilhada por todas as execuções |
 | `-p, --threads <n>` | 4 (com `run-on-cluster`: as CPUs do job) | CPUs usadas por todos os programas (seqkit, CheckM2, GTDB-Tk, skDER) |
+| `--memory <ram>` | RAM do computador (com `run-on-cluster`: a RAM do job) | RAM que os programas podem usar (`16gb`, `16000mb` ou só o número em GB). O CheckM2 precisa de ~18 GB: com menos, roda com `--lowmem` (mais lento, com aviso). O skDER/CiDDER recebem o limite (`--max-memory`); com menos de 200 GB o posicionamento na árvore do GTDB-Tk grava em disco (`--scratch_dir`) |
 | `--check` | | mostra quais dependências estão instaladas e sai (ver [Dependências](#dependências)) |
 | `-h, --help` | | ajuda geral ou, depois de um sub-comando, a ajuda dele |
 
@@ -54,12 +62,39 @@ chmod +x main-prokfinder.sh modules/*.sh modules/plot-statistics.R   # se o bit 
 Para atualizar uma cópia já clonada: `git pull`. Os bancos de referência ficam fora do repositório
 (`~/prokfinder-refdb`, ou `--refdb-dir`) e são instalados depois com `./main-prokfinder.sh setup`.
 
+### Instalação via Docker
+
+A imagem Docker traz todos os programas (NCBI Datasets, taxonkit, seqkit, Pyrodigal, CheckM2, BUSCO, skDER/CiDDER,
+GTDB-Tk e R), sem precisar instalar dependências na máquina. Os **bancos** não ficam na imagem: os do Prokfinder
+(`~/prokfinder-refdb`), o do CheckM2 (`CHECKM2DB`) e o pacote de referência do GTDB-Tk (`GTDBTK_DATA_PATH`) ficam na
+máquina e são montados no contêiner.
+
+```bash
+git clone https://github.com/LBCM-UFV/prokfinder-pipeline.git
+cd prokfinder-pipeline
+docker build -f docker/Dockerfile -t prokfinder .                       # imagem completa (~15-20 min; ~14 GB em disco)
+docker build -f docker/Dockerfile --build-arg WITH_GTDBTK=0 -t prokfinder .   # sem GTDB-Tk (menor)
+
+# Uso: a mesma linha de comando do main-prokfinder.sh
+docker/prokfinder-docker.sh --check
+docker/prokfinder-docker.sh setup
+export CHECKM2DB=/caminho/CheckM2_database/uniref100.KO.1.dmnd           # banco do CheckM2 (checkm2 database --download)
+docker/prokfinder-docker.sh search-genomes -T 45:80 AND -O rod download-wf
+```
+
+O `docker/prokfinder-docker.sh` roda o contêiner com o seu usuário (os resultados ficam com você como dono) e monta,
+nos mesmos caminhos: a pasta atual, a pasta dos bancos (`--refdb-dir` ou `~/prokfinder-refdb`), a pasta de resultados
+(`-o`) e as pastas de `CHECKM2DB` e `GTDBTK_DATA_PATH` (repassa também a `NCBI_API_KEY`). No cluster, onde o Docker
+não pode ser usado diretamente, a mesma imagem roda com o Singularity, depois de publicada num registro de imagens.
+Dentro do contêiner, `CheckM2`, `BUSCO` e `GTDB-Tk` ficam em ambientes conda separados (as dependências deles são
+incompatíveis), chamados por pequenos *wrappers*.
+
 ---
 
 ## Dependências
 
 Não é preciso instalar tudo: para **buscar genomas** (`setup` e `search-genomes`) bastam o NCBI Datasets e o
-taxonkit. Os programas de análise de genomas só são necessários para o `download-wf`.
+taxonkit (o `setup` padrão só baixa os pacotes do Zenodo; o NCBI Datasets e o taxonkit são usados por `setup --from-source`). Os programas de análise de genomas só são necessários para o `download-wf`.
 
 `./main-prokfinder.sh --check` mostra o que está instalado (com a versão), o que falta (com o comando de instalação)
 e o estado dos bancos de referência, separando as dependências da busca e as do pipeline completo.
@@ -81,7 +116,7 @@ e o estado dos bancos de referência, separando as dependências da busca e as d
 | `checkm2` + banco de dados | `conda install -c bioconda checkm2` e `checkm2 database --download` |
 | `busco` (dispensável com `--skip-busco`) | `conda install -c bioconda busco` |
 | `skder` (inclui o `cidder`) | `conda install -c bioconda skder` |
-| `gtdbtk` + pacote de referência (opcional, só com `--gtdbtk`) | `conda install -c bioconda gtdbtk` |
+| `gtdbtk` + pacote de referência (recomendado: ANI dos genomas que não estão nas tabelas do GTDB; obrigatório com `--use-gtdbtk-tree`) | `conda install -c bioconda gtdbtk` |
 | `Rscript` (opcional, só R base: gráficos finais) | `conda install -c conda-forge r-base` |
 
 Os parâmetros do Prokfinder são dados **só por sub-comandos e flags**. As únicas variáveis de ambiente lidas são as
@@ -90,7 +125,7 @@ de configuração dos programas, que no cluster os `module load` já definem:
 | Variável | Quando | Descrição |
 |---|---|---|
 | `CHECKM2DB` | `download-wf` | caminho do **arquivo** do banco do CheckM2 (`uniref100.KO.1.dmnd`) |
-| `GTDBTK_DATA_PATH` | `download-wf --gtdbtk` | pasta do pacote de referência do GTDB-Tk |
+| `GTDBTK_DATA_PATH` | `download-wf` | pasta do pacote de referência do GTDB-Tk |
 | `NCBI_API_KEY` | opcional | chave da API do NCBI (aumenta o limite de 5 para 10 requisições/s) |
 
 Antes de cada execução, o Prokfinder confere só as dependências dos sub-comandos pedidos e lista todos os problemas
@@ -102,29 +137,44 @@ de uma vez. No cluster, o job de `run-on-cluster` carrega só os módulos `ncbi_
 ## setup: bancos de referência
 
 ```bash
-./main-prokfinder.sh setup                 # instala (ou atualiza) os bancos em ~/prokfinder-refdb
-./main-prokfinder.sh setup --force-refdb   # baixa e instala tudo de novo
-./main-prokfinder.sh setup --ncbi-complete-metadata   # opcional: também converte todos os metadados do NCBI para TSV
+./main-prokfinder.sh setup                 # baixa os bancos prontos do Zenodo para ~/prokfinder-refdb (minutos)
+./main-prokfinder.sh setup --from-source   # monta os bancos a partir do NCBI, BacDive e GTDB (horas)
 ```
 
-- Os bancos são baixados **uma única vez** e compartilhados por todas as execuções e pastas de resultados. O download
-  leva horas; no cluster, use `run-on-cluster setup`.
+Há só dois caminhos: os bancos prontos do Zenodo ou os bancos montados a partir das fontes.
+
+| Comando | Banco ainda não instalado | Banco já instalado |
+|---|---|---|
+| `setup` | baixa o pacote do Zenodo | do Zenodo: troca pelo pacote mais novo, se o registro tiver um; das fontes: nada |
+| `setup --from-source` | baixa das fontes e monta as tabelas | **atualização completa**: baixa tudo de novo das fontes, depois de um aviso e de `Continue? [y/N]` |
+
+- Por padrão o `setup` baixa os três bancos já formatados, publicados no **Zenodo** (um pacote `.tar.gz` por banco,
+  com o MD5 conferido; um download interrompido é retomado). O registro usado (servidor, número do registro e MD5 de
+  cada pacote) está em [`refdb-zenodo.tsv`](refdb-zenodo.tsv). Cada pacote tem
+  o formato de tabela que o código lê (`format=` em `COMPLETED-DOWNLOAD.txt`): se o registro não tiver o formato
+  certo, o `setup` pede `--from-source`. Rodar `setup` de novo instala os pacotes mais novos do registro (outro
+  registro, arquivo ou MD5 do que está em `COMPLETED-DOWNLOAD.txt`, linhas `package=` e `package_md5=`).
+- `--from-source` monta os bancos como as versões anteriores faziam: NCBI Datasets, API do BacDive e GTDB. Leva
+  horas; no cluster, use `run-on-cluster setup --from-source`.
+- **Atualização completa** (`setup --from-source` com os bancos já instalados, das fontes ou do Zenodo): o
+  Prokfinder avisa que vai demorar horas, que precisa de rede o tempo todo e de espaço para uma segunda cópia de cada
+  banco, e pergunta `Continue? [y/N]` (outra resposta sai sem mudar nada). Com `run-on-cluster`, a pergunta é feita no
+  seu terminal antes do `qsub`; o job, que não tem terminal, não pergunta de novo. Sem terminal e fora de um job, a
+  atualização completa não roda.
+- Os bancos são instalados **uma única vez** e compartilhados por todas as execuções e pastas de resultados.
 - `search-genomes` e `download-wf` **não rodam sem o `setup`**: se os bancos não forem encontrados, o Prokfinder
   para com o erro `Reference databases not found in ~/prokfinder-refdb` e pede o `setup` (que pode vir no mesmo
   comando: `setup search-genomes ...`).
-- Rodar `setup` de novo com os bancos já instalados não baixa nada. Para reinstalar é preciso `--force-refdb`.
-- Com `--force-refdb`, cada banco é baixado e formatado numa **pasta temporária** (`~/prokfinder-refdb/.NCBI.new`,
-  `.BACDIVE.new`, `.GTDB.new`) e só substitui o banco atual quando termina sem erro. Se o download falhar, o banco
-  atual continua lá e funcionando; o mesmo comando retoma a instalação nova de onde parou, sem baixar de novo os
-  bancos que já foram trocados (eles ficam anotados em `~/prokfinder-refdb/.force-refdb.state`, apagado no fim).
+- Na atualização completa e na troca de pacote do Zenodo, cada banco é instalado numa **pasta temporária**
+  (`~/prokfinder-refdb/.NCBI.new`, `.BACDIVE.new`, `.GTDB.new`) e só substitui o banco atual quando termina sem erro.
+  Se o download falhar, o banco atual continua lá e funcionando; o mesmo comando retoma a instalação de onde parou,
+  sem baixar de novo os bancos que já foram trocados (anotados em `~/prokfinder-refdb/.full-update.state`, apagado no
+  fim).
 - Bancos instalados por uma versão **anterior** do Prokfinder, cujas tabelas tinham outro formato, também precisam do
-  `setup`: ele **atualiza** as tabelas a partir dos arquivos já baixados, **sem baixar nada de novo** (a versão do
-  formato fica registrada em `COMPLETED-DOWNLOAD.txt`, linha `format=`).
+  `setup`: os do Zenodo são trocados pelo pacote novo; os montados das fontes têm as tabelas **refeitas a partir dos
+  arquivos já baixados, sem baixar nada de novo** (a versão do formato fica em `COMPLETED-DOWNLOAD.txt`, linha
+  `format=`).
 - Se duas execuções precisarem instalar os bancos ao mesmo tempo, a segunda espera a primeira terminar.
-- `--ncbi-complete-metadata` (opcional): converte **todos** os campos dos metadados do NCBI (o
-  `assembly_data_report.jsonl` inteiro, ~180 colunas) para TSV em `NCBI/<DOMÍNIO>-NCBI-METADATA/complete-metadata.tsv`.
-  É lento (mais de 15 h só para Bacteria) e a busca não usa essa tabela; por isso fica desligado por padrão. Com os
-  bancos já instalados, só essa tabela é gravada, a partir do JSONL já baixado.
 
 **Tabelas do BacDive (estilo BactoTraits).** Uma cepa pode ter vários valores para o mesmo traço, vindos de
 referências diferentes (em `BACDIVE_DATA_FORMATTED.tsv`, `;` separa referências e `:` separa valores da mesma
@@ -140,44 +190,52 @@ referência). Cada referência e depois cada cepa tem o mesmo peso:
 ## search-genomes: seleção dos genomas
 
 ```bash
-./main-prokfinder.sh search-genomes -T 45:80 AND -O rod,coccus AND -g isolate_genome
-./main-prokfinder.sh search-genomes -N taxons.txt OR "(" --temp-growth 70: AND -i "hot spring","hydrothermal vent" ")"
-./main-prokfinder.sh -o termofilos search-genomes --gtdb-taxon g__Thermus AND -c Brazil,Iceland
+./main-prokfinder.sh search-genomes -T 45:80 AND -O rod,coccus AND --genome-size 1:4
+./main-prokfinder.sh search-genomes --gtdb-taxon-file taxons.txt OR "(" --temp-growth 70: AND -i "hot spring","hydrothermal vent" ")"
+./main-prokfinder.sh -o termofilos search-genomes --gtdb-taxon g__Thermus AND --assembly-level complete,chromosome
+./main-prokfinder.sh search-genomes --ncbi-taxon Thermus AND --genome-size 2:3.5
 ```
 
 ### Como escrever os filtros
 
 1. Cada flag de seleção é **um filtro**; é preciso pelo menos um.
 2. Vários valores da **mesma flag** são separados por **vírgula, sem espaço**, e combinados com **OR** (o filtro
-   passa se qualquer um dos valores corresponder): `-t 562,1280`. Cada valor com espaço fica entre as suas próprias
+   passa se qualquer um dos valores corresponder): `--assembly-level complete,chromosome`. Cada valor com espaço fica entre as suas próprias
    aspas duplas: `-i "hot spring","hydrothermal vent",geyser`.
 3. **Entre dois filtros é obrigatório escrever `AND` ou `OR`**; sem isso o Prokfinder dá erro:
 
    ```bash
-   -i "hot spring",geyser AND -c Brazil    # fonte termal ou gêiser, E do Brasil
-   -i "hot spring",geyser OR -c Brazil     # fonte termal ou gêiser, OU do Brasil
+   -i "hot spring",geyser AND --genome-size 1:4    # fonte termal ou gêiser, E genoma de 1 a 4 Mb
+   -i "hot spring",geyser OR --genome-size 1:4     # fonte termal ou gêiser, OU genoma de 1 a 4 Mb
    ```
 
 4. `AND` é avaliado antes de `OR` (`A AND B OR C` = `(A AND B) OR C`). **Parênteses** agrupam filtros; no terminal
    eles precisam estar entre aspas ou com `\`: `-T 45:80 AND "(" -O rod OR -M anaerobe ")"`.
-5. Arquivos de lista (`-f`, `-A`, `-N`, `-I`, `-C`): um valor por linha. Os `\r` (fim de linha do Windows) e os
-   espaços no começo/fim das linhas são removidos, e linhas vazias são ignoradas. Em uma **tabela (TSV)** só a
+5. Arquivos de lista (`--gtdb-taxon-file`, `-A`, `-f`, `-N`, `-I`): um valor por linha. Os `\r` (fim de linha do Windows)
+   e os espaços no começo/fim das linhas são removidos, e linhas vazias são ignoradas. Em uma **tabela (TSV)** só a
    **primeira coluna** é lida. A primeira linha é tratada como **cabeçalho** e ignorada (com um aviso) quando não é
-   um valor válido: um TaxID que não é número (`-f`), um código de acesso inválido (`-A`) ou um nome que o
-   `taxonkit` não reconhece como táxon de Bacteria/Archaea (`-N`). `-I` e `-C` não podem ter cabeçalho.
+   um valor válido: um nome que não está na taxonomia do GTDB (`--gtdb-taxon-file`), um código de acesso inválido
+   (`-A`), um TaxID que não é número (`-f`) ou um nome sem TaxID de Bacteria/Archaea (`-N`). `-I` não pode ter
+   cabeçalho.
+
+A **taxonomia usada pelo Prokfinder é a do GTDB** na classificação dos genomas (`download-wf`) e no filtro
+`--gtdb-taxon`. Como a busca lê as tabelas do NCBI, ela também aceita a taxonomia do **NCBI**, só para selecionar
+(`-t`/`-f` por TaxID; `--ncbi-taxon`/`-N` por nome, convertido em TaxID com o taxonkit): um nome sem TaxID de Bacteria
+ou Archaea é um filtro inválido.
 
 ### Filtros
 
 | Opção | Banco | Descrição |
 |---|---|---|
-| `-t, --taxid` / `-f, --taxid-file` | NCBI | TaxID do organismo **ou de qualquer rank da linhagem** (ex.: `1239` seleciona todos os Bacillota) |
-| `-a, --accession` / `-A, --accession-file` | NCBI | código de acesso **com versão** (`GCA_000005845.2`). GCA_ e GCF_ podem vir misturados (GCF_x.1 seleciona o par GenBank GCA_x.1). Todas as linhas inválidas são listadas no erro |
-| `--ncbi-taxon` | NCBI | nome de um táxon da linhagem NCBI, qualquer rank |
-| `-N, --ncbi-taxon-file` | NCBI | lista de nomes de táxons (um por linha), convertidos em TaxID com `taxonkit name2taxid`; um nome que não é táxon de Bacteria/Archaea dá erro (com a lista dos nomes) |
+| `--gtdb-taxon` / `--gtdb-taxon-file` | GTDB | nome de um táxon da linhagem GTDB (sem diferenciar maiúsculas). Com o prefixo do rank (`g__Thermus`, `s__Thermus aquaticus`), só aquele rank; sem prefixo (`Thermus`), qualquer rank. Um nome que não está nas tabelas do GTDB (ex.: `g_Thermus`, com um `_` só) é um valor inválido |
+| `-a, --accession` / `-A, --accession-file` | NCBI | código de acesso **com versão** (`GCA_000005845.2`). A acessão inteira é comparada com a tabela pesquisada: `GCA_` só com a tabela GenBank (padrão) e `GCF_` só com `-s refseq`; as da outra tabela ficam de fora, com um aviso (assim um genoma não entra duas vezes pelos seus pares GCA/GCF). Todas as linhas inválidas são listadas no erro |
 | `-i` / `-I` | NCBI | texto **ou expressão regular** (ERE do POSIX, sem diferenciar maiúsculas) procurado na fonte de isolamento (ex.: `"hot spring","hydrothermal vent"`, `"hot ?springs?"`, `"^soil$"`). Um texto simples também funciona; para procurar literalmente `( ) [ ] . * + ? \| ^ $`, use `\` antes (ex.: `"soil \(forest\)"`). Uma expressão inválida dá erro antes da busca |
-| `-c` / `-C` | NCBI | país/local da localização geográfica (ex.: `Brazil,Iceland`) |
+| `-t, --taxid` / `-f, --taxid-file` | NCBI | TaxID do NCBI de qualquer rank, do organismo ou de qualquer nível da sua linhagem (ex.: `1239` seleciona todos os genomas de Bacillota) |
+| `--ncbi-taxon` / `-N, --ncbi-taxon-file` | NCBI | nome de um táxon do NCBI de qualquer rank (ex.: `Thermus`, `Thermus aquaticus`), convertido em TaxID com `taxonkit name2taxid` (só Bacteria e Archaea; homônimos mantêm todos os TaxIDs). Nome sem TaxID é um valor inválido |
 | `-g` | NCBI | `isolate_genome` ou `mag` |
 | `-G` | NCBI | faixa de GC (%) da montagem (`min:max`) |
+| `--genome-size` | NCBI | tamanho do genoma em Mb (`min:max`, um dos lados pode ficar vazio; ex.: `1:4`) |
+| `--assembly-level` | NCBI | estado da montagem: `contig`, `scaffold`, `chromosome` ou `complete` (Complete Genome); vários valores separados por vírgula |
 | `-T` / `-P` / `-S` | BacDive | temperatura, pH e NaCl **ótimos** (`min:max`, um dos lados pode ficar vazio) |
 | `--temp-growth` / `--ph-growth` / `--salt-growth` | BacDive | valores em que houve crescimento |
 | `-O, --cell-shape` | BacDive | formato celular: `rod`, `coccus`, `ovoid`, `curved`, `spiral`, `filament`, `pleomorphic`, `other` |
@@ -188,7 +246,6 @@ referência). Cada referência e depois cada cepa tem o mesmo peso:
 | `--energy-source` | BacDive | `chemotroph` ou `phototroph` |
 | `--electron-donor` | BacDive | `lithotroph` ou `organotroph` |
 | `--carbon-source` | BacDive | `autotroph` ou `heterotroph` |
-| `--gtdb-taxon` | GTDB | nome de um táxon da linhagem GTDB, qualquer rank (`g__Thermus` ou `Thermus`) |
 
 Outras opções: `-s genbank|refseq` (tabela do NCBI pesquisada; padrão `genbank`), `--force-selection` e
 `--force-search` (abaixo).
@@ -196,8 +253,8 @@ Outras opções: `-s genbank|refseq` (tabela do NCBI pesquisada; padrão `genban
 ### Filtros inválidos e `--force-search`
 
 Todo valor ou filtro inválido é listado em **`SEARCH-GENOMES-ERRORS.tsv`**, na pasta de resultados (colunas `FILTER`,
-`OPTION`, `VALUE`, `ERROR`). Exemplos: nome de táxon que não está na taxonomia NCBI de Bacteria/Archaea (`-N`),
-TaxID que não é número, código de acesso inválido, expressão regular inválida (`-i`/`-I`), faixa inválida, classe
+`OPTION`, `VALUE`, `ERROR`). Exemplos: nome de táxon que não está na taxonomia do GTDB (`--gtdb-taxon`),
+código de acesso inválido, expressão regular inválida (`-i`/`-I`), faixa inválida, classe
 inexistente do BacDive, arquivo de lista que não existe ou vazio. O arquivo é apagado quando a busca não tem erros.
 
 - **Sem `--force-search`** (padrão): a busca para e mostra os primeiros erros.
@@ -207,7 +264,7 @@ inexistente do BacDive, arquivo de lista que não existe ou vazio. O arquivo é 
   `F1 AND ( F2 OR F3 )` sem `F2` e `F3` vira `F1`. O log mostra a expressão final.
 
 ```bash
-./main-prokfinder.sh search-genomes -N cultivo.tsv OR -N literatura.tsv OR -I fontes.txt --force-search
+./main-prokfinder.sh search-genomes --gtdb-taxon-file cultivo.tsv OR --gtdb-taxon-file literatura.tsv OR -I fontes.txt --force-search
 ```
 
 Erros de sintaxe da linha de comando (falta de `AND`/`OR`, parênteses, opção desconhecida) sempre param o Prokfinder.
@@ -268,50 +325,120 @@ Usa os genomas do último `search-genomes` da mesma pasta de resultados (`-o`). 
 4. **Predição de genes** (Pyrodigal), **uma única vez por genoma**; as proteínas (`GENOME-GENES/<ACESSO>.faa`) são usadas
    pelo CheckM2, BUSCO, GTDB-Tk e CiDDER. Modo *single* com a tabela de tradução escolhida como no GTDB-Tk: tabela 4
    quando a densidade codificante com ela é mais de 5 pontos maior que com a tabela 11 e passa de 70 % (ex.:
-   *Mycoplasma*); senão, tabela 11. Genomas com menos de 100 kpb (curtos demais para treinar o Prodigal) usam o modo
-   *meta*.
+   *Mycoplasma*); senão, tabela 11. Só genomas com menos de 100 kpb (curtos demais para treinar o Prodigal) usam o
+   modo *meta*; os MAGs usam o modo *single*, como os isolados (ver abaixo).
 5. **Avaliação biológica** sobre as proteínas: CheckM2 (`predict --genes`: completude e contaminação, que filtram) e
    BUSCO (`--mode proteins`, só nos genomas aprovados pelo CheckM2: ortólogos completos, *single-copy*, duplicados,
    fragmentados e ausentes; registrado, não filtra). Linhagem do BUSCO pelo domínio do NCBI: `bacteria_odb12` ou
    `archaea_odb12` (`odb10` com BUSCO < 6), baixada uma vez para `<refdb>/BUSCO`.
-6. **Taxonomia GTDB**: pelas tabelas do GTDB; com `--gtdbtk`, os genomas que não estão nelas passam pelo GTDB-Tk:
-   `ani_rep` (ANI dos genomas contra todos os representantes do GTDB; quem cumpre o critério de espécie do GTDB recebe
-   a taxonomia por ANI) e, para os outros, `identify --genes` → `align` → `classify --genes` (posicionamento na árvore
-   a partir das proteínas do Pyrodigal, sem repetir a predição de genes).
+6. **Taxonomia GTDB**, em até três passos (ver [Classificação taxonômica](#classificação-taxonômica)): tabelas do
+   GTDB → ANI contra os representantes do GTDB (`gtdbtk ani_rep`, pouca RAM) → árvore do GTDB-Tk (só com
+   `--use-gtdbtk-tree`).
 7. **Hierarquia** de diretórios Domínio/.../Espécie.
 8. **Desreplicação** dentro de cada táxon: skDER (ANI, padrão) ou CiDDER (agrupamento das proteínas preditas).
 9. Tabelas e gráficos finais.
+10. **Banco de genomas** autocontido em `OUTPUT/GENOME-DATABASE/` (ver [Estrutura de saída](#estrutura-de-saída)):
+    genomas, proteínas e genes dos representantes, comprimidos, com metadados, versões, parâmetros e MD5.
 
 | Etapa | Opção | Padrão | Descrição |
 |---|---|---|---|
 | Download | `-j, --download-threads <n>` | 10 | downloads simultâneos (1-30) |
-| | `-z, --gzip` | | guarda os genomas comprimidos (`.fna.gz`) |
+| | `--decompress` | | descomprime os genomas (`.fna`); por padrão ficam comprimidos (`.fna.gz`) |
 | Contigs | `--min-contig-length <pb>` | 1000 | contigs menores são removidos |
 | Estrutura | `--max-contigs <n>` | 1000 | o genoma precisa ter menos contigs que isso |
 | | `--max-n-bases <n>` | 100000 | o genoma precisa ter menos bases ambíguas (N) que isso |
 | | `--min-n50 <pb>` | 5000 | N50 mínimo |
-| Genes | `--meta-for-mags` | desligado | prediz os genes dos MAGs ("derived from metagenome") no modo *meta* (por padrão, MAGs usam o modo *single*, como os isolados) |
 | Qualidade | `--min-completeness <%>` | 75 | completude mínima (CheckM2) |
 | | `--max-contamination <%>` | 5 | contaminação máxima (CheckM2) |
 | | `--skip-busco` | desligado | não roda o BUSCO |
-| Taxonomia | `--gtdbtk` | desligado | classifica com o GTDB-Tk os genomas que não estão nas tabelas do GTDB (**o posicionamento precisa de > 200 GB de RAM**); sem ela, eles só vão para `NON-CLASSIFIED-GENOMES-BY-GTDB.txt` |
-| Desreplicação | `--derep-method <m>` | `skder` | `skder` (ANI) ou `cidder` (agrupamento das proteínas com CD-HIT, parâmetros padrão do CiDDER) |
-| | `--derep-ani <%>` | 99,5 | skDER: identidade (ANI) acima da qual dois genomas do mesmo táxon são redundantes |
-| | `--derep-mode <modo>` | `greedy` | skDER: `greedy` ou `dynamic` (fração alinhada fixa em 90 %) |
+| Taxonomia | `--use-gtdbtk-tree` | desligado | posiciona na árvore do GTDB os genomas que não estão nas tabelas nem foram classificados por ANI (**precisa de > 200 GB de RAM**: fila `high_mem`) |
+| Desreplicação | `--derep-method <m>` | `skder` | `skder` (por identidade genética, ANI) ou `cidder` (por repertório gênico: agrupamento das proteínas com CD-HIT, parâmetros padrão do CiDDER); ver [skDER ou CiDDER?](#skder-ou-cidder) |
+| | `--derep-ani <%>` | 99,5 | só skDER (ignorada, com aviso, com `--derep-method cidder`): identidade (ANI) acima da qual dois genomas do mesmo táxon são redundantes |
+| | `--derep-mode <modo>` | `greedy` | só skDER (ignorada, com aviso, com `cidder`): `greedy` ou `dynamic` (fração alinhada fixa em 90 %); o `dynamic` deixa **menos** representantes (aproxima um representante por grupo de genomas parecidos), mas demora mais |
 | | `--filter-mge` | desligado | mascara os elementos genéticos móveis (profagos e plasmídeos, previstos com o PhiSpy) antes de comparar os genomas |
+| Exportação | `--export-all-hq` | desligado | exporta para `GENOME-DATABASE` todos os genomas aprovados na qualidade, não só os representantes |
 | Re-execução | `--force-curation` | | descarta os genomas limpos, os genes preditos e todos os resultados de qualidade, taxonomia e desreplicação (os genomas baixados são mantidos) |
 
 Os limites de qualidade são reaplicados a cada execução sobre os resultados já guardados: mudá-los não faz o CheckM2
 rodar de novo.
 
-**Por que os MAGs usam o modo *single* por padrão:** um MAG é o genoma de um único organismo, e o modo *single* treina
-o Prodigal nele (prevê genes melhor que os modelos genéricos do modo *meta*, que é indicado para sequências curtas ou
-misturas de organismos). É também o que o GTDB-Tk faz. MAGs muito fragmentados com menos de 100 kpb já vão para o
-modo *meta*; `--meta-for-mags` usa o modo *meta* para todos os MAGs.
+**Por que os MAGs usam o modo *single*:** um MAG é o genoma de um único organismo, e o modo *single* treina o Prodigal
+nele (prevê genes melhor que os modelos genéricos do modo *meta*, feito para sequências curtas demais para treinar ou
+para misturas de organismos, como contigs de um metagenoma não separados em *bins*). É também o que o GTDB-Tk faz.
+Só genomas com menos de 100 kpb vão para o modo *meta*.
 
-**CiDDER 1.3.6** (a versão do módulo `skder` do cluster) não consegue ler só proteomas (falha ao calcular o N50 dos
-genomas). Quando isso acontece, o Prokfinder roda o CiDDER de novo com os genomas, e o próprio CiDDER prediz os genes
-(com a tabela 11), com um aviso no log.
+### Classificação taxonômica
+
+Cada genoma de alta qualidade recebe a taxonomia do GTDB pelo primeiro destes métodos que o classificar (coluna
+`GTDB_CLASSIFICATION_METHOD`):
+
+| Método | Como |
+|---|---|
+| `GTDB_TABLE` | o genoma está nas tabelas do GTDB do banco de referência (pelo mesmo acesso, pelo par GCA/GCF ou por outra versão) |
+| `GTDBTK_ANI` | `gtdbtk ani_rep` (skani, sobre o genoma): o representante do GTDB mais próximo cumpre o critério de espécie do GTDB (ANI ≥ o raio de ANI da espécie, em geral 95 %, e fração alinhada ≥ 0,5). Usa pouca RAM; roda sempre que o GTDB-Tk e o `GTDBTK_DATA_PATH` existirem (senão, um aviso e o passo é pulado) |
+| `GTDBTK_TREE` | só com `--use-gtdbtk-tree`: `identify --genes` → `align` → `classify --genes` (posicionamento na árvore, a partir das proteínas do Pyrodigal). Precisa de muita RAM |
+| `NOT_CLASSIFIED` | nenhum dos anteriores: vai para `NON-CLASSIFIED-GENOMES-BY-GTDB.txt` e fica fora da hierarquia e da desreplicação |
+
+A tabela de metadados também recebe a **situação do genoma no GTDB**, lida da tabela do GTDB do banco de referência:
+
+| Coluna | Conteúdo |
+|---|---|
+| `GTDB_SPECIES_REPRESENTATIVE` | `yes` se o genoma é o representante da sua espécie no GTDB |
+| `GTDB_REPRESENTATIVE_GENOME` | acesso do representante da espécie (por ANI: o representante mais próximo) |
+| `GTDB_TYPE_MATERIAL` | material tipo (ex.: `type strain of species`); `NULL` quando não é |
+| `GTDB_TYPE_SPECIES_OF_GENUS` | `yes` se é a espécie-tipo do gênero |
+
+Um genoma classificado por ANI não é representante (`no`); pela árvore ou não classificado, as quatro ficam `NULL`.
+
+`GENOME-TAXONOMY/taxonomy-classification.tsv` mostra, para cada genoma, o método, a fonte (versão do GTDB, ou versão
+do GTDB-Tk e pacote de referência), o acesso encontrado na tabela do GTDB, o representante mais próximo, o ANI, a
+fração alinhada, **os limites usados** (`ANI_THRESHOLD`, `AF_THRESHOLD`), o método da árvore e uma nota explicando
+por que um genoma não foi classificado.
+
+Os resultados do ANI e da árvore ficam em cache (`GENOME-TAXONOMY/GTDBTK-RESULTS/`). Assim, depois de uma execução
+sem a árvore, **o mesmo comando com `--use-gtdbtk-tree` e a mesma pasta (`-o`)** só posiciona os genomas que ainda
+estão em `NON-CLASSIFIED-GENOMES-BY-GTDB.txt` (o resto é reaproveitado), atualiza as tabelas e a lista, e segue com
+a hierarquia e a desreplicação:
+
+```bash
+./main-prokfinder.sh run-on-cluster -o termofilos search-genomes --gtdb-taxon g__Thermus download-wf
+./main-prokfinder.sh run-on-cluster --queue high_mem --mem 256gb --cpus 32 -o termofilos \
+    search-genomes --gtdb-taxon g__Thermus download-wf --use-gtdbtk-tree
+```
+
+### skDER ou CiDDER?
+
+O skDER é mais indicado quando a pergunta envolve propriedades do genoma como um todo ou a relação entre linhagens
+(tamanho, GC, filogenia, genoma core, estrutura populacional), por selecionar representantes com base na identidade de
+sequência, sem favorecer genomas por seu conteúdo gênico. O CiDDER é mais indicado quando o objetivo é amostrar a
+amplitude do repertório gênico de um táxon (genes acessórios, famílias gênicas associadas a linhagens ou habitats) com o
+menor número de genomas, mas não para estimar frequências gênicas ou a estrutura do pangenoma, pois sua seleção favorece
+genomas com genes raros.
+
+O corte padrão do skDER (99,5 % de ANI, com 90 % de fração alinhada) só considera redundantes genomas **quase
+idênticos**: de propósito, vários genomas da mesma espécie podem ficar, o que preserva a diversidade entre linhagens. Para
+ter menos representantes, use `--derep-mode dynamic` (mais lento) ou baixe o `--derep-ani` (por exemplo, 95 é o limite
+usual de espécie).
+
+**Representante mais próximo.** Os dois programas rodam com `--determine-clusters`, que não muda quais genomas são
+representativos, mas diz, para cada genoma, qual é o representativo mais próximo. As colunas `NEAREST_REPRESENTATIVE` (o
+acesso; o próprio genoma se ele for representativo ou o único da folha; vários separados por `;` em caso de empate) e
+`NEAREST_REPRESENTATIVE_SIMILARITY` (skDER: ANI em %; CiDDER: % dos grupos de proteínas do genoma que existem no
+representativo; 100 para os representativos) entram em `genome-metadata.tsv`. O status do GTDB do genoma
+(`GTDB_SPECIES_REPRESENTATIVE`, `GTDB_TYPE_MATERIAL`) está nas colunas de taxonomia e **não** muda a escolha dos
+representativos.
+
+**CiDDER e os proteomas.** Com `--derep-method cidder`, o CiDDER lê as proteínas que o Pyrodigal já predisse (os genes
+são preditos uma única vez), mas só as dos **genes completos**: o CiDDER, quando prediz sozinho, usa o Pyrodigal com `-c`
+(sem genes parciais nas bordas dos contigs), então o Prokfinder roda o Pyrodigal uma segunda vez desse modo e grava
+`GENOME-GENES/COMPLETE-GENES/<ACESSO>.faa` (a coluna `PREDICTED_COMPLETE_GENES` conta esses genes; os `.faa` com
+genes completos e parciais, usados pelo CheckM2, BUSCO e GTDB-Tk, não mudam). Essa segunda predição é feita **sempre**,
+com qualquer método de desreplicação: os genes não fragmentados também servem como selo de qualidade do genoma em usos
+posteriores, como a anotação funcional. Isso exige o **CiDDER 1.3.7 ou mais novo**: o 1.3.6 (a versão do módulo `skder` do cluster)
+falha quando recebe só proteomas. Com um CiDDER mais antigo, o Prokfinder registra **um aviso** no log e entrega os
+genomas ao CiDDER, que então **prediz os genes de novo** (tabela de tradução 11, não os genes do Pyrodigal); o resumo da
+desreplicação mostra `CIDDER_INPUT = genomes`. Com o 1.3.7 ou mais novo, uma falha do CiDDER nas proteínas **não** é
+contornada: a linhagem fica `NOT_DEREPLICATED` e o motivo está no `cidder-console.log` dela.
 
 ---
 
@@ -322,10 +449,10 @@ no nó de login: no cluster da UFV, qualquer comando que passe de **10 minutos**
 isso, no cluster, coloque `run-on-cluster` antes dos outros sub-comandos:
 
 ```bash
-cd ~/prokfinder/prokfinder-scripts         # o job roda na pasta de onde foi submetido
+cd ~/prokfinder-scripts                    # o job roda na pasta de onde foi submetido
 ./main-prokfinder.sh run-on-cluster setup  # resultados em ./prokfinder-results (fora do git: .gitignore)
 ./main-prokfinder.sh run-on-cluster --queue qtime --walltime 24:00:00 search-genomes -T 45:80 AND -O rod
-./main-prokfinder.sh run-on-cluster --queue high_mem --mem 256gb --cpus 32 download-wf --gtdbtk
+./main-prokfinder.sh run-on-cluster --queue high_mem --mem 256gb --cpus 32 download-wf --use-gtdbtk-tree
 ```
 
 O que acontece:
@@ -336,7 +463,8 @@ O que acontece:
    (`module load seqkit checkm2 busco ncbi_datasets gtdbtk taxonkit skder`, além do `r` para os gráficos; o Python do
    `skder` tem o `pyrodigal`; sem
    `download-wf`, só `module load ncbi_datasets taxonkit`) e executa o
-   `main-prokfinder.sh` com a mesma linha de comando, sem o `run-on-cluster`.
+   `main-prokfinder.sh` com a mesma linha de comando, sem o `run-on-cluster`, com `-p` e `--memory` iguais às CPUs e à
+   RAM do job. O `prokfinder.log` registra o job, o nó, a fila, as CPUs, a RAM e o walltime.
 3. O script é enviado à fila com `qsub` (se o `qsub` não existir, o Prokfinder sai com erro).
 4. O andamento da execução é escrito **enquanto o job roda** em `<resultados>/prokfinder.log` (acompanhe com
    `tail -f <resultados>/prokfinder.log` e `qstat -u $USER`). A saída do próprio job,
@@ -359,17 +487,20 @@ outra máquina sem PBS não pode ser conferida: se ela não estiver mais rodando
 | Opção | Padrão | Descrição |
 |---|---|---|
 | `--queue <fila>` | `roteamento` | fila de submissão (ver abaixo) |
-| `--mem <ram>` | `20gb` | memória RAM (`20gb`, `24000mb` ou só o número em GB) |
-| `--cpus <n>` | 20 | CPUs do job; o Prokfinder usa todas, a não ser que `-p` seja dado |
+| `--mem <ram>` | `20gb` | memória RAM (`20gb`, `24000mb` ou só o número em GB); **mínimo 4 GB, e 8 GB com `download-wf`**. O CheckM2 usou 17,3 GB com 166 genomas: de 8 a 18 GB ele roda com `--lowmem` (mais lento, com aviso). Na fila `roteamento`, os nós têm ~22,95 GB: pedir no máximo `22gb` |
+| `--cpus <n>` | 20 | CPUs do job (**mínimo 4**) |
+
+O PBS mata o job que usa mais CPUs ou RAM do que pediu. Por isso os programas usam as CPUs (`-p`) e a RAM
+(`--memory`) do job, e o Prokfinder recusa um `-p` ou `--memory` maior que `--cpus` ou `--mem`.
 | `--walltime <HH:MM:SS>` | `2160:00:00` (`72:00:00` na `qtime`) | tempo máximo do job |
-| `--test` | | envia só um job curto (fila `qtime`, 15 min) que carrega os módulos e mostra a versão de cada programa |
+| `--test` | | envia só um job curto (fila `qtime`, 1 h: carregar os módulos, sobretudo o `busco`, leva mais de 15 min) que carrega os módulos e mostra a versão de cada programa |
 | `--dry-run` | | só escreve o `.pbs`, sem submeter |
 
 | Fila | Uso | Limites |
 |---|---|---|
 | `qtime` | testes e execuções curtas | walltime obrigatório, no máximo 72:00:00; até 24024 MB por job |
 | `roteamento` | execuções comuns (padrão) | até 24024 MB por job; walltime até 2160:00:00 |
-| `high_mem` | execuções com muita memória (ex.: `--gtdbtk`) | no mínimo 25 GB; até 512 GB e 64 CPUs por usuário; 2 jobs rodando |
+| `high_mem` | execuções com muita memória (ex.: `--use-gtdbtk-tree`) | no mínimo 25 GB; até 512 GB e 64 CPUs por usuário; 2 jobs rodando |
 
 Os limites de cada fila são conferidos antes da submissão. A `NCBI_API_KEY` é repassada pelo `qsub` e nunca é
 gravada no arquivo `.pbs`.
@@ -385,9 +516,8 @@ Bancos de referência (compartilhados, `--refdb-dir`):
 ├── NCBI/
 │   ├── BACTERIA-NCBI-GENOMES/fetch.txt                # só o manifesto, não os FASTA
 │   ├── BACTERIA-NCBI-METADATA/{genbank,refseq}-metadata.tsv   # tabelas usadas na busca (campos selecionados)
-│   ├── BACTERIA-NCBI-METADATA/complete-metadata.tsv   # opcional (--ncbi-complete-metadata): todos os campos do NCBI
 │   ├── ARCHAEA-NCBI-GENOMES/  ARCHAEA-NCBI-METADATA/
-│   └── TAXDUMP/                                       # taxonomia NCBI usada pelo taxonkit
+│   └── TAXDUMP/                                       # taxonomia NCBI (rank dos TaxIDs do BacDive, no setup)
 ├── BACDIVE/
 │   ├── BACDIVE-DOWNLOAD-BRUTE/                        # JSON da API (batch_*.jsonl) e lista de IDs
 │   └── BACDIVE-FORMATTED-TSV/
@@ -399,7 +529,7 @@ Bancos de referência (compartilhados, `--refdb-dir`):
     └── {ARCHAEA,BACTERIA}-GTDB-METADATA/              # ar53/bac120_metadata (bruto + formatado)
 ```
 
-Resultados de uma execução (`-o`/`--results-dir`):
+Resultados de uma execução (`-o`/`--output-dir`):
 
 ```
 prokfinder-results/
@@ -416,20 +546,60 @@ prokfinder-results/
     │   └── clean_genomes/<ACESSO>.fna                 # sem contigs pequenos, ordenados e renomeados
     ├── GENOME-GENES/                                  # <ACESSO>.faa/.ffn/.gff (Pyrodigal) e gene-prediction.tsv
     ├── GENOME-QUALITY/                                # genome-structure.tsv (seqkit), genome-quality.tsv (CheckM2, BUSCO)
-    ├── GENOME-TAXONOMY/                               # genome-taxonomy.tsv, NON-CLASSIFIED-GENOMES-BY-GTDB.txt e
-    │                                                  # genome-domain-ncbi.tsv (domínio de cada genoma pelo NCBI)
+    ├── GENOME-TAXONOMY/                               # genome-taxonomy.tsv, taxonomy-classification.tsv (método de
+    │                                                  # cada genoma), NON-CLASSIFIED-GENOMES-BY-GTDB.txt, GTDBTK-RESULTS/
+    │                                                  # e genome-domain-ncbi.tsv (domínio de cada genoma pelo NCBI)
     ├── GENOME-DIR-HIERARCHY/
     │   └── Domínio/Filo/Classe/Ordem/Família/Gênero/Espécie/
-    │       ├── genomes-files-symlink.txt              # acessos e caminhos dos genomas do táxon
-    │       ├── GENOME-METADATA/genome-metadata.tsv    # metadados só desse táxon, com o representativo
-    │       └── GENOME-DEREPLICATION/                  # saída do skDER
+    │       └── genomes-files-symlink.txt              # acessos e caminhos dos genomas do táxon
+    ├── GENOME-DEREPLICATION/                          # todos os resultados da desreplicação, num só lugar
+    │   ├── dereplication-summary.tsv                  # uma linha por linhagem (ver abaixo)
+    │   ├── representative-genomes.tsv                 # acesso e linhagem de cada genoma representativo
+    │   ├── genome-dereplication.tsv                   # uma linha por genoma (representativo: yes/no)
+    │   └── RUNS/Domínio/.../Espécie/                  # saída bruta do skDER/CiDDER de cada linhagem (cache)
+    ├── GENOME-DATABASE/                               # banco final autocontido (pode ser movido e compartilhado)
+    │   ├── genomes/<ACESSO>.fna.gz                    # hard link do genoma limpo (cópia se não der)
+    │   ├── proteins/<ACESSO>.faa.gz                   # proteínas do Pyrodigal
+    │   ├── genes/<ACESSO>.gff.gz                      # genes do Pyrodigal
+    │   ├── genome-database-metadata.tsv               # só os genomas exportados, com caminhos relativos
+    │   ├── versions.tsv, parameters.tsv               # cópias dos de FINAL-RESULTS
+    │   ├── README.txt                                 # o que é cada arquivo e como citar
+    │   └── MD5SUMS.txt                                # conferir com: md5sum -c MD5SUMS.txt
     └── FINAL-RESULTS/
         ├── high-quality-selected-genomes.txt          # acessos + caminho do FASTA dos genomas finais
         ├── high-quality-selected-genomes-metadata.txt
+        ├── versions.tsv                               # programas e bancos desta execução (COMPONENT, TYPE, VERSION, SOURCE, CITATION)
+        ├── parameters.tsv                             # linha de comando, consulta e valor efetivo de cada opção (PARAMETER, VALUE)
+        ├── genomes-left-out.tsv                       # genomas fora da lista final por falha (NOT_CLASSIFIED, NOT_DEREPLICATED) e o que fazer
         └── STATISTICS/
             ├── TABLES/   # funil de seleção, QC, genomas por táxon, tabela de todos os procariotos
             └── GRAPHS/   # gráficos (R)
 ```
+
+`FINAL-RESULTS/versions.tsv` e `parameters.tsv` registram o que produziu o resultado (versões instaladas no momento
+da execução, bancos de referência com a origem do pacote, linhagens do BUSCO e valores efetivos das opções, inclusive
+os padrões); citem-nos no método do trabalho.
+
+`GENOME-DATABASE/` é o produto do `download-wf`: só tem arquivos (sem links simbólicos para a execução), então a
+pasta inteira pode ser copiada ou movida e conferida com `md5sum -c MD5SUMS.txt`. Por padrão leva os representantes
+da desreplicação; com `--export-all-hq`, todos os genomas aprovados na qualidade (a coluna `REPRESENTATIVE_GENOME` de
+`genome-database-metadata.tsv` diz quais são os representantes). Os genomas já comprimidos entram por *hard link*
+(quase sem espaço extra, quando origem e destino estão no mesmo sistema de arquivos); com `--decompress` o arquivo é
+comprimido de novo. Numa nova execução só entram os genomas novos ou alterados, e os que saíram da lista são removidos.
+
+`GENOME-DEREPLICATION/dereplication-summary.tsv` resume a desreplicação, uma linha por linhagem (o diretório-folha da
+hierarquia):
+
+| Coluna | Conteúdo |
+|---|---|
+| `TAXONOMIC_LINEAGE` / `TAXONOMIC_LEAF_RANK` | linhagem GTDB (`Bacteria;Pseudomonadota;...;Escherichia_coli`) e o rank da folha |
+| `GENOMES_BEFORE_DEREPLICATION` / `GENOMES_AFTER_DEREPLICATION` | número de genomas antes e depois (representativos) |
+| `REPRESENTATIVE_GENOMES` | acessos dos representativos, separados por `;` |
+| `DEREPLICATION_SOFTWARE` | `skder`, `cidder` ou `NONE` (linhagem com um só genoma) |
+| `SKDER_MODE` / `SKDER_ANI_CUTOFF` | modo (`greedy`/`dynamic`) e ANI de corte do skDER |
+| `CIDDER_INPUT` | `proteomes` (proteínas do Pyrodigal) ou `genomes` (CiDDER < 1.3.7, que não lê proteomas e prediz os genes de novo) |
+| `MGE_FILTERED` / `MGE_SOFTWARE` | se os elementos genéticos móveis foram mascarados (`--filter-mge`) e com qual programa (PhiSpy) |
+| `DEREPLICATION_STATUS` | `DEREPLICATED`, `SINGLE_GENOME` ou `FAILED` |
 
 Os genomas limpos nunca saem de `clean_genomes/`: a hierarquia taxonômica e as listas finais guardam os caminhos.
 O diretório-folha de um genoma é o menor rank conhecido (espécie ou, se ela não for conhecida, gênero, família...).
@@ -443,9 +613,9 @@ O Prokfinder pode ser executado de novo sem refazer o que já foi concluído:
 
 | Etapa | O que é reaproveitado | Para forçar |
 |---|---|---|
-| `setup` | bancos baixados só uma vez (checkpoint `COMPLETED-DOWNLOAD.txt`); downloads interrompidos são retomados | `setup --force-refdb` |
+| `setup` | bancos baixados só uma vez (checkpoint `COMPLETED-DOWNLOAD.txt`); downloads interrompidos são retomados | `setup --from-source` (atualização completa) |
 | `search-genomes` | busca reaproveitada quando os filtros e os bancos não mudaram (checkpoint `SEARCH-GENOMES-COMPLETED.txt`) | `search-genomes --force-selection` |
-| `download-wf` | genomas já baixados; contigs, seqkit, CheckM2 e GTDB-Tk por genoma; skDER por táxon (quando a lista de genomas e os parâmetros não mudaram) | `download-wf --force-curation` |
+| `download-wf` | genomas já baixados; contigs, seqkit, genes, CheckM2, BUSCO e GTDB-Tk (ANI e árvore) por genoma; skDER/CiDDER por táxon (quando a lista de genomas e os parâmetros não mudaram) | `download-wf --force-curation` |
 
 ---
 
@@ -464,11 +634,20 @@ Sem o `main-prokfinder.sh`, cada módulo grava seu próprio arquivo `.log` na pa
 
 ## Limitações conhecidas
 
-- O GTDB-Tk precisa de muita RAM (> 200 GB com o pacote completo), por isso fica desativado por padrão.
+- O posicionamento na árvore do GTDB-Tk precisa de muita RAM (> 200 GB com o pacote completo), por isso só roda com
+  `--use-gtdbtk-tree`; a classificação por ANI (`ani_rep`) usa pouca RAM e roda por padrão.
 - Nem todo táxon do GTDB tem correspondência com o NCBI. O filtro `--gtdb-taxon` busca por nome e o vínculo entre
   os dois bancos é feito pelo código de acesso.
 - A extração do BacDive foi reescrita em Bash a partir do script #1 do BactoTraits (originalmente em R); um intervalo
   como "5-30 °C" é guardado apenas pelos extremos (5:30).
+
+## Como citar
+
+Cite o Prokfinder ([`CITATION.cff`](CITATION.cff)) **e também as ferramentas e os bancos que ele usou**: NCBI
+Datasets, BacDive, GTDB (dados CC BY-SA 4.0, a atribuição é obrigatória), SeqKit, Pyrodigal/Prodigal, CheckM2, BUSCO,
+GTDB-Tk, skani, skDER ou CiDDER. As referências completas estão em [`CITATIONS.md`](CITATIONS.md), junto com as
+inspirações do Prokfinder (BactoTraits e Bactopia). Os componentes de cada execução, com versão e DOI (coluna
+`CITATION`), ficam em `FINAL-RESULTS/versions.tsv` e no `GENOME-DATABASE/versions.tsv`.
 
 ## Próximos passos
 

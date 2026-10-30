@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 #
-# plot-statistics.R - graphs of the final results of Prokfinder (called by summarize-final-results.sh)
+# plot-statistics.R - Prokfinder module 10 (helper of summarize-final-results.sh): graphs of the final results
 # Uses base R only, so no extra package needs to be installed.
 #
 # Usage: Rscript plot-statistics.R <genome_metadata.tsv> <tables_dir> <graphs_dir>

@@ -30,23 +30,28 @@
 #                                                        Both ways, they are listed in the file of --errors-file
 #
 #   KEY (values of the same filter combined with OR)
-#     ACCESSION         GCA_/GCF_ accession with version (GCA_x.1 also matches its paired GCF_x.1)
-#     TAXID             NCBI TaxID of the organism or of any rank of its lineage (descendant taxa included)
-#     NCBI_TAXON        name of a taxon of the NCBI lineage (any rank, exact match, case-insensitive)
-#     TAXON_NAME        name of an NCBI taxon, converted to its TaxID with "taxonkit name2taxid" (Bacteria and
-#                       Archaea only); then the same as TAXID. A name without TaxID is an error
+#     ACCESSION         GCA_/GCF_ accession with version, matched whole: GCA_ only in the GenBank table, GCF_ only
+#                       in the RefSeq table (an accession of the other table is not selected, with a warning)
 #     ISOLATION_SOURCE  extended regular expression (POSIX ERE; a plain text is one too) found in the isolation
 #                       source (case-insensitive)
-#     COUNTRY           country/place at the start of a word of the geographic location (case-insensitive)
-#     GTDB_TAXON        name of a taxon of the GTDB lineage (any rank; "g__Thermus" or "Thermus")
+#     TAXID             NCBI TaxID of the organism or of any rank of its lineage (descendant taxa included)
+#     TAXON_NAME        name of an NCBI taxon (any rank), converted to its TaxID with "taxonkit name2taxid" (Bacteria
+#                       and Archaea only); then the same as TAXID. A name without TaxID is an invalid value
+#     TAXON_NAME_LIST   the same, from a list file (its first line is a header when it is not a taxon)
+#     ASSEMBLY_LEVEL    contig, scaffold, chromosome or complete (complete genome), as in the NCBI assembly level
+#     GTDB_TAXON        name of a taxon of the GTDB lineage, case-insensitive: with the rank prefix of GTDB
+#                       ("g__Thermus", "s__Thermus aquaticus"), only that rank; without it ("Thermus"), any rank.
+#                       A name that is not in the GTDB tables is an invalid value
+#     GTDB_TAXON_LIST   the same, from a list file (its first line is a header when it is not a GTDB taxon)
 #     BACDIVE_CLASS     <trait>=<class>[,<class>...]: at least one of the classes was recorded for the TaxID
 #   KEY (single value)
 #     GENOME_TYPE       isolate_genome or mag
 #     GC                <min>:<max> GC content (%) of the assembly (either side may be empty)
+#     GENOME_SIZE       <min>:<max> total sequence length of the assembly, in Mb (either side may be empty)
 #     BACDIVE_RANGE     <column>=<min>:<max>: the value of the TaxID (mean of its strains) is inside the range
 #
 # Usage:
-#   search-genomes-in-reference-db.sh -q <query_file> --validate-only [--taxdump-dir <dir>]
+#   search-genomes-in-reference-db.sh -q <query_file> --validate-only [--gtdb-dir <dir>] [--taxdump-dir <dir>]
 #   search-genomes-in-reference-db.sh -q <query_file> -r <reference_db_dir> -o <selected_metadata.tsv>
 #
 # Output: <selected_metadata.tsv>, one row per selected assembly: NCBI columns, one SELECTED_BY_* column (TRUE/FALSE)
@@ -67,8 +72,10 @@ Usage: $(basename "$0") -q <query_file> [-r <reference_db_dir> -o <output_tsv>] 
   -r <dir>              Reference databases folder (~/prokfinder-refdb)
   -o <file>             Output table with the selected genome assemblies
   --validate-only       Only check the query file (no reference table is read)
-  --taxdump-dir <dir>   NCBI taxdump used to check the TAXON_NAME names with --validate-only (when it is not
-                        given, the names are checked only if taxonkit has its default taxdump, ~/.taxonkit)
+  --gtdb-dir <dir>      GTDB reference folder used to check the GTDB taxon names with --validate-only (when it is
+                        not given or not installed, the names are checked during the search)
+  --taxdump-dir <dir>   NCBI taxdump used to check the taxon names with --validate-only (when it is not given,
+                        the names are checked only if taxonkit has its default taxdump, ~/.taxonkit)
   --errors-file <file>  TSV file where the invalid values and filters are listed (removed when there is none)
   -h                    Show this help message
 EOF
@@ -78,6 +85,7 @@ EOF
 QUERY_FILE=""
 REF_DIR=""
 OUTPUT_TSV=""
+GTDB_CHECK_DIR=""
 TAXDUMP_DIR=""
 ERRORS_FILE=""
 VALIDATE_ONLY=0
@@ -88,6 +96,7 @@ while [[ $# -gt 0 ]]; do
         -r) REF_DIR="${2%/}"; shift 2 ;;
         -o) OUTPUT_TSV="$2"; shift 2 ;;
         --validate-only) VALIDATE_ONLY=1; shift ;;
+        --gtdb-dir) GTDB_CHECK_DIR="${2%/}"; shift 2 ;;
         --taxdump-dir) TAXDUMP_DIR="${2%/}"; shift 2 ;;
         --errors-file) ERRORS_FILE="$2"; shift 2 ;;
         -h|--help) usage 0 ;;
@@ -229,7 +238,7 @@ F_IDS=()                 # filter ids, in the order of the query file
 declare -A F_KEY=()      # id -> key
 declare -A F_VALUES=()   # id -> values, one per line
 declare -A F_SEEN=()     # id TAB value -> 1
-declare -A F_FLAG=()     # id -> option of main-prokfinder.sh that wrote the filter (e.g., -N)
+declare -A F_FLAG=()     # id -> option of main-prokfinder.sh that wrote the filter (e.g., --gtdb-taxon)
 declare -A F_INVALID=()  # id -> 1 when the whole filter is invalid
 ERRORS=()                # <filter id> TAB <value> TAB <error>: every invalid value or filter
 ERRORS_WARNED=0          # errors already shown (--force-search)
@@ -253,7 +262,7 @@ register_filter() {
 }
 
 # Keys whose filter has a single value
-SINGLE_VALUE_KEYS=" GENOME_TYPE GC BACDIVE_RANGE BACDIVE_CLASS "
+SINGLE_VALUE_KEYS=" GENOME_TYPE GC GENOME_SIZE BACDIVE_RANGE BACDIVE_CLASS "
 
 LINE_NUMBER=0
 while IFS= read -r LINE || [[ -n "${LINE}" ]]; do
@@ -323,6 +332,18 @@ while IFS= read -r LINE || [[ -n "${LINE}" ]]; do
                 continue
             fi
             ;;
+        ASSEMBLY_LEVEL)
+            case "${VALUE,,}" in
+                contig)                                            VALUE="Contig" ;;
+                scaffold)                                          VALUE="Scaffold" ;;
+                chromosome)                                        VALUE="Chromosome" ;;
+                complete|complete_genome|complete-genome|"complete genome") VALUE="Complete Genome" ;;
+                *)
+                    filter_error "${ID}" "${VALUE}" "invalid assembly level (contig, scaffold, chromosome or complete)"
+                    continue
+                    ;;
+            esac
+            ;;
         ISOLATION_SOURCE)
             # an extended regular expression (a plain text is one too); bash returns 2 when it does not compile
             RC=0
@@ -332,7 +353,7 @@ while IFS= read -r LINE || [[ -n "${LINE}" ]]; do
                 continue
             fi
             ;;
-        NCBI_TAXON|TAXON_NAME|COUNTRY|GTDB_TAXON) ;;
+        TAXON_NAME|TAXON_NAME_LIST|GTDB_TAXON|GTDB_TAXON_LIST) ;;
         GENOME_TYPE)
             VALUE="${VALUE,,}"
             if [[ "${VALUE}" != "isolate_genome" && "${VALUE}" != "mag" ]]; then
@@ -340,7 +361,7 @@ while IFS= read -r LINE || [[ -n "${LINE}" ]]; do
                 continue
             fi
             ;;
-        GC)
+        GC|GENOME_SIZE)
             PROBLEM="$(range_problem "${VALUE}")"
             if [[ -n "${PROBLEM}" ]]; then
                 filter_error "${ID}" "${VALUE}" "invalid range: ${PROBLEM}"
@@ -464,8 +485,8 @@ check_filter_errors() {
 
 ############ TAXON NAMES -> NCBI TAXIDS ################
 
-# Converts every TAXON_NAME name into NCBI TaxIDs of Bacteria or Archaea (taxonkit name2taxid). A name without such
-# TaxID is an invalid value (filter_error). A name with several TaxIDs (homonyms) keeps all of them.
+# Converts every TAXON_NAME / TAXON_NAME_LIST name into NCBI TaxIDs of Bacteria or Archaea (taxonkit name2taxid). A
+# name without such TaxID is an invalid value (filter_error). A name with several TaxIDs (homonyms) keeps all of them.
 # Usage: resolve_taxon_names <taxdump_dir, or "" for the taxonkit default> <output: taxid TAB name>
 resolve_taxon_names() {
     local TAXDUMP="$1"
@@ -477,17 +498,17 @@ resolve_taxon_names() {
     fi
 
     for ID in "${F_IDS[@]}"; do
-        if [[ "${F_KEY[${ID}]}" == "TAXON_NAME" ]]; then
+        if [[ "${F_KEY[${ID}]}" == TAXON_NAME* ]]; then
             printf '%s' "${F_VALUES[${ID}]}"
         fi
     done | sort -u > "${WORK_DIR}/taxon_names.txt"
 
     # name2taxid prints "<name> <TAB> <taxid>" (one line per TaxID; empty TaxID when the name is unknown)
     taxonkit name2taxid ${ARGS[@]+"${ARGS[@]}"} < "${WORK_DIR}/taxon_names.txt" > "${WORK_DIR}/name2taxid.tsv" 2> "${WORK_DIR}/name2taxid.err" \
-        || die "taxonkit name2taxid failed: $(head -n 3 "${WORK_DIR}/name2taxid.err" | tr '\n' ' ')"
+        || die "taxonkit name2taxid failed: $(awk 'NR <= 3' "${WORK_DIR}/name2taxid.err" | tr '\n' ' ')"
     awk -F'\t' '$2 ~ /^[0-9]+$/ { print $2 }' "${WORK_DIR}/name2taxid.tsv" | sort -u \
         | taxonkit lineage -t ${ARGS[@]+"${ARGS[@]}"} > "${WORK_DIR}/name2taxid.lineage" 2>> "${WORK_DIR}/name2taxid.err" \
-        || die "taxonkit lineage failed: $(head -n 3 "${WORK_DIR}/name2taxid.err" | tr '\n' ' ')"
+        || die "taxonkit lineage failed: $(awk 'NR <= 3' "${WORK_DIR}/name2taxid.err" | tr '\n' ' ')"
 
     # Only TaxIDs whose lineage contains Bacteria (2) or Archaea (2157)
     awk -F'\t' -v OFS='\t' -v lineage="${WORK_DIR}/name2taxid.lineage" '
@@ -496,10 +517,11 @@ resolve_taxon_names() {
     ' "${WORK_DIR}/name2taxid.tsv" | sort -u > "${OUT}"
 
     for ID in "${F_IDS[@]}"; do
-        [[ "${F_KEY[${ID}]}" == "TAXON_NAME" ]] || continue
+        [[ "${F_KEY[${ID}]}" == TAXON_NAME* ]] || continue
         # The first line of a list file (-N) that is not a taxon is its header (e.g., "Species Name"): it is skipped
         FIRST="${F_VALUES[${ID}]%%$'\n'*}"
-        if ! awk -F'\t' -v name="${FIRST,,}" 'tolower($2) == name { found = 1 } END { exit !found }' "${OUT}"; then
+        if [[ "${F_KEY[${ID}]}" == "TAXON_NAME_LIST" ]] \
+            && ! awk -F'\t' -v name="${FIRST,,}" 'tolower($2) == name { found = 1 } END { exit !found }' "${OUT}"; then
             if [[ "${VALIDATE_ONLY}" -eq 0 ]]; then
                 log "warning" "First line of the taxon list of filter ${ID} ('${FIRST}') is not a Bacteria/Archaea taxon: taken as a header and skipped."
             fi
@@ -520,7 +542,7 @@ resolve_taxon_names() {
 
 HAS_TAXON_NAME=0
 for ID in "${F_IDS[@]}"; do
-    [[ "${F_KEY[${ID}]}" == "TAXON_NAME" ]] && HAS_TAXON_NAME=1
+    [[ "${F_KEY[${ID}]}" == TAXON_NAME* ]] && HAS_TAXON_NAME=1
 done
 
 # The taxon names are checked with the taxdump of the reference databases; before the run (--validate-only), only if
@@ -545,9 +567,81 @@ if [[ "${HAS_TAXON_NAME}" -eq 1 ]]; then
     if [[ "${RESOLVE}" -eq 1 ]]; then
         resolve_taxon_names "${TAXDUMP_IN_USE}" "${WORK_DIR}/taxon_names.tsv"
         if [[ "${VALIDATE_ONLY}" -eq 0 ]]; then
-            log "message" "Taxon names converted to NCBI TaxIDs: $(cut -f2 "${WORK_DIR}/taxon_names.tsv" | sort -u | wc -l) names, $(cut -f1 "${WORK_DIR}/taxon_names.tsv" | sort -u | wc -l) TaxIDs ($(awk -F'\t' 'NR <= 5 { printf "%s%s = %s", (NR > 1 ? ", " : ""), $2, $1 } END { if (NR > 5) printf ", ..." }' "${WORK_DIR}/taxon_names.tsv"))"
+            log "message" "Taxon names converted to NCBI TaxIDs: $(cut -f2 "${WORK_DIR}/taxon_names.tsv" | sort -u | wc -l) names, $(cut -f1 "${WORK_DIR}/taxon_names.tsv" | sort -u | wc -l) TaxIDs"
         fi
     fi
+fi
+
+############ GTDB TAXON NAMES ################
+#   Every GTDB taxon name must be in the GTDB tables: a name that is not (e.g., "g_Thermus" with one underscore) is an
+#   invalid value. The first line of a list file (--gtdb-taxon-file) that is not a GTDB taxon is its header.
+
+# Writes the GTDB taxon names (lower case, as written by the user) of <names> that are in the GTDB tables
+# Usage: found_gtdb_taxa <gtdb_dir> <names> <output>
+found_gtdb_taxa() {
+    local -a TABLES=()
+    local DOMAIN
+    for DOMAIN in "${PF_DOMAINS[@]}"; do
+        TABLES+=("$(pf_gtdb_taxonomy_table "$1" "${DOMAIN}")")
+    done
+    awk -F'\t' -v names="$2" '
+        BEGIN {
+            letter["GTDB_DOMAIN"] = "d"; letter["GTDB_PHYLUM"] = "p"; letter["GTDB_CLASS"] = "c"; letter["GTDB_ORDER"] = "o"
+            letter["GTDB_FAMILY"] = "f"; letter["GTDB_GENUS"] = "g"; letter["GTDB_SPECIES"] = "s"
+            while ((getline v < names) > 0) { v = tolower(v); want[v] = 1; if (v ~ /^[dpcofgs]__/) want_ranked[substr(v, 4)] = 1; else want_any[v] = 1 }
+            close(names)
+        }
+        FNR == 1 { delete rank_col; for (i = 1; i <= NF; i++) if ($i in letter) rank_col[i] = letter[$i]; next }
+        {
+            for (i in rank_col) {
+                v = tolower($i)
+                if (v in want_any) found[v] = 1
+                if (v in want_ranked) found[rank_col[i] "__" v] = 1
+            }
+        }
+        END { for (v in found) print v }
+    ' "${TABLES[@]}" > "$3"
+}
+
+HAS_GTDB_TAXON=0
+for ID in "${F_IDS[@]}"; do
+    [[ "${F_KEY[${ID}]}" == GTDB_TAXON* ]] && HAS_GTDB_TAXON=1
+done
+
+# Before the run (--validate-only), only when the GTDB tables are installed (otherwise they are checked in the search)
+GTDB_NAMES_DIR=""
+if [[ "${VALIDATE_ONLY}" -eq 1 ]]; then
+    GTDB_NAMES_DIR="${GTDB_CHECK_DIR}"
+else
+    GTDB_NAMES_DIR="${REF_DIR}/GTDB"
+fi
+if [[ "${HAS_GTDB_TAXON}" -eq 1 && -n "${GTDB_NAMES_DIR}" && -f "$(pf_gtdb_taxonomy_table "${GTDB_NAMES_DIR}" BACTERIA)" ]]; then
+    for ID in "${F_IDS[@]}"; do
+        [[ "${F_KEY[${ID}]}" != GTDB_TAXON* ]] || printf '%s' "${F_VALUES[${ID}]}"
+    done | sort -u > "${WORK_DIR}/gtdb_names.txt"
+    found_gtdb_taxa "${GTDB_NAMES_DIR}" "${WORK_DIR}/gtdb_names.txt" "${WORK_DIR}/gtdb_names_found.txt"
+
+    for ID in "${F_IDS[@]}"; do
+        [[ "${F_KEY[${ID}]}" == GTDB_TAXON* ]] || continue
+        # The first line of a list file that is not a GTDB taxon is its header (e.g., "taxon"): it is skipped
+        FIRST="${F_VALUES[${ID}]%%$'\n'*}"
+        if [[ "${F_KEY[${ID}]}" == "GTDB_TAXON_LIST" ]] && ! grep -qxF -- "${FIRST,,}" "${WORK_DIR}/gtdb_names_found.txt"; then
+            if [[ "${VALIDATE_ONLY}" -eq 0 ]]; then
+                log "warning" "First line of the GTDB taxon list of filter ${ID} ('${FIRST}') is not a GTDB taxon: taken as a header and skipped."
+            fi
+            F_VALUES["${ID}"]="${F_VALUES[${ID}]#*$'\n'}"
+        fi
+        # The other names that are not in the GTDB tables are invalid values
+        while IFS= read -r NAME; do
+            filter_error "${ID}" "${NAME}" "taxon not found in the GTDB taxonomy (write it as in GTDB, with or without the rank prefix of two underscores: g__Thermus, s__Thermus aquaticus or Thermus)"
+        done < <(printf '%s' "${F_VALUES[${ID}]}" | awk -v found="${WORK_DIR}/gtdb_names_found.txt" '
+            BEGIN { while ((getline line < found) > 0) ok[line] = 1 }
+            NF && !(tolower($0) in ok)')
+        F_VALUES["${ID}"]="$(printf '%s' "${F_VALUES[${ID}]}" | awk -v found="${WORK_DIR}/gtdb_names_found.txt" '
+            BEGIN { while ((getline line < found) > 0) ok[line] = 1 }
+            NF && (tolower($0) in ok)')"
+        [[ -z "${F_VALUES[${ID}]}" ]] || F_VALUES["${ID}"]+=$'\n'
+    done
 fi
 
 # Every invalid value and filter is known now: they are listed together (and stop the search or are ignored)
@@ -747,18 +841,22 @@ for (( I = 0; I < ${#F_IDS[@]}; I++ )); do
     ARG1=""; ARG2=""; MATCH=""
     case "${KEY}" in
         ACCESSION)        NAME="ACCESSION";        LABEL="accession" ;;
-        TAXID)            NAME="TAXID";            MATCH="TAXID_MATCH";            LABEL="NCBI TaxID" ;;
-        NCBI_TAXON)       NAME="NCBI_TAXON";       MATCH="NCBI_TAXON_MATCH";       LABEL="NCBI taxon" ;;
-        TAXON_NAME)       NAME="NCBI_TAXON_LIST";  MATCH="NCBI_TAXON_LIST_MATCH";  LABEL="NCBI taxon list" ;;
         ISOLATION_SOURCE) NAME="ISOLATION_SOURCE"; MATCH="ISOLATION_SOURCE_KEYWORD_MATCH"; LABEL="isolation source" ;;
-        COUNTRY)          NAME="COUNTRY";          MATCH="COUNTRY_KEYWORD_MATCH";  LABEL="country" ;;
+        TAXID)            NAME="TAXID";            MATCH="TAXID_MATCH";            LABEL="NCBI TaxID" ;;
+        TAXON_NAME)       NAME="NCBI_TAXON";       MATCH="NCBI_TAXON_MATCH";       LABEL="NCBI taxon" ;;
+        TAXON_NAME_LIST)  NAME="NCBI_TAXON_LIST";  MATCH="NCBI_TAXON_LIST_MATCH";  LABEL="NCBI taxon list" ;;
+        ASSEMBLY_LEVEL)   NAME="ASSEMBLY_LEVEL";   MATCH="ASSEMBLY_LEVEL_MATCH";   LABEL="assembly level" ;;
         GTDB_TAXON)       NAME="GTDB_TAXON";       MATCH="GTDB_TAXON_MATCH";       LABEL="GTDB taxon"; GTDB_FILTERS+=("${IDX}") ;;
+        GTDB_TAXON_LIST)  NAME="GTDB_TAXON_LIST";  MATCH="GTDB_TAXON_LIST_MATCH";  LABEL="GTDB taxon list"; GTDB_FILTERS+=("${IDX}") ;;
         GENOME_TYPE)
             ARG1="${VALUES}"
             NAME="GENOME_TYPE-$(printf '%s' "${VALUES^^}" | tr '_' '-')"; LABEL="genome type" ;;
         GC)
             ARG1="${VALUES%%:*}"; ARG2="${VALUES#*:}"
             NAME="GC-${VALUES}"; LABEL="GC (%)" ;;
+        GENOME_SIZE)
+            ARG1="${VALUES%%:*}"; ARG2="${VALUES#*:}"
+            NAME="GENOME_SIZE-${VALUES}"; LABEL="genome size (Mb)" ;;
         BACDIVE_RANGE)
             ARG1="${VALUES%%=*}"; ARG2="${VALUES#*=}"
             NAME="$(bacdive_trait_name "${ARG1}")-${ARG2}"; LABEL="BacDive ${ARG1}"
@@ -777,7 +875,7 @@ for (( I = 0; I < ${#F_IDS[@]}; I++ )); do
     fi
     USED_NAME["${NAME}"]=1
     case "${KEY}" in
-        GENOME_TYPE|GC|BACDIVE_RANGE|BACDIVE_CLASS) LABEL="${LABEL} ${VALUES#*=}" ;;
+        GENOME_TYPE|GC|GENOME_SIZE|BACDIVE_RANGE|BACDIVE_CLASS) LABEL="${LABEL} ${VALUES#*=}" ;;
         *)
             SHOWN="$(printf '%s\n' "${VALUES}" | awk 'NR <= 5 { printf "%s%s", (NR > 1 ? "," : ""), $0 } END { if (NR > 5) printf ",... (%d values)", NR }')"
             LABEL="${LABEL} (${SHOWN})"
@@ -785,7 +883,7 @@ for (( I = 0; I < ${#F_IDS[@]}; I++ )); do
     esac
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${IDX}" "${KEY}" "${ARG1}" "${ARG2}" "${NAME}" "${MATCH}" "${LABEL}" >> "${FILTERS_SPEC}"
     case "${KEY}" in
-        ACCESSION|TAXID|NCBI_TAXON|TAXON_NAME|ISOLATION_SOURCE|COUNTRY|GTDB_TAXON)
+        ACCESSION|TAXID|ISOLATION_SOURCE|ASSEMBLY_LEVEL|GTDB_TAXON|GTDB_TAXON_LIST)
             printf '%s\n' "${VALUES}" | awk -v i="${IDX}" -v OFS='\t' 'NF { print i, $0 }' >> "${FILTER_VALUES}" ;;
     esac
 done
@@ -872,7 +970,8 @@ if [[ "${#BD_FILTERS[@]}" -gt 0 ]]; then
 fi
 
 ############ GTDB FILTERS ################
-#   <key> <TAB> <filter index> <TAB> taxa of the filter found in the GTDB lineage of the genome
+#   <key> <TAB> <filter index> <TAB> taxa of the filter found in the GTDB lineage of the genome (a name with the rank
+#   prefix, e.g. g__Thermus, matches only that rank)
 
 GTDB_KEYS_FILE=""
 if [[ "${#GTDB_FILTERS[@]}" -gt 0 ]]; then
@@ -886,24 +985,32 @@ if [[ "${#GTDB_FILTERS[@]}" -gt 0 ]]; then
     GTDB_KEYS_FILE="${WORK_DIR}/gtdb_keys.tsv"
     awk -F'\t' -v OFS='\t' -v values="${FILTER_VALUES}" -v spec="${FILTERS_SPEC}" "${AWK_LIB}"'
         BEGIN {
-            while ((getline line < spec) > 0) { split(line, f, "\t"); if (f[2] == "GTDB_TAXON") gtdb[f[1]] = 1 }
+            letter["GTDB_DOMAIN"] = "d"; letter["GTDB_PHYLUM"] = "p"; letter["GTDB_CLASS"] = "c"; letter["GTDB_ORDER"] = "o"
+            letter["GTDB_FAMILY"] = "f"; letter["GTDB_GENUS"] = "g"; letter["GTDB_SPECIES"] = "s"
+            while ((getline line < spec) > 0) { split(line, f, "\t"); if (f[2] ~ /^GTDB_TAXON/) gtdb[f[1]] = 1 }
             close(spec)
+            # want[name] = SUBSEP <filter>=<rank letter or "">=<value as written> ...
             while ((getline line < values) > 0) {
                 split(line, f, "\t")
                 if (!(f[1] in gtdb)) continue
-                v = tolower(f[2]); sub(/^[a-z]__/, "", v)
-                want[v] = want[v] SUBSEP f[1] "=" f[2]
+                v = tolower(f[2]); r = ""
+                if (v ~ /^[dpcofgs]__/) { r = substr(v, 1, 1); v = substr(v, 4) }
+                want[v] = want[v] SUBSEP f[1] "=" r "=" f[2]
             }
             close(values)
         }
-        FNR == 1 { delete rank_col; for (i = 1; i <= NF; i++) if ($i ~ /^GTDB_(DOMAIN|PHYLUM|CLASS|ORDER|FAMILY|GENUS|SPECIES)$/) rank_col[i] = 1; next }
+        FNR == 1 { delete rank_col; for (i = 1; i <= NF; i++) if ($i in letter) rank_col[i] = letter[$i]; next }
         {
             delete found
             for (i in rank_col) {
                 v = tolower($i)
                 if (!(v in want)) continue
                 m = split(substr(want[v], 2), items, SUBSEP)
-                for (k = 1; k <= m; k++) { split(items[k], p, "="); found[p[1]] = (p[1] in found ? found[p[1]] ";" : "") substr(items[k], length(p[1]) + 2) }
+                for (k = 1; k <= m; k++) {
+                    split(items[k], p, "=")
+                    if (p[2] != "" && p[2] != rank_col[i]) continue
+                    found[p[1]] = (p[1] in found ? found[p[1]] ";" : "") substr(items[k], length(p[1]) + length(p[2]) + 3)
+                }
             }
             for (fi in found) print acc_base($1), fi, found[fi]
         }
@@ -916,15 +1023,18 @@ fi
 TAXON_NAME_FILE=""
 if [[ "${HAS_TAXON_NAME}" -eq 1 ]]; then
     TAXON_NAME_FILE="${WORK_DIR}/taxon_name_filters.tsv"
-    awk -F'\t' -v OFS='\t' -v spec="${FILTERS_SPEC}" -v names="${WORK_DIR}/taxon_names.tsv" '
+    : > "${WORK_DIR}/taxon_name_values.tsv"
+    for (( I = 0; I < ${#F_IDS[@]}; I++ )); do
+        [[ "${F_KEY[${F_IDS[$I]}]}" == TAXON_NAME* ]] || continue
+        printf '%s' "${F_VALUES[${F_IDS[$I]}]}" | awk -v i="$((I + 1))" -v OFS='\t' 'NF { print i, $0 }' >> "${WORK_DIR}/taxon_name_values.tsv"
+    done
+    awk -F'\t' -v OFS='\t' -v names="${WORK_DIR}/taxon_names.tsv" '
         BEGIN {
-            while ((getline line < spec) > 0) { split(line, f, "\t"); if (f[2] == "TAXON_NAME") tn[f[1]] = 1 }
-            close(spec)
             while ((getline line < names) > 0) { split(line, f, "\t"); ids[tolower(f[2])] = ids[tolower(f[2])] " " f[1] }
             close(names)
         }
-        ($1 in tn) { m = split(ids[tolower($2)], t, " "); for (k = 1; k <= m; k++) print $1, t[k], $2 }
-    ' "${FILTER_VALUES}" > "${TAXON_NAME_FILE}"
+        { m = split(ids[tolower($2)], t, " "); for (k = 1; k <= m; k++) print $1, t[k], $2 }
+    ' "${WORK_DIR}/taxon_name_values.tsv" > "${TAXON_NAME_FILE}"
 fi
 
 ############ NCBI ASSEMBLIES ################
@@ -932,28 +1042,27 @@ fi
 
 C_ACC="$(require_column "${NCBI_HEADER_FILE}" ASSEMBLY_ACCESSION)"
 C_TAXID="$(require_column "${NCBI_HEADER_FILE}" ORGANISM_TAXONOMIC_ID)"
-C_ORG="$(require_column "${NCBI_HEADER_FILE}" ORGANISM_NAME)"
 C_ISO="$(require_column "${NCBI_HEADER_FILE}" ASSEMBLY_BIOSAMPLE_ISOLATION_SOURCE)"
-C_COUNTRY="$(require_column "${NCBI_HEADER_FILE}" ASSEMBLY_BIOSAMPLE_GEOGRAPHIC_LOCATION)"
+C_LEVEL="$(require_column "${NCBI_HEADER_FILE}" ASSEMBLY_LEVEL)"
+C_SIZE="$(require_column "${NCBI_HEADER_FILE}" ASSEMBLY_STATS_TOTAL_SEQUENCE_LENGTH)"
 C_GTYPE="$(require_column "${NCBI_HEADER_FILE}" GENOME_TYPE)"
 C_GC="$(require_column "${NCBI_HEADER_FILE}" ASSEMBLY_STATS_GC_PERCENT)"
 C_SPECIES_TAXID="$(require_column "${NCBI_HEADER_FILE}" NCBI_SPECIES_TAXID)"
 C_STRAIN_TAXID="$(require_column "${NCBI_HEADER_FILE}" NCBI_STRAIN_TAXID)"
 
-# Columns of the NCBI lineage (names and TaxIDs of each rank)
-LINEAGE_NAME_COLS="${C_ORG}"
+# Columns of the NCBI lineage TaxIDs (the organism and every rank), for the TaxID filters
 LINEAGE_TAXID_COLS="${C_TAXID}"
 for RANK in DOMAIN PHYLUM CLASS ORDER FAMILY GENUS SPECIES STRAIN; do
-    LINEAGE_NAME_COLS="${LINEAGE_NAME_COLS},$(require_column "${NCBI_HEADER_FILE}" "NCBI_${RANK}")"
     LINEAGE_TAXID_COLS="${LINEAGE_TAXID_COLS},$(require_column "${NCBI_HEADER_FILE}" "NCBI_${RANK}_TAXID")"
 done
 
 SELECTED_TMP="${WORK_DIR}/selected.tsv"
+ACC_NOT_FOUND="${WORK_DIR}/accessions-not-found.txt"
+: > "${ACC_NOT_FOUND}"
 
-awk -F'\t' -v OFS='\t' \
-    -v c_acc="${C_ACC}" -v c_taxid="${C_TAXID}" -v c_iso="${C_ISO}" -v c_country="${C_COUNTRY}" \
+awk -F'\t' -v OFS='\t' -v missing="${ACC_NOT_FOUND}" \
+    -v c_acc="${C_ACC}" -v c_taxid="${C_TAXID}" -v c_iso="${C_ISO}" -v c_level="${C_LEVEL}" -v c_size="${C_SIZE}" -v taxid_cols="${LINEAGE_TAXID_COLS}" \
     -v c_gtype="${C_GTYPE}" -v c_gc="${C_GC}" -v c_species_taxid="${C_SPECIES_TAXID}" -v c_strain_taxid="${C_STRAIN_TAXID}" \
-    -v name_cols="${LINEAGE_NAME_COLS}" -v taxid_cols="${LINEAGE_TAXID_COLS}" \
     -v spec="${FILTERS_SPEC}" -v values="${FILTER_VALUES}" -v bd_file="${BD_LINKS_FILE}" \
     -v gtdb_file="${GTDB_KEYS_FILE}" -v tname_file="${TAXON_NAME_FILE}" \
     -v rpn="${RPN[*]}" -v stats="${WORK_DIR}/selection.stats" "${AWK_LIB}"'
@@ -968,11 +1077,10 @@ BEGIN {
     # Values of the filters with a list (nv[i] values; for the text filters, the text to search and the original)
     while ((getline line < values) > 0) {
         split(line, f, "\t"); i = f[1]; v = f[2]
-        if (key[i] == "ACCESSION")             set[i, acc_number(v)] = 1
-        else if (key[i] == "TAXID")            set[i, v] = v
-        else if (key[i] == "NCBI_TAXON")       set[i, tolower(v)] = v
+        if (key[i] == "ACCESSION")             { set[i, v] = 1; acc_asked[v] = 1 }
         else if (key[i] == "ISOLATION_SOURCE") { nv[i]++; txt[i, nv[i]] = tolower(v); orig[i, nv[i]] = v }
-        else if (key[i] == "COUNTRY")          { nv[i]++; txt[i, nv[i]] = norm(v); orig[i, nv[i]] = v }
+        else if (key[i] == "TAXID")            set[i, v] = v
+        else if (key[i] == "ASSEMBLY_LEVEL")   set[i, tolower(v)] = v
     }
     close(values)
     if (tname_file != "") { while ((getline line < tname_file) > 0) { split(line, f, "\t"); set[f[1], f[2]] = (((f[1], f[2]) in set) ? set[f[1], f[2]] ";" : "") f[3] } close(tname_file) }
@@ -988,7 +1096,6 @@ BEGIN {
         close(bd_file)
     }
     nr = split(rpn, op, " ")
-    n_name_cols = split(name_cols, name_col, ",")
     n_taxid_cols = split(taxid_cols, taxid_col, ",")
 }
 FNR == 1 {
@@ -1016,33 +1123,32 @@ FNR == 1 {
         m = ""
         k = key[i]
         if (k == "ACCESSION") {
-            p = ((i, acc_number($c_acc)) in set)
-        } else if (k == "TAXID" || k == "TAXON_NAME") {
+            # the whole accession: GCA_ only in the GenBank table, GCF_ only in the RefSeq table
+            p = ((i, $c_acc) in set)
+            if (p) acc_found[$c_acc] = 1
+        } else if (k == "TAXID" || k == "TAXON_NAME" || k == "TAXON_NAME_LIST") {
             for (j = 1; j <= n_taxid_cols; j++) if ((i, $(taxid_col[j])) in set) m = add_unique(m, set[i, $(taxid_col[j])])
             p = (m != "")
-        } else if (k == "NCBI_TAXON") {
-            for (j = 1; j <= n_name_cols; j++) if ((i, tolower($(name_col[j]))) in set) m = add_unique(m, set[i, tolower($(name_col[j]))])
+        } else if (k == "ASSEMBLY_LEVEL") {
+            if ((i, tolower($c_level)) in set) m = set[i, tolower($c_level)]
             p = (m != "")
-        } else if (k == "ISOLATION_SOURCE" || k == "COUNTRY") {
-            c = (k == "ISOLATION_SOURCE" ? $c_iso : $c_country)
-            if (!is_empty(c)) {
-                # isolation source: case-insensitive regular expression; country: start of a word
-                if (k == "ISOLATION_SOURCE") {
-                    text = tolower(c)
-                    for (j = 1; j <= nv[i]; j++) if (text ~ txt[i, j]) m = add_unique(m, orig[i, j])
-                } else {
-                    text = norm(c)
-                    for (j = 1; j <= nv[i]; j++) if (index(text, txt[i, j]) > 0) m = add_unique(m, orig[i, j])
-                }
+        } else if (k == "ISOLATION_SOURCE") {
+            # case-insensitive regular expression
+            if (!is_empty($c_iso)) {
+                text = tolower($c_iso)
+                for (j = 1; j <= nv[i]; j++) if (text ~ txt[i, j]) m = add_unique(m, orig[i, j])
             }
             p = (m != "")
-        } else if (k == "GTDB_TAXON") {
+        } else if (k == "GTDB_TAXON" || k == "GTDB_TAXON_LIST") {
             m = (((i, key_gtdb) in gtdb) ? gtdb[i, key_gtdb] : "")
             p = (m != "")
         } else if (k == "GENOME_TYPE") {
             p = (tolower($c_gtype) == a1[i])
         } else if (k == "GC") {
             p = any_in_range($c_gc, a1[i], a2[i])
+        } else if (k == "GENOME_SIZE") {
+            # total sequence length in bases; the filter is in Mb
+            p = is_number($c_size) && ((a1[i] == "" || $c_size / 1000000 >= a1[i] + 0) && (a2[i] == "" || $c_size / 1000000 <= a2[i] + 0))
         } else {
             # BacDive filters
             v = (bd == "" ? "" : bdf[bd_col[i]])
@@ -1071,11 +1177,19 @@ END {
     printf "NCBI genome assemblies searched\t%d\n", n_in > stats
     for (i = 1; i <= n; i++) printf "  ... matching %s [%s]\t%d\n", label[i], sel[i], n_true[i] > stats
     printf "Selected by the expression\t%d\n", n_sel > stats
+    for (a in acc_asked) if (!(a in acc_found)) print a > missing
 }' "${NCBI_TABLES[@]}" > "${SELECTED_TMP}"
 
 while IFS=$'\t' read -r LABEL VALUE; do
     log "message" "${LABEL}: ${VALUE}"
 done < "${WORK_DIR}/selection.stats"
+
+# Accessions of the accession filters that are not in the searched table (e.g., GCF_ with the GenBank table)
+if [[ -s "${ACC_NOT_FOUND}" ]]; then
+    sort -o "${ACC_NOT_FOUND}" "${ACC_NOT_FOUND}"
+    N_NOT_FOUND="$(count_lines "${ACC_NOT_FOUND}")"
+    log "warning" "${N_NOT_FOUND} accession(s) not found in the NCBI ${Q_ASSEMBLY_SOURCE} table, so not selected: $(awk 'NR <= 10' "${ACC_NOT_FOUND}" | paste -sd ' ')$( (( N_NOT_FOUND > 10 )) && echo ' ...'). GCA_ accessions are in the genbank table and GCF_ in the refseq table (-s/--assembly-source)."
+fi
 TOTAL_SELECTED="$(count_records "${SELECTED_TMP}")"
 
 ############ BACDIVE ANNOTATION ################

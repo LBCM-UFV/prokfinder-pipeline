@@ -1,0 +1,155 @@
+SOURCE_TABLE	COLUMN	ORIGINAL_VALUE	RULE	CONVERTED_TO	OCCURRENCES
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	gtdb_type_designation_ncbi_taxa	not type material	NO_INFO_PREFIX	NULL	21288
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	gtdb_type_designation_ncbi_taxa_sources	none	INVALID_WORD	NULL	21288
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_23s_contig_len	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_23s_length	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_23s_query_id	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_5s_contig_len	none	INVALID_WORD	NULL	7201
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_5s_length	none	INVALID_WORD	NULL	7201
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_5s_query_id	none	INVALID_WORD	NULL	7201
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_silva_23s_blast_align_len	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_silva_23s_blast_bitscore	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_silva_23s_blast_evalue	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_silva_23s_blast_perc_identity	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_silva_23s_blast_subject_id	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	lsu_silva_23s_taxonomy	none	INVALID_WORD	NULL	11650
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_assembly_type	na	INVALID_WORD	NULL	22343
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_contig_count	none	INVALID_WORD	NULL	821
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_contig_n50	none	INVALID_WORD	NULL	821
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_country	none	INVALID_WORD	NULL	12842
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_genome_category	none	INVALID_WORD	NULL	2184
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_isolate	na	INVALID_WORD	NULL	2019
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_isolation_source	none	INVALID_WORD	NULL	11280
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_isolation_source	not provided; submitted under MIGS 2.1	NO_INFO_PREFIX	NULL	4
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_lat_lon	none	INVALID_WORD	NULL	14673
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_ncrna_count	none	INVALID_WORD	NULL	9840
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_protein_count	none	INVALID_WORD	NULL	20355
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_refseq_category	na	INVALID_WORD	NULL	21585
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_rrna_count	none	INVALID_WORD	NULL	9840
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_scaffold_count	none	INVALID_WORD	NULL	11752
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_scaffold_l50	none	INVALID_WORD	NULL	11752
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_scaffold_n50	none	INVALID_WORD	NULL	11752
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_scaffold_n75	none	INVALID_WORD	NULL	11752
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_scaffold_n90	none	INVALID_WORD	NULL	11752
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_ssu_count	none	INVALID_WORD	NULL	9840
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_strain_identifiers	none	INVALID_WORD	NULL	78
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_submitter	None	INVALID_WORD	NULL	96
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_translation_table	none	INVALID_WORD	NULL	9840
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_trna_count	none	INVALID_WORD	NULL	9840
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_type_material_designation	na	INVALID_WORD	NULL	21341
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ncbi_wgs_master	na	INVALID_WORD	NULL	904
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_contig_len	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_gg_blast_align_len	none	INVALID_WORD	NULL	21944
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_gg_blast_bitscore	none	INVALID_WORD	NULL	21944
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_gg_blast_evalue	none	INVALID_WORD	NULL	21944
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_gg_blast_perc_identity	none	INVALID_WORD	NULL	21944
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_gg_blast_subject_id	none	INVALID_WORD	NULL	21944
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_gg_taxonomy	none	INVALID_WORD	NULL	21944
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_length	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_query_id	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_silva_blast_align_len	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_silva_blast_bitscore	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_silva_blast_evalue	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_silva_blast_perc_identity	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_silva_blast_subject_id	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-METADATA/ar53_metadata_formatted.tsv	ssu_silva_taxonomy	none	INVALID_WORD	NULL	10640
+ARCHAEA-GTDB-TAXONOMY/ar53_taxonomy_formatted.tsv	GTDB_TYPE_MATERIAL	not type material	NO_INFO_PREFIX	NULL	21288
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	gtdb_type_designation_ncbi_taxa	not type material	NO_INFO_PREFIX	NULL	850051
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	gtdb_type_designation_ncbi_taxa	not used as type	NO_INFO_PREFIX	NULL	19
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	gtdb_type_designation_ncbi_taxa_sources	none	INVALID_WORD	NULL	850053
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_23s_contig_len	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_23s_length	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_23s_query_id	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_5s_contig_len	none	INVALID_WORD	NULL	278799
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_5s_length	none	INVALID_WORD	NULL	278799
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_5s_query_id	none	INVALID_WORD	NULL	278799
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_silva_23s_blast_align_len	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_silva_23s_blast_bitscore	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_silva_23s_blast_evalue	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_silva_23s_blast_perc_identity	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_silva_23s_blast_subject_id	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	lsu_silva_23s_taxonomy	none	INVALID_WORD	NULL	361831
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_assembly_name	NA	INVALID_WORD	NULL	339
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_assembly_name	not applicable	NO_INFO_PREFIX	NULL	3
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_assembly_name	unknown	INVALID_WORD	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_assembly_type	na	INVALID_WORD	NULL	878998
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_biosample	none	INVALID_WORD	NULL	6
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_contig_count	none	INVALID_WORD	NULL	61144
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_contig_n50	none	INVALID_WORD	NULL	61144
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_country	none	INVALID_WORD	NULL	542634
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_country	not collected: not available	NO_INFO_PREFIX	NULL	4
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_genome_category	none	INVALID_WORD	NULL	446889
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolate	na	INVALID_WORD	NULL	423286
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolate	NA	INVALID_WORD	NULL	282
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolate	not applicble	NO_INFO_PREFIX	NULL	5
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolate	-	DASH	NULL	4
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolate	unknown	INVALID_WORD	NULL	2
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolate	None	INVALID_WORD	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolate	Not reported	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	none	INVALID_WORD	NULL	404731
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not known	NO_INFO_PREFIX	NULL	3052
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	NA	INVALID_WORD	NULL	1785
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	Not known	NO_INFO_PREFIX	NULL	1569
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not provided	NO_INFO_PREFIX	NULL	1220
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	unknown	INVALID_WORD	NULL	925
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not available	NO_INFO_PREFIX	NULL	609
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	Unknown	INVALID_WORD	NULL	465
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not available: to be reported later	NO_INFO_PREFIX	NULL	310
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not provided; submitted under MIGS 2.1	NO_INFO_PREFIX	NULL	232
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not available: not collected	NO_INFO_PREFIX	NULL	65
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not applicable	NO_INFO_PREFIX	NULL	16
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	ND	INVALID_WORD	NULL	6
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not applicabable	NO_INFO_PREFIX	NULL	3
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	Not specified	NO_INFO_PREFIX	NULL	2
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	missing: control sample	NO_INFO_PREFIX	NULL	2
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not_blood	NO_INFO_PREFIX	NULL	2
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	Not Known	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	Not applicabe	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	Not defined	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not appplicable	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not informed	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not isolated	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_isolation_source	not specified	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_lat_lon	none	INVALID_WORD	NULL	724879
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_ncrna_count	none	INVALID_WORD	NULL	299149
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_protein_count	none	INVALID_WORD	NULL	754491
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_refseq_category	na	INVALID_WORD	NULL	857762
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_rrna_count	none	INVALID_WORD	NULL	299149
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_scaffold_count	none	INVALID_WORD	NULL	516992
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_scaffold_l50	none	INVALID_WORD	NULL	516992
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_scaffold_n50	none	INVALID_WORD	NULL	516992
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_scaffold_n75	none	INVALID_WORD	NULL	516992
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_scaffold_n90	none	INVALID_WORD	NULL	516992
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_ssu_count	none	INVALID_WORD	NULL	299149
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_strain_identifiers	none	INVALID_WORD	NULL	3278
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_strain_identifiers	NA	INVALID_WORD	NULL	98
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_strain_identifiers	-	DASH	NULL	4
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_strain_identifiers	unknown	INVALID_WORD	NULL	2
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_strain_identifiers	None	INVALID_WORD	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_strain_identifiers	not applicble;1320	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_submitter	None	INVALID_WORD	NULL	926
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_submitter	NA	INVALID_WORD	NULL	2
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_submitter	none	INVALID_WORD	NULL	2
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_submitter	-	DASH	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_submitter	not applicable	NO_INFO_PREFIX	NULL	1
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_translation_table	none	INVALID_WORD	NULL	299200
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_trna_count	none	INVALID_WORD	NULL	299149
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_type_material_designation	na	INVALID_WORD	NULL	851638
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ncbi_wgs_master	na	INVALID_WORD	NULL	68250
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_contig_len	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_gg_blast_align_len	none	INVALID_WORD	NULL	793272
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_gg_blast_bitscore	none	INVALID_WORD	NULL	793272
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_gg_blast_evalue	none	INVALID_WORD	NULL	793272
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_gg_blast_perc_identity	none	INVALID_WORD	NULL	793272
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_gg_blast_subject_id	none	INVALID_WORD	NULL	793272
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_gg_taxonomy	none	INVALID_WORD	NULL	793272
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_length	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_query_id	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_silva_blast_align_len	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_silva_blast_bitscore	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_silva_blast_evalue	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_silva_blast_perc_identity	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_silva_blast_subject_id	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-METADATA/bac120_metadata_formatted.tsv	ssu_silva_taxonomy	none	INVALID_WORD	NULL	337336
+BACTERIA-GTDB-TAXONOMY/bac120_taxonomy_formatted.tsv	GTDB_TYPE_MATERIAL	not type material	NO_INFO_PREFIX	NULL	850051
+BACTERIA-GTDB-TAXONOMY/bac120_taxonomy_formatted.tsv	GTDB_TYPE_MATERIAL	not used as type	NO_INFO_PREFIX	NULL	19

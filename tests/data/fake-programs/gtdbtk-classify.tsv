@@ -1,0 +1,3 @@
+user_genome	classification	classification_method	note	msa_percent	translation_table	red_value	warnings
+GCA_061250155.1	d__Bacteria;p__Deinococcota;c__Deinococci;o__Deinococcales;f__Thermaceae;g__Thermus;s__	taxonomic classification defined by topology and ANI	classification based on placement in class-level tree	91.4	11	0.9743	N/A
+GCA_040289965.1	d__Bacteria;p__Deinococcota;c__Deinococci;o__Deinococcales;f__Thermaceae;g__Thermus;s__	taxonomic classification defined by topology and ANI	classification based on placement in class-level tree	91.4	11	0.9743	N/A

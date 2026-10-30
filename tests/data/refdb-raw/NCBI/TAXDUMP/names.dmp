@@ -1,0 +1,692 @@
+1	|	all	|		|	synonym	|
+1	|	root	|		|	scientific name	|
+2	|	Bacteria	|	Bacteria <bacteria>	|	scientific name	|
+2	|	bacteria	|	bacteria <blast name>	|	blast name	|
+2	|	bacteria	|	bacteria <genbank common name>	|	genbank common name	|
+2	|	"Bacteria" Cavalier-Smith 1987	|		|	authority	|
+2	|	Bacteria (ex Cavalier-Smith 1987)	|		|	synonym	|
+2	|	Bacteria Woese et al. 2024	|		|	synonym	|
+2	|	"Bacteriobiota" Luketa 2012	|		|	authority	|
+2	|	Bacteriobiota	|		|	synonym	|
+2	|	eubacteria	|		|	common name	|
+2	|	Monera	|	Monera <bacteria>	|	in-part	|
+2	|	Procaryotae	|	Procaryotae <bacteria>	|	in-part	|
+2	|	Prokaryotae	|	Prokaryotae <bacteria>	|	in-part	|
+2	|	Prokaryota	|	Prokaryota <bacteria>	|	in-part	|
+2	|	prokaryote	|	prokaryote <bacteria>	|	in-part	|
+2	|	prokaryotes	|	prokaryotes <bacteria>	|	in-part	|
+270	|	Thermus Brock and Freeze 1969 (Approved Lists 1980) emend. Nobre et al. 1996	|		|	authority	|
+270	|	Thermus Distant 1909	|		|	authority	|
+270	|	Thermus	|		|	scientific name	|
+271	|	ATCC 25104	|	ATCC 25104 <type strain>	|	type material	|
+271	|	DSM 625	|	DSM 625 <type strain>	|	type material	|
+271	|	JCM 10724	|	JCM 10724 <type strain>	|	type material	|
+271	|	LMG 8924	|	LMG 8924 <type strain>	|	type material	|
+271	|	LMG:8924	|	LMG:8924 <type strain>	|	type material	|
+271	|	NBRC 103206	|	NBRC 103206 <type strain>	|	type material	|
+271	|	NCAIM B.01703	|	NCAIM B.01703 <type strain>	|	type material	|
+271	|	NCIB 11243	|	NCIB 11243 <type strain>	|	type material	|
+271	|	NCIB:11243	|	NCIB:11243 <type strain>	|	type material	|
+271	|	NCIMB 11243	|	NCIMB 11243 <type strain>	|	type material	|
+271	|	strain YT-1	|	strain YT-1 <type strain>	|	type material	|
+271	|	Thermus aquaticus Brock and Freeze 1969	|		|	authority	|
+271	|	Thermus aquaticus	|		|	scientific name	|
+274	|	ATCC 27634	|	ATCC 27634 <type strain>	|	type material	|
+274	|	DSM 579	|	DSM 579 <type strain>	|	type material	|
+274	|	"Flavobacterium thermophilum" Yoshida and Oshima 1971	|		|	synonym	|
+274	|	JCM 10941	|	JCM 10941 <type strain>	|	type material	|
+274	|	NBRC 101084	|	NBRC 101084 <type strain>	|	type material	|
+274	|	NCIMB 11244	|	NCIMB 11244 <type strain>	|	type material	|
+274	|	strain HB8	|	strain HB8 <type strain>	|	type material	|
+274	|	Thermus aquaticus flavus	|		|	synonym	|
+274	|	Thermus aquaticus (SUBSP. FLAVUS)	|		|	synonym	|
+274	|	Thermus aquaticus subsp. thermophilus	|		|	synonym	|
+274	|	Thermus aquaticus (SUBSP. THERMOPHILUS)	|		|	synonym	|
+274	|	Thermus aquaticus thermophilus	|		|	synonym	|
+274	|	Thermus flavus	|		|	synonym	|
+274	|	Thermus thermophilus (ex Oshima and Imahori 1974) Manaia et al. 1995	|		|	authority	|
+274	|	"Thermus thermophilus" Oshima and Imahori 1974	|		|	authority	|
+274	|	Thermus thermophilus	|		|	scientific name	|
+275	|	Thermus sp.	|		|	scientific name	|
+276	|	ATCC 43280	|	ATCC 43280 <type strain>	|	type material	|
+276	|	DSM 4687	|	DSM 4687 <type strain>	|	type material	|
+276	|	JCM 11600	|	JCM 11600 <type strain>	|	type material	|
+276	|	strain Wai33 A1	|	strain Wai33 A1 <type strain>	|	type material	|
+276	|	Thermus filiformis Hudson et al. 1987	|		|	authority	|
+276	|	Thermus filiformis	|		|	scientific name	|
+1297	|	"Deinococcaeota" Oren et al. 2015	|		|	authority	|
+1297	|	Deinococcaeota	|		|	synonym	|
+1297	|	Deinococcota corrig. Weisburg et al. 2021	|		|	authority	|
+1297	|	Deinococcota	|		|	scientific name	|
+1297	|	Deinococcus-Thermus	|		|	synonym	|
+1297	|	Thermus/Deinococcus group	|		|	equivalent name	|
+1298	|	Deinobacter Oyaizu et al. 1987	|		|	authority	|
+1298	|	Deinobacter	|		|	synonym	|
+1298	|	Deinococcus Brooks and Murray 1981	|		|	authority	|
+1298	|	Deinococcus Brooks and Murray 1981 emend. Rainey et al. 1997	|		|	authority	|
+1298	|	Deinococcus	|		|	scientific name	|
+1299	|	ATCC 13939	|	ATCC 13939 <type strain>	|	type material	|
+1299	|	CCUG 27074	|	CCUG 27074 <type strain>	|	type material	|
+1299	|	CIP 104750	|	CIP 104750 <type strain>	|	type material	|
+1299	|	Deinococcus radiidurans	|		|	equivalent name	|
+1299	|	Deinococcus radiodurans (ex Raj et al. 1960) Brooks and Murray 1981	|		|	authority	|
+1299	|	Deinococcus radiodurans	|		|	scientific name	|
+1299	|	DSM 20539	|	DSM 20539 <type strain>	|	type material	|
+1299	|	HAMBI 1924	|	HAMBI 1924 <type strain>	|	type material	|
+1299	|	IFO 15346	|	IFO 15346 <type strain>	|	type material	|
+1299	|	JCM 16871	|	JCM 16871 <type strain>	|	type material	|
+1299	|	LMG 4051	|	LMG 4051 <type strain>	|	type material	|
+1299	|	LMG:4051	|	LMG:4051 <type strain>	|	type material	|
+1299	|	"Micrococcus radiodurans" Raj et al. 1960	|		|	authority	|
+1299	|	Micrococcus radiodurans	|		|	synonym	|
+1299	|	NBRC 15346	|	NBRC 15346 <type strain>	|	type material	|
+1299	|	strain R1	|	strain R1 <type strain>	|	type material	|
+1299	|	UWO 288	|	UWO 288 <type strain>	|	type material	|
+1299	|	VKM B-1422	|	VKM B-1422 <type strain>	|	type material	|
+1299	|	VKM:B:1422	|	VKM:B:1422 <type strain>	|	type material	|
+1678	|	"Bifidibacterium" Prevot 1938	|		|	authority	|
+1678	|	Bifidibacterium	|		|	synonym	|
+1678	|	Bifidobacterium Orla-Jensen 1924	|		|	authority	|
+1678	|	Bifidobacterium	|		|	scientific name	|
+1678	|	"Tissieria" Pribram 1929	|		|	authority	|
+1678	|	Tissieria	|		|	synonym	|
+1760	|	Actinobacteria Stackebrandt et al. 1997	|		|	synonym	|
+1760	|	Actinobacteridae	|		|	includes	|
+1760	|	Actinobacteridae Stackebrandt et al. 1997 emend. Zhi et al. 2009	|		|	authority	|
+1760	|	Actinomycetes Krasil'nikov 1949 (Approved Lists 1980)	|		|	authority	|
+1760	|	Actinomycetes	|		|	scientific name	|
+1760	|	Actinomycetia Salam et al. 2020	|		|	authority	|
+1760	|	Actinomycetia	|		|	synonym	|
+1760	|	high G+C Gram-positive bacteria	|	high G+C Gram-positive bacteria <blast name>	|	blast name	|
+1760	|	high G+C Gram-positive bacteria	|	high G+C Gram-positive bacteria <genbank common name>	|	genbank common name	|
+2157	|	archaea	|		|	blast name	|
+2157	|	Archaea	|		|	scientific name	|
+2157	|	"Archaea" Woese et al. 1990	|		|	authority	|
+2157	|	Archaea Woese et al. 2024	|		|	authority	|
+2157	|	"Archaebacteria" (sic) Woese and Fox 1977	|		|	authority	|
+2157	|	Archaebacteria	|		|	synonym	|
+2157	|	"Archaebiota" Luketa 2012	|		|	authority	|
+2157	|	Archaebiota	|		|	synonym	|
+2157	|	Mendosicutes	|		|	synonym	|
+2157	|	Metabacteria	|		|	synonym	|
+2157	|	Monera	|	Monera <archaea>	|	in-part	|
+2157	|	Procaryotae	|	Procaryotae <archaea>	|	in-part	|
+2157	|	Prokaryotae	|	Prokaryotae <archaea>	|	in-part	|
+2157	|	Prokaryota	|	Prokaryota <archaea>	|	in-part	|
+2157	|	prokaryote	|	prokaryote <archaea>	|	in-part	|
+2157	|	prokaryotes	|	prokaryotes <archaea>	|	in-part	|
+2182	|	Methanococcales Balch and Wolfe 1981	|		|	authority	|
+2182	|	Methanococcales	|		|	scientific name	|
+2190	|	ATCC 43067	|	ATCC 43067 <type strain>	|	type material	|
+2190	|	CIP 104961	|	CIP 104961 <type strain>	|	type material	|
+2190	|	DSM 2661	|	DSM 2661 <type strain>	|	type material	|
+2190	|	JCM 10045	|	JCM 10045 <type strain>	|	type material	|
+2190	|	Methanocaldococcus jannaschii (Jones et al. 1984) Whitman 2002	|		|	authority	|
+2190	|	Methanocaldococcus jannaschii	|		|	scientific name	|
+2190	|	Methanococcus jannaschii Jones et al. 1984	|		|	authority	|
+2190	|	Methanococcus jannaschii	|		|	synonym	|
+2190	|	NBRC 100440	|	NBRC 100440 <type strain>	|	type material	|
+2190	|	OCM 168	|	OCM 168 <type strain>	|	type material	|
+2190	|	strain JAL-1	|	strain JAL-1 <type strain>	|	type material	|
+2258	|	Thermococcales	|		|	scientific name	|
+2258	|	Thermococcales Zillig et al. 1988	|		|	authority	|
+2259	|	Thermococcaceae	|		|	scientific name	|
+2259	|	Thermococcaceae Zillig et al. 1988	|		|	authority	|
+2260	|	Pyrococcus Fiala and Stetter 1986	|		|	authority	|
+2260	|	Pyrococcus	|		|	scientific name	|
+2261	|	ATCC 43587	|	ATCC 43587 <type strain>	|	type material	|
+2261	|	DSM 3638	|	DSM 3638 <type strain>	|	type material	|
+2261	|	JCM 8422	|	JCM 8422 <type strain>	|	type material	|
+2261	|	Pyrococcus furiosus Fiala and Stetter 1986	|		|	authority	|
+2261	|	Pyrococcus furiosus	|		|	scientific name	|
+2261	|	strain Vc 1	|	strain Vc 1 <type strain>	|	type material	|
+2262	|	ATCC 49860	|	ATCC 49860 <type strain>	|	type material	|
+2262	|	DSM 3773	|	DSM 3773 <type strain>	|	type material	|
+2262	|	JCM 8421	|	JCM 8421 <type strain>	|	type material	|
+2262	|	"Pyrococcus furiosus subsp. woesei" Kanoksilapatham et al. 2004	|		|	authority	|
+2262	|	Pyrococcus furiosus subsp. woesei	|		|	synonym	|
+2262	|	Pyrococcus woesei	|		|	scientific name	|
+2262	|	Pyrococcus woesei Zillig et al. 1988	|		|	synonym	|
+2263	|	Thermococcus	|		|	scientific name	|
+2263	|	Thermococcus Zillig 1983	|		|	authority	|
+2335	|	Thermotoga Huber et al. 1986 emend. Bhandari and Gupta 2014	|		|	authority	|
+2335	|	Thermotoga	|		|	scientific name	|
+2336	|	ATCC 43589	|	ATCC 43589 <type strain>	|	type material	|
+2336	|	DSM 3109	|	DSM 3109 <type strain>	|	type material	|
+2336	|	JCM 10099	|	JCM 10099 <type strain>	|	type material	|
+2336	|	NBRC 100826	|	NBRC 100826 <type strain>	|	type material	|
+2336	|	strain MSB8	|	strain MSB8 <type strain>	|	type material	|
+2336	|	Thermotoga maritima Huber et al. 1986	|		|	authority	|
+2336	|	Thermotoga maritima	|		|	scientific name	|
+2419	|	thermotogales	|		|	blast name	|
+2419	|	"Thermotogales" Huber and Stetter 1992	|		|	authority	|
+2419	|	Thermotogales Reysenbach 2002 emend. Bhandari and Gupta 2014	|		|	authority	|
+2419	|	Thermotogales	|		|	scientific name	|
+28890	|	Euryarchaeota Garrity and Holt 2002	|		|	authority	|
+28890	|	Euryarchaeota	|		|	synonym	|
+28890	|	"Euryarchaeota" Woese et al. 1990	|		|	authority	|
+28890	|	euryarchaeotes	|	euryarchaeotes <blast name>	|	blast name	|
+28890	|	euryarchaeotes	|	euryarchaeotes <genbank common name>	|	genbank common name	|
+28890	|	"Methanobacteraeota" Oren et al. 2015	|		|	authority	|
+28890	|	Methanobacteraeota	|		|	synonym	|
+28890	|	Methanobacteriota Garrity and Holt 2023	|		|	authority	|
+28890	|	Methanobacteriota	|		|	scientific name	|
+28890	|	"Methanobacteriota" Whitman et al. 2018	|		|	authority	|
+29292	|	CNCM I-1302	|	CNCM I-1302 <type strain>	|	type material	|
+29292	|	"Pyrococcus abyssi" Erauso et al. 1993	|		|	authority	|
+29292	|	Pyrococcus abyssi	|		|	scientific name	|
+29292	|	strain GE5	|	strain GE5 <type strain>	|	type material	|
+29292	|	strain Orsay	|	strain Orsay <type strain>	|	type material	|
+31953	|	Bifidobacteriaceae	|		|	scientific name	|
+31953	|	Bifidobacteriaceae Stackebrandt et al. 1997	|		|	authority	|
+31953	|	Bifidobacteriaceae Stackebrandt et al. 1997 emend. Silva and Brune 2025	|		|	authority	|
+31953	|	Bifidobacteriaceae Stackebrandt et al. 1997 emend. Zhi et al. 2009	|		|	authority	|
+33866	|	Pyrococcus sp.	|		|	scientific name	|
+37636	|	ATCC 51532	|	ATCC 51532 <type strain>	|	type material	|
+37636	|	DSM 8553	|	DSM 8553 <type strain>	|	type material	|
+37636	|	JCM 11601	|	JCM 11601 <type strain>	|	type material	|
+37636	|	strain SE-1	|	strain SE-1 <type strain>	|	type material	|
+37636	|	Thermus scotoductus Kristjansson et al. 1994	|		|	authority	|
+37636	|	Thermus scotoductus	|		|	scientific name	|
+48510	|	Archaea environmental samples	|		|	synonym	|
+48510	|	environmental samples	|	environmental samples <archaea,domain Archaea>	|	scientific name	|
+49928	|	unclassified Bacteria	|		|	scientific name	|
+49928	|	unclassified Eubacteria (miscellaneous)	|		|	synonym	|
+53953	|	ATCC 700860	|	ATCC 700860 <type strain>	|	type material	|
+53953	|	DSM 12428	|	DSM 12428 <type strain>	|	type material	|
+53953	|	JCM 9974	|	JCM 9974 <type strain>	|	type material	|
+53953	|	NBRC 100139	|	NBRC 100139 <type strain>	|	type material	|
+53953	|	Pyrococcus horikoshii Gonzlez et al. 1999	|		|	authority	|
+53953	|	Pyrococcus horikoshii	|		|	scientific name	|
+53953	|	'Pyrococcus shinkaii'	|		|	synonym	|
+53953	|	Pyrococcus shinkaii	|		|	synonym	|
+53953	|	strain JA-1	|	strain JA-1 <type strain>	|	type material	|
+53953	|	strain OT3	|	strain OT3 <type strain>	|	type material	|
+54262	|	DSM 10152	|	DSM 10152 <type strain>	|	type material	|
+54262	|	strain GC74	|	strain GC74 <type strain>	|	type material	|
+54262	|	Thermococcus chitonophagus Huber and Stetter 1996	|		|	authority	|
+54262	|	Thermococcus chitonophagus	|		|	scientific name	|
+56956	|	JCM 11602	|	JCM 11602 <type strain>	|	type material	|
+56956	|	NCIB 12676	|	NCIB 12676 <type strain>	|	type material	|
+56956	|	NCIB:12676	|	NCIB:12676 <type strain>	|	type material	|
+56956	|	NCIMB 12676	|	NCIMB 12676 <type strain>	|	type material	|
+56956	|	strain YS38	|	strain YS38 <type strain>	|	type material	|
+56956	|	Thermus brockianus	|		|	scientific name	|
+56956	|	Thermus brockianus Williams et al. 1995	|		|	authority	|
+56956	|	Thermus sp. 71318	|		|	includes	|
+56956	|	Thermus sp. 72351	|		|	includes	|
+56956	|	Thermus sp. YIM 73518	|		|	includes	|
+56957	|	ATCC 700435	|	ATCC 700435 <type strain>	|	type material	|
+56957	|	DSM 12092	|	DSM 12092 <type strain>	|	type material	|
+56957	|	JCM 11603	|	JCM 11603 <type strain>	|	type material	|
+56957	|	NCIMB 13400	|	NCIMB 13400 <type strain>	|	type material	|
+56957	|	strain SPS17	|	strain SPS17 <type strain>	|	type material	|
+56957	|	Thermus oshimai	|		|	scientific name	|
+56957	|	Thermus oshimai Williams et al. 1996	|		|	authority	|
+56957	|	Thermus sp. 77359	|		|	includes	|
+56957	|	Thermus sp. 77838	|		|	includes	|
+56957	|	Thermus sp. 77923	|		|	includes	|
+56957	|	Thermus sp. YIM 1627	|		|	includes	|
+56957	|	Thermus sp. YIM 1640	|		|	includes	|
+56957	|	Thermus sp. YIM QC2-109	|		|	includes	|
+62269	|	environmental samples	|	environmental samples <bacteria,genus Thermus>	|	scientific name	|
+68933	|	Thermales Rainey and da Costa 2002	|		|	authority	|
+68933	|	Thermales	|		|	scientific name	|
+68933	|	Thermus group	|		|	equivalent name	|
+70601	|	Pyrococcus horikoshii OT-3	|		|	equivalent name	|
+70601	|	Pyrococcus horikoshii OT3	|		|	scientific name	|
+70601	|	Pyrococcus horikoshii str. OT3	|		|	equivalent name	|
+70601	|	Pyrococcus shinkaii OT3	|		|	synonym	|
+70601	|	Pyrococcus sp. OT3	|		|	equivalent name	|
+78344	|	AS 1.2283	|	AS 1.2283 <type strain>	|	type material	|
+78344	|	AS:1.2283	|	AS:1.2283 <type strain>	|	type material	|
+78344	|	ATCC 33777	|	ATCC 33777 <type strain>	|	type material	|
+78344	|	BCRC 14679	|	BCRC 14679 <type strain>	|	type material	|
+78344	|	Bifidobacterium gallinarum	|		|	synonym	|
+78344	|	Bifidobacterium gallinarum Watabe et al. 1983	|		|	authority	|
+78344	|	Bifidobacterium pullorum subsp. gallinarum	|		|	scientific name	|
+78344	|	Bifidobacterium pullorum subsp. gallinarum (Watabe et al. 1983) Nouioui et al. 2018	|		|	authority	|
+78344	|	CCRC 14679	|	CCRC 14679 <type strain>	|	type material	|
+78344	|	CCRC:14679	|	CCRC:14679 <type strain>	|	type material	|
+78344	|	CCUG 34990	|	CCUG 34990 <type strain>	|	type material	|
+78344	|	DSM 20670	|	DSM 20670 <type strain>	|	type material	|
+78344	|	JCM 6291	|	JCM 6291 <type strain>	|	type material	|
+78344	|	LMG 11586	|	LMG 11586 <type strain>	|	type material	|
+78344	|	LMG:11586	|	LMG:11586 <type strain>	|	type material	|
+78344	|	strain Ch206-5	|	strain Ch206-5 <type strain>	|	type material	|
+78448	|	AS 1.2240	|	AS 1.2240 <type strain>	|	type material	|
+78448	|	AS:1.2240	|	AS:1.2240 <type strain>	|	type material	|
+78448	|	ATCC 27685	|	ATCC 27685 <type strain>	|	type material	|
+78448	|	BCRC 14678	|	BCRC 14678 <type strain>	|	type material	|
+78448	|	Bifidobacterium pullorum	|		|	scientific name	|
+78448	|	Bifidobacterium pullorum Trovatelli et al. 1974	|		|	authority	|
+78448	|	Bifidobacterium pullorum Trovatelli et al. 1974 emend. Nouioui et al. 2018	|		|	authority	|
+78448	|	CCRC 14678	|	CCRC 14678 <type strain>	|	type material	|
+78448	|	CCRC:14678	|	CCRC:14678 <type strain>	|	type material	|
+78448	|	CCUG 35235	|	CCUG 35235 <type strain>	|	type material	|
+78448	|	CIP 107006	|	CIP 107006 <type strain>	|	type material	|
+78448	|	DSM 20433	|	DSM 20433 <type strain>	|	type material	|
+78448	|	JCM 1214	|	JCM 1214 <type strain>	|	type material	|
+78448	|	LMG 11572	|	LMG 11572 <type strain>	|	type material	|
+78448	|	LMG:11572	|	LMG:11572 <type strain>	|	type material	|
+85004	|	Bifidobacteriales	|		|	scientific name	|
+85004	|	Bifidobacteriales Stackebrandt et al. 1997 emend. Zhi et al. 2009	|		|	authority	|
+88189	|	ATCC 700962	|	ATCC 700962 <type strain>	|	type material	|
+88189	|	DSM 12459	|	DSM 12459 <type strain>	|	type material	|
+88189	|	strain RF-4	|	strain RF-4 <type strain>	|	type material	|
+88189	|	Thermus igniterrae Chung et al. 2000	|		|	authority	|
+88189	|	Thermus igniterrae	|		|	scientific name	|
+88190	|	ATCC 700961	|	ATCC 700961 <type strain>	|	type material	|
+88190	|	DSM 12462	|	DSM 12462 <type strain>	|	type material	|
+88190	|	strain HN3-7	|	strain HN3-7 <type strain>	|	type material	|
+88190	|	Thermus antranikianii Chung et al. 2000	|		|	authority	|
+88190	|	Thermus antranikianii	|		|	scientific name	|
+88190	|	Thermus sp. 71206	|		|	synonym	|
+88190	|	Thermus sp. 77311	|		|	includes	|
+88190	|	Thermus sp. 77412	|		|	includes	|
+88190	|	Thermus sp. YIM 73052	|		|	includes	|
+115547	|	uncultured Archaea archaeon	|		|	synonym	|
+115547	|	uncultured archaeon	|		|	scientific name	|
+115547	|	uncultured archaeoote	|		|	equivalent name	|
+118964	|	Deinococcales Rainey et al. 1997	|		|	authority	|
+118964	|	Deinococcales	|		|	scientific name	|
+118964	|	radio-resistant micrococci	|		|	common name	|
+131567	|	biota	|		|	synonym	|
+131567	|	cellular organisms	|		|	scientific name	|
+157149	|	uncultured Thermus sp.	|		|	scientific name	|
+167875	|	unclassified Deinococcota	|		|	scientific name	|
+171864	|	DSM 16200	|	DSM 16200 <type strain>	|	type material	|
+171864	|	DSM16200	|	DSM16200 <type strain>	|	type material	|
+171864	|	JCM 12314	|	JCM 12314 <type strain>	|	type material	|
+171864	|	JCM12314	|	JCM12314 <type strain>	|	type material	|
+171864	|	strain KW11	|	strain KW11 <type strain>	|	type material	|
+171864	|	"Thermus kawarayensis" Kurosawa et al. 2005	|		|	authority	|
+171864	|	Thermus kawarayensis	|		|	scientific name	|
+183710	|	Deinococcaceae Brooks and Murray 1981	|		|	authority	|
+183710	|	Deinococcaceae Brooks and Murray 1981 emend. Rainey et al. 1997	|		|	authority	|
+183710	|	Deinococcaceae	|		|	scientific name	|
+183939	|	Methanococci Boone 2002	|		|	authority	|
+183939	|	Methanococci	|		|	scientific name	|
+183939	|	Methanothermea Cavalier-Smith, 2002	|		|	authority	|
+183939	|	Methanothermea	|		|	synonym	|
+183968	|	Protoarchaea Cavalier-Smith, 2002	|		|	authority	|
+183968	|	Protoarchaea	|		|	synonym	|
+183968	|	Thermococci	|		|	scientific name	|
+183968	|	Thermococci Zillig and Reysenbach 2002	|		|	authority	|
+186497	|	Pyrococcus furiosus DSM 3638	|		|	scientific name	|
+186497	|	Pyrococcus furiosus strain DSM 3638	|		|	equivalent name	|
+186497	|	Pyrococcus furiosus str. DSM 3638	|		|	equivalent name	|
+188708	|	Thermotogae Reysenbach 2002 emend. Bhandari and Gupta 2014	|		|	authority	|
+188708	|	Thermotogae Reysenbach 2002	|		|	synonym	|
+188708	|	Thermotogae	|		|	scientific name	|
+188708	|	"Thermotogia" Cavalier-Smith 2020	|		|	authority	|
+188708	|	Thermotogia	|		|	synonym	|
+188708	|	Togobacteria Cavalier-Smith, 2002	|		|	synonym	|
+188709	|	Thermotogaceae Reysenbach 2002 emend. Bhandari and Gupta 2014	|		|	authority	|
+188709	|	Thermotogaceae	|		|	scientific name	|
+188786	|	Thermaceae da Costa and Rainey 2002	|		|	authority	|
+188786	|	Thermaceae	|		|	scientific name	|
+188787	|	Deinococci Garrity and Holt 2002	|		|	authority	|
+188787	|	Deinococci	|		|	scientific name	|
+188787	|	"Hadobacteria" Cavalier-Smith 1992 emend. Cavalier-Smith 1998	|		|	authority	|
+188787	|	Hadobacteria Cavalier-Smith, 2002	|		|	authority	|
+188787	|	Hadobacteria	|		|	synonym	|
+196117	|	Methanocaldococcaceae	|		|	scientific name	|
+196117	|	Methanocaldococcaceae Whitman et al. 2002	|		|	authority	|
+196118	|	Methanocaldococcus	|		|	scientific name	|
+196118	|	Methanocaldococcus Whitman 2002	|		|	authority	|
+200918	|	"Thermotogaeota" Oren et al. 2015	|		|	authority	|
+200918	|	Thermotogaeota	|		|	synonym	|
+200918	|	Thermotogota corrig. Reysenbach 2021	|		|	synonym	|
+200918	|	Thermotogota	|		|	scientific name	|
+201174	|	Actinobacteraeota Oren et al. 2015	|		|	authority	|
+201174	|	Actinobacteraeota	|		|	synonym	|
+201174	|	actinobacteria	|	actinobacteria <blast name>	|	blast name	|
+201174	|	actinobacteria	|	actinobacteria <genbank common name>	|	genbank common name	|
+201174	|	"Actinobacteria" (ex Margulis 1974) Cavalier-Smith 2020	|		|	authority	|
+201174	|	"Actinobacteria" Goodfellow 2012	|		|	authority	|
+201174	|	Actinobacteria	|		|	synonym	|
+201174	|	"Actinobacteriota" Panda et al. 2022	|		|	authority	|
+201174	|	Actinobacteriota	|		|	synonym	|
+201174	|	"Actinobacteriota" Whitman et al. 2018	|		|	authority	|
+201174	|	Actinomycetota corrig. Goodfellow 2021	|		|	authority	|
+201174	|	Actinomycetota	|		|	scientific name	|
+243230	|	Deinococcus radiodurans ATCC 13939	|		|	equivalent name	|
+243230	|	Deinococcus radiodurans DSM 20539	|		|	equivalent name	|
+243230	|	Deinococcus radiodurans R1 = ATCC 13939 = DSM 20539	|		|	scientific name	|
+243230	|	Deinococcus radiodurans R1	|		|	equivalent name	|
+243232	|	Methanocaldococcus jannaschii DSM 2661	|		|	scientific name	|
+243232	|	Methanocaldococcus jannaschii str. DSM 2661	|		|	equivalent name	|
+243232	|	Methanococcus jannaschii DSM 2661	|		|	synonym	|
+243274	|	Thermotoga maritima DSM 3109	|		|	synonym	|
+243274	|	Thermotoga maritima MSB8	|		|	scientific name	|
+243274	|	Thermotoga maritima strain MSB8	|		|	equivalent name	|
+243274	|	Thermotoga maritima str. MSB8	|		|	equivalent name	|
+262724	|	Thermus thermophilus HB27	|		|	scientific name	|
+262724	|	Thermus thermophilus strain HB27	|		|	equivalent name	|
+262724	|	Thermus thermophilus str. HB27	|		|	equivalent name	|
+272844	|	Pyrococcus abyssi GE5	|		|	scientific name	|
+272844	|	Pyrococcus abyssi strain GE5	|		|	equivalent name	|
+272844	|	Pyrococcus abyssi str. GE5	|		|	equivalent name	|
+272844	|	Pyrococcus abyssi str. Orsay	|		|	synonym	|
+300852	|	Thermus thermophilus ATCC 27634	|		|	synonym	|
+300852	|	Thermus thermophilus HB8	|		|	scientific name	|
+300852	|	Thermus thermophilus strain HB8	|		|	equivalent name	|
+300852	|	Thermus thermophilus str. HB8	|		|	equivalent name	|
+342949	|	Pyrococcus sp. NA2	|		|	scientific name	|
+456163	|	DSM 21745	|	DSM 21745 <type strain>	|	type material	|
+456163	|	MTCC 8932	|	MTCC 8932 <type strain>	|	type material	|
+456163	|	strain RL	|	strain RL <type strain>	|	type material	|
+456163	|	"Thermus parvatiensis" Dwivedi et al. 2015	|		|	authority	|
+456163	|	Thermus parvatiensis	|		|	scientific name	|
+456163	|	Thermus sp. RL	|		|	includes	|
+482827	|	CGMCC 1.6992	|	CGMCC 1.6992 <type strain>	|	type material	|
+482827	|	JCM 15153	|	JCM 15153 <type strain>	|	type material	|
+482827	|	strain TH92	|	strain TH92 <type strain>	|	type material	|
+482827	|	Thermus arciformis	|		|	scientific name	|
+482827	|	Thermus arciformis Zhang et al. 2010	|		|	authority	|
+482827	|	Thermus sp. TH91	|		|	includes	|
+482827	|	Thermus sp. TH92	|		|	includes	|
+498848	|	Thermus aquaticus strain Y51MC23	|		|	equivalent name	|
+498848	|	Thermus aquaticus str. Y51MC23	|		|	equivalent name	|
+498848	|	Thermus aquaticus Y51MC23	|		|	scientific name	|
+529709	|	Pyrococcus sp. CH1	|		|	synonym	|
+529709	|	Pyrococcus yayanosii CH1	|		|	scientific name	|
+529709	|	Pyrococcus yayanosii strain CH1	|		|	equivalent name	|
+529709	|	Pyrococcus yayanosii str. CH1	|		|	equivalent name	|
+532059	|	DSM 21686	|	DSM 21686 <type strain>	|	type material	|
+532059	|	JCM 19902	|	JCM 19902 <type strain>	|	type material	|
+532059	|	JCM-19902	|	JCM-19902 <type strain>	|	type material	|
+532059	|	JCM:19902	|	JCM:19902 <type strain>	|	type material	|
+532059	|	JCM19902	|	JCM19902 <type strain>	|	type material	|
+532059	|	NCAIM B 02340	|	NCAIM B 02340 <type strain>	|	type material	|
+532059	|	strain K-39	|	strain K-39 <type strain>	|	type material	|
+532059	|	Thermus composti	|		|	scientific name	|
+532059	|	Thermus composti Vajna et al. 2012	|		|	authority	|
+532059	|	Thermus sp. K-39	|		|	includes	|
+540988	|	ATCC BAA-1677	|	ATCC BAA-1677 <type strain>	|	type material	|
+540988	|	ATCC:BAA:1677	|	ATCC:BAA:1677 <type strain>	|	type material	|
+540988	|	DSM 21543	|	DSM 21543 <type strain>	|	type material	|
+540988	|	strain PRI 3838	|	strain PRI 3838 <type strain>	|	type material	|
+540988	|	strain PRI-3838	|	strain PRI-3838 <type strain>	|	type material	|
+540988	|	Thermus islandicus Bjornsdottir et al. 2009	|		|	authority	|
+540988	|	Thermus islandicus	|		|	scientific name	|
+540988	|	Thermus sp. PRI-2268	|		|	includes	|
+570924	|	Thermus sp. NMX2.A1	|		|	scientific name	|
+743525	|	Thermus scotoductus SA-01	|		|	scientific name	|
+743525	|	Thermus scotoductus strain SA-01	|		|	equivalent name	|
+743525	|	Thermus scotoductus str. SA-01	|		|	equivalent name	|
+743525	|	Thermus sp. SA-01	|		|	synonym	|
+751945	|	Thermus oshimai JL-2	|		|	scientific name	|
+751945	|	Thermus oshimai strain JL-2	|		|	equivalent name	|
+751945	|	Thermus oshimai str. JL-2	|		|	equivalent name	|
+762633	|	Thermus thermophilus SG0.5JP17-16	|		|	scientific name	|
+762633	|	Thermus thermophilus strain SG0.5JP17-16	|		|	equivalent name	|
+762633	|	Thermus thermophilus str. SG0.5JP17-16	|		|	equivalent name	|
+798128	|	Thermus thermophilus JL-18	|		|	scientific name	|
+798128	|	Thermus thermophilus strain JL-18	|		|	equivalent name	|
+798128	|	Thermus thermophilus str. JL-18	|		|	equivalent name	|
+874265	|	unclassified Thermaceae	|		|	scientific name	|
+1008460	|	JCM 16557	|	JCM 16557 <type strain>	|	type material	|
+1008460	|	Pyrococcus yayanosii Birrien et al. 2011	|		|	authority	|
+1008460	|	Pyrococcus yayanosii	|		|	scientific name	|
+1008460	|	strain CH1	|	strain CH1 <type strain>	|	type material	|
+1046939	|	Thermus sp. 93170	|		|	scientific name	|
+1111069	|	Thermus sp. CCB_US3_UF1	|		|	scientific name	|
+1123386	|	Thermus antranikianii DSM 12462	|		|	scientific name	|
+1123387	|	Thermus aquaticus DSM 625	|		|	scientific name	|
+1123388	|	Thermus igniterrae ATCC 700962	|		|	scientific name	|
+1123388	|	Thermus igniterrae DSM 12459	|		|	synonym	|
+1123388	|	Thermus igniterrae R-4	|		|	synonym	|
+1123389	|	Thermus islandicus DSM 21543	|		|	scientific name	|
+1123389	|	Thermus sp. PRI-3838	|		|	synonym	|
+1123390	|	Thermus oshimai DSM 12092	|		|	scientific name	|
+1123391	|	Thermus scotoductus DSM 8553	|		|	scientific name	|
+1183377	|	Pyrococcus sp. ST04	|		|	scientific name	|
+1185654	|	Pyrococcus furiosus COM1	|		|	scientific name	|
+1185654	|	Pyrococcus furiosus strain COM1	|		|	equivalent name	|
+1185654	|	Pyrococcus furiosus str. COM1	|		|	equivalent name	|
+1214928	|	CCTCC AB2012063	|	CCTCC AB2012063 <type strain>	|	type material	|
+1214928	|	CCTCC:AB2012063	|	CCTCC:AB2012063 <type strain>	|	type material	|
+1214928	|	KCTC 32025	|	KCTC 32025 <type strain>	|	type material	|
+1214928	|	Thermus sp. YIM 77924	|		|	includes	|
+1214928	|	Thermus tengchongensis	|		|	scientific name	|
+1214928	|	Thermus tengchongensis Yu et al. 2013	|		|	authority	|
+1214928	|	YIM 77924	|	YIM 77924 <type strain>	|	type material	|
+1293587	|	Thermus kawarayensis JCM 12314	|		|	scientific name	|
+1293587	|	Thermus kawarayensis KW11	|		|	synonym	|
+1293589	|	Thermus sp. IC-236	|		|	equivalent name	|
+1293589	|	Thermus sp. JCM 17653	|		|	scientific name	|
+1316935	|	Thermus thermophilus ATCC 33923	|		|	scientific name	|
+1330700	|	CCTCC 2012061	|	CCTCC 2012061 <type strain>	|	type material	|
+1330700	|	DSM 25901	|	DSM 25901 <type strain>	|	type material	|
+1330700	|	Thermus caliditerrae Ming et al. 2014	|		|	authority	|
+1330700	|	Thermus caliditerrae	|		|	scientific name	|
+1330700	|	Thermus sp. YIM 77777	|		|	includes	|
+1330700	|	Thermus sp. YIM 77925	|		|	includes	|
+1330700	|	YIM 77925	|	YIM 77925 <type strain>	|	type material	|
+1382313	|	Thermus scotoductus KI2	|		|	scientific name	|
+1449080	|	DSM 25898	|	DSM 25898 <type strain>	|	type material	|
+1449080	|	KCTC 32024	|	KCTC 32024 <type strain>	|	type material	|
+1449080	|	Thermus amyloliquefaciens	|		|	scientific name	|
+1449080	|	Thermus amyloliquefaciens Yu et al. 2015	|		|	authority	|
+1449080	|	Thermus sp. YIM 77409	|		|	includes	|
+1449080	|	YIM 77409	|	YIM 77409 <type strain>	|	type material	|
+1449357	|	Thermus tengchongensis YIM 77401	|		|	scientific name	|
+1577051	|	Thermus sp. 2.9	|		|	scientific name	|
+1609559	|	DSM 101590	|	DSM 101590 <type strain>	|	type material	|
+1609559	|	Pyrococcus kukulkanii Callac et al. 2016	|		|	authority	|
+1609559	|	Pyrococcus kukulkanii	|		|	scientific name	|
+1609559	|	Pyrococcus sp. NCB100	|		|	includes	|
+1609559	|	Souchotheque de Bretagne BG1337	|	Souchotheque de Bretagne BG1337 <type strain>	|	type material	|
+1609559	|	strain NCB100	|	strain NCB100 <type strain>	|	type material	|
+1761908	|	CGMCC 1.13590	|	CGMCC 1.13590 <type strain>	|	type material	|
+1761908	|	JCM 33570	|	JCM 33570 <type strain>	|	type material	|
+1761908	|	strain L198	|	strain L198 <type strain>	|	type material	|
+1761908	|	Thermus sediminis	|		|	scientific name	|
+1761908	|	"Thermus sediminis" Zhou et al. 2018	|		|	authority	|
+1761908	|	Thermus sediminis Zhou et al. 2021	|		|	authority	|
+1761908	|	Thermus sp. L198	|		|	includes	|
+1783272	|	Bacillati (Gibbons and Murray 1978) Oren and Goker 2024	|		|	authority	|
+1783272	|	Bacillati	|		|	scientific name	|
+1783272	|	Firmacutes Gibbons and Murray 1978 (Approved Lists 1980)	|		|	authority	|
+1783272	|	Firmacutes	|		|	synonym	|
+1783272	|	"Firmicuteota" Panda et al. 2022	|		|	authority	|
+1783272	|	Firmicuteota	|		|	synonym	|
+1783272	|	Firmicutes corrig. Gibbons and Murray 1978 (Approved Lists 1980)	|		|	synonym	|
+1783272	|	Firmicutes	|		|	synonym	|
+1783272	|	"Terrabacteria" Battistuzzi et al. 2004	|		|	authority	|
+1783272	|	Terrabacteria group	|		|	common name	|
+1783272	|	Terrabacteria	|		|	synonym	|
+1783272	|	"Terrabacterida" Luketa 2012	|		|	authority	|
+1783272	|	Terrabacterida	|		|	synonym	|
+1869227	|	Bacteria bacterium	|		|	synonym	|
+1869227	|	Bacterial sp.	|		|	synonym	|
+1869227	|	Bacteria sp.	|		|	synonym	|
+1869227	|	bacterium	|		|	scientific name	|
+1869227	|	Bacterium sp.	|		|	synonym	|
+1869227	|	unclassified bacterium	|		|	synonym	|
+1869227	|	unidentified bacteria	|		|	synonym	|
+1869227	|	unidentified bacterium	|		|	synonym	|
+1869227	|	unidentified eubacterium	|		|	synonym	|
+1869227	|	unknown bacteria	|		|	synonym	|
+1869227	|	Unknown eubacteria	|		|	synonym	|
+1869227	|	Unknown eubacterium	|		|	synonym	|
+1913990	|	Deinococcota bacterium	|		|	scientific name	|
+1913990	|	Deinococcus-Thermus bacterium	|		|	equivalent name	|
+1930763	|	CCTCC AB 2016305	|	CCTCC AB 2016305 <type strain>	|	type material	|
+1930763	|	CCTCC:AB:2016305	|	CCTCC:AB:2016305 <type strain>	|	type material	|
+1930763	|	NBRC 112415	|	NBRC 112415 <type strain>	|	type material	|
+1930763	|	Thermus caldifontis Khan et al. 2017	|		|	authority	|
+1930763	|	Thermus caldifontis	|		|	scientific name	|
+1930763	|	Thermus sp. YIM 73026	|		|	includes	|
+1930763	|	YIM 73026	|	YIM 73026 <type strain>	|	type material	|
+2078690	|	JCM 30350	|	JCM 30350 <type strain>	|	type material	|
+2078690	|	KCTC 4677	|	KCTC 4677 <type strain>	|	type material	|
+2078690	|	Thermus sp. YIM 76954	|		|	includes	|
+2078690	|	Thermus tenuipuniceus	|		|	scientific name	|
+2078690	|	"Thermus tenuipuniceus" Zhou et al. 2018	|		|	authority	|
+2078690	|	Thermus tenuipuniceus Zhou et al. 2019	|		|	authority	|
+2078690	|	YIM 76954	|	YIM 76954 <type strain>	|	type material	|
+2250253	|	unclassified Thermococci	|		|	scientific name	|
+2250254	|	Thermococci archaeon	|		|	scientific name	|
+2283794	|	Methanogen Class I	|		|	synonym	|
+2283794	|	Methanomada	|		|	equivalent name	|
+2283794	|	Methanomada group	|		|	scientific name	|
+2283794	|	"Methanomada" Petitjean et al. 2015	|		|	authority	|
+2483360	|	KCTC 52948	|	KCTC 52948 <type strain>	|	type material	|
+2483360	|	NBRC 113036	|	NBRC 113036 <type strain>	|	type material	|
+2483360	|	"Thermus caldilimi" Li et al. 2019	|		|	authority	|
+2483360	|	Thermus caldilimi Li et al. 2021	|		|	authority	|
+2483360	|	Thermus caldilimi	|		|	scientific name	|
+2483360	|	Thermus sp. YIM 78456	|		|	includes	|
+2483360	|	YIM 78456	|	YIM 78456 <type strain>	|	type material	|
+2509362	|	CCTCC AB 2018244	|	CCTCC AB 2018244 <type strain>	|	type material	|
+2509362	|	CCTCC:AB2018244	|	CCTCC:AB2018244 <type strain>	|	type material	|
+2509362	|	KCTC 43129	|	KCTC 43129 <type strain>	|	type material	|
+2509362	|	strain CFH 72773	|	strain CFH 72773 <type strain>	|	type material	|
+2509362	|	Thermus sp. CFH 72773	|		|	includes	|
+2509362	|	Thermus thermamylovorans Ming et al. 2020	|		|	authority	|
+2509362	|	Thermus thermamylovorans	|		|	scientific name	|
+2614257	|	Thermaceae bacterium	|		|	scientific name	|
+2619321	|	unclassified Thermus	|		|	scientific name	|
+2629106	|	unclassified Pyrococcus	|		|	scientific name	|
+2862456	|	KCTC 82627	|	KCTC 82627 <type strain>	|	type material	|
+2862456	|	MCCC 1K06118	|	MCCC 1K06118 <type strain>	|	type material	|
+2862456	|	SYSU<CHI> G05001	|	SYSU<CHI> G05001 <type strain>	|	type material	|
+2862456	|	SYSU G05001	|	SYSU G05001 <type strain>	|	type material	|
+2862456	|	Thermus brevis Hu et al. 2022	|		|	authority	|
+2862456	|	Thermus brevis	|		|	scientific name	|
+2862456	|	Thermus sp. PS18	|		|	includes	|
+2862456	|	Thermus sp. SYSU G05001	|		|	includes	|
+2908145	|	CGMCC 1.19258	|	CGMCC 1.19258 <type strain>	|	type material	|
+2908145	|	CGMCC-1.19258	|	CGMCC-1.19258 <type strain>	|	type material	|
+2908145	|	CGMCC:1.19258	|	CGMCC:1.19258 <type strain>	|	type material	|
+2908145	|	CGMCC1.19258	|	CGMCC1.19258 <type strain>	|	type material	|
+2908145	|	KCTC 43361	|	KCTC 43361 <type strain>	|	type material	|
+2908145	|	KCTC-43361	|	KCTC-43361 <type strain>	|	type material	|
+2908145	|	KCTC:43361	|	KCTC:43361 <type strain>	|	type material	|
+2908145	|	KCTC43361	|	KCTC43361 <type strain>	|	type material	|
+2908145	|	SYSU<CHN> G00630	|	SYSU<CHN> G00630 <type strain>	|	type material	|
+2908145	|	SYSU<CHN>-G00630	|	SYSU<CHN>-G00630 <type strain>	|	type material	|
+2908145	|	SYSU<CHN>:G00630	|	SYSU<CHN>:G00630 <type strain>	|	type material	|
+2908145	|	SYSU<CHN>G00630	|	SYSU<CHN>G00630 <type strain>	|	type material	|
+2908145	|	SYSY<CHN> G00630	|	SYSY<CHN> G00630 <type strain>	|	type material	|
+2908145	|	SYSY<CHN>-G00630	|	SYSY<CHN>-G00630 <type strain>	|	type material	|
+2908145	|	SYSY<CHN>:G00630	|	SYSY<CHN>:G00630 <type strain>	|	type material	|
+2908145	|	SYSY<CHN>G00630	|	SYSY<CHN>G00630 <type strain>	|	type material	|
+2908145	|	"Thermus altitudinis" Li et al. 2022	|		|	authority	|
+2908145	|	Thermus altitudinis Li et al. 2023	|		|	authority	|
+2908145	|	Thermus altitudinis	|		|	scientific name	|
+2908145	|	Thermus sp. SYSU G00630	|		|	includes	|
+2908146	|	CGMCC 1.16174	|	CGMCC 1.16174 <type strain>	|	type material	|
+2908146	|	CGMCC-1.16174	|	CGMCC-1.16174 <type strain>	|	type material	|
+2908146	|	CGMCC:1.16174	|	CGMCC:1.16174 <type strain>	|	type material	|
+2908146	|	CGMCC1.16174	|	CGMCC1.16174 <type strain>	|	type material	|
+2908146	|	KCTC 52950	|	KCTC 52950 <type strain>	|	type material	|
+2908146	|	KCTC-52950	|	KCTC-52950 <type strain>	|	type material	|
+2908146	|	KCTC:52950	|	KCTC:52950 <type strain>	|	type material	|
+2908146	|	KCTC52950	|	KCTC52950 <type strain>	|	type material	|
+2908146	|	SYSU<CHN> G00608	|	SYSU<CHN> G00608 <type strain>	|	type material	|
+2908146	|	SYSU<CHN>-G00608	|	SYSU<CHN>-G00608 <type strain>	|	type material	|
+2908146	|	SYSU<CHN>:G00608	|	SYSU<CHN>:G00608 <type strain>	|	type material	|
+2908146	|	SYSU<CHN>G00608	|	SYSU<CHN>G00608 <type strain>	|	type material	|
+2908146	|	SYSY<CHN> G00608	|	SYSY<CHN> G00608 <type strain>	|	type material	|
+2908146	|	SYSY<CHN>-G00608	|	SYSY<CHN>-G00608 <type strain>	|	type material	|
+2908146	|	SYSY<CHN>:G00608	|	SYSY<CHN>:G00608 <type strain>	|	type material	|
+2908146	|	SYSY<CHN>G00608	|	SYSY<CHN>G00608 <type strain>	|	type material	|
+2908146	|	"Thermus albus" Li et al. 2022	|		|	authority	|
+2908146	|	Thermus albus Li et al. 2023	|		|	authority	|
+2908146	|	Thermus albus	|		|	scientific name	|
+2908146	|	Thermus sp. SYSU G00608	|		|	includes	|
+2908147	|	CGMCC 1.19257	|	CGMCC 1.19257 <type strain>	|	type material	|
+2908147	|	CGMCC-1.19257	|	CGMCC-1.19257 <type strain>	|	type material	|
+2908147	|	CGMCC:1.19257	|	CGMCC:1.19257 <type strain>	|	type material	|
+2908147	|	CGMCC1.19257	|	CGMCC1.19257 <type strain>	|	type material	|
+2908147	|	KCTC 43359	|	KCTC 43359 <type strain>	|	type material	|
+2908147	|	KCTC-43359	|	KCTC-43359 <type strain>	|	type material	|
+2908147	|	KCTC:43359	|	KCTC:43359 <type strain>	|	type material	|
+2908147	|	KCTC43359	|	KCTC43359 <type strain>	|	type material	|
+2908147	|	SYSU<CHN> G00506	|	SYSU<CHN> G00506 <type strain>	|	type material	|
+2908147	|	SYSU<CHN>-G00506	|	SYSU<CHN>-G00506 <type strain>	|	type material	|
+2908147	|	SYSU<CHN>:G00506	|	SYSU<CHN>:G00506 <type strain>	|	type material	|
+2908147	|	SYSU<CHN>G00506	|	SYSU<CHN>G00506 <type strain>	|	type material	|
+2908147	|	SYSY<CHN> G00506	|	SYSY<CHN> G00506 <type strain>	|	type material	|
+2908147	|	SYSY<CHN>-G00506	|	SYSY<CHN>-G00506 <type strain>	|	type material	|
+2908147	|	SYSY<CHN>:G00506	|	SYSY<CHN>:G00506 <type strain>	|	type material	|
+2908147	|	SYSY<CHN>G00506	|	SYSY<CHN>G00506 <type strain>	|	type material	|
+2908147	|	Thermus sp. 77420	|		|	includes	|
+2908147	|	Thermus sp. SYSU G00506	|		|	includes	|
+2908147	|	"Thermus thalpophilus" Li et al. 2022	|		|	authority	|
+2908147	|	Thermus thalpophilus Li et al. 2023	|		|	authority	|
+2908147	|	Thermus thalpophilus	|		|	scientific name	|
+2908148	|	CGMCC 1.19255	|	CGMCC 1.19255 <type strain>	|	type material	|
+2908148	|	CGMCC-1.19255	|	CGMCC-1.19255 <type strain>	|	type material	|
+2908148	|	CGMCC:1.19255	|	CGMCC:1.19255 <type strain>	|	type material	|
+2908148	|	CGMCC1.19255	|	CGMCC1.19255 <type strain>	|	type material	|
+2908148	|	KCTC 43357	|	KCTC 43357 <type strain>	|	type material	|
+2908148	|	KCTC-43357	|	KCTC-43357 <type strain>	|	type material	|
+2908148	|	KCTC:43357	|	KCTC:43357 <type strain>	|	type material	|
+2908148	|	KCTC43357	|	KCTC43357 <type strain>	|	type material	|
+2908148	|	SYSU<CHN> G00291	|	SYSU<CHN> G00291 <type strain>	|	type material	|
+2908148	|	SYSU<CHN>-G00291	|	SYSU<CHN>-G00291 <type strain>	|	type material	|
+2908148	|	SYSU<CHN>:G00291	|	SYSU<CHN>:G00291 <type strain>	|	type material	|
+2908148	|	SYSU<CHN>G00291	|	SYSU<CHN>G00291 <type strain>	|	type material	|
+2908148	|	SYSY<CHN> G00291	|	SYSY<CHN> G00291 <type strain>	|	type material	|
+2908148	|	SYSY<CHN>-G00291	|	SYSY<CHN>-G00291 <type strain>	|	type material	|
+2908148	|	SYSY<CHN>:G00291	|	SYSY<CHN>:G00291 <type strain>	|	type material	|
+2908148	|	SYSY<CHN>G00291	|	SYSY<CHN>G00291 <type strain>	|	type material	|
+2908148	|	"Thermus hydrothermalis" Li et al. 2022	|		|	authority	|
+2908148	|	Thermus hydrothermalis Li et al. 2023	|		|	authority	|
+2908148	|	Thermus hydrothermalis	|		|	scientific name	|
+2908148	|	Thermus sp. 77927	|		|	includes	|
+2908148	|	Thermus sp. SYSU G00291	|		|	includes	|
+2908148	|	Thermus sp. YIM 730264	|		|	includes	|
+2908149	|	CGMCC 1.19256	|	CGMCC 1.19256 <type strain>	|	type material	|
+2908149	|	CGMCC-1.19256	|	CGMCC-1.19256 <type strain>	|	type material	|
+2908149	|	CGMCC:1.19256	|	CGMCC:1.19256 <type strain>	|	type material	|
+2908149	|	CGMCC1.19256	|	CGMCC1.19256 <type strain>	|	type material	|
+2908149	|	KCTC 43358	|	KCTC 43358 <type strain>	|	type material	|
+2908149	|	KCTC-43358	|	KCTC-43358 <type strain>	|	type material	|
+2908149	|	KCTC:43358	|	KCTC:43358 <type strain>	|	type material	|
+2908149	|	KCTC43358	|	KCTC43358 <type strain>	|	type material	|
+2908149	|	SYSU<CHN> G00388	|	SYSU<CHN> G00388 <type strain>	|	type material	|
+2908149	|	SYSU<CHN>-G00388	|	SYSU<CHN>-G00388 <type strain>	|	type material	|
+2908149	|	SYSU<CHN>:G00388	|	SYSU<CHN>:G00388 <type strain>	|	type material	|
+2908149	|	SYSU<CHN>G00388	|	SYSU<CHN>G00388 <type strain>	|	type material	|
+2908149	|	SYSY<CHN> G00388	|	SYSY<CHN> G00388 <type strain>	|	type material	|
+2908149	|	SYSY<CHN>-G00388	|	SYSY<CHN>-G00388 <type strain>	|	type material	|
+2908149	|	SYSY<CHN>:G00388	|	SYSY<CHN>:G00388 <type strain>	|	type material	|
+2908149	|	SYSY<CHN>G00388	|	SYSY<CHN>G00388 <type strain>	|	type material	|
+2908149	|	"Thermus neutrinimicus" Li et al. 2022	|		|	authority	|
+2908149	|	Thermus neutrinimicus Li et al. 2023	|		|	authority	|
+2908149	|	Thermus neutrinimicus	|		|	scientific name	|
+2908149	|	Thermus sp. SYSU G00388	|		|	includes	|
+2918899	|	Thermus sp. NEB1569	|		|	scientific name	|
+3026935	|	CGMCC 1.61921	|	CGMCC 1.61921 <type strain>	|	type material	|
+3026935	|	CGMCC-1.61921	|	CGMCC-1.61921 <type strain>	|	type material	|
+3026935	|	CGMCC:1.61921	|	CGMCC:1.61921 <type strain>	|	type material	|
+3026935	|	CGMCC1.61921	|	CGMCC1.61921 <type strain>	|	type material	|
+3026935	|	KCTC 102310	|	KCTC 102310 <type strain>	|	type material	|
+3026935	|	KCTC-102310	|	KCTC-102310 <type strain>	|	type material	|
+3026935	|	KCTC:102310	|	KCTC:102310 <type strain>	|	type material	|
+3026935	|	KCTC102310	|	KCTC102310 <type strain>	|	type material	|
+3026935	|	strain LT1-2-5	|	strain LT1-2-5 <type strain>	|	type material	|
+3026935	|	Thermus javaensis Ningsih et al. 2026	|		|	authority	|
+3026935	|	Thermus javaensis	|		|	scientific name	|
+3026935	|	Thermus sp. LT1-2-5	|		|	includes	|
+3026935	|	UICC B-84	|	UICC B-84 <type strain>	|	type material	|
+3026935	|	UICC-B-84	|	UICC-B-84 <type strain>	|	type material	|
+3026935	|	UICC:B-84	|	UICC:B-84 <type strain>	|	type material	|
+3026935	|	UICCB-84	|	UICCB-84 <type strain>	|	type material	|
+3366610	|	"Euryarchaeida" Luketa 2012	|		|	authority	|
+3366610	|	Euryarchaeida	|		|	synonym	|
+3366610	|	Methanobacteriati (Garrity and Holt 2023) Oren and Goker 2024	|		|	authority	|
+3366610	|	Methanobacteriati	|		|	scientific name	|
+3384194	|	Thermotogati Battistuzzi and Hedges 2024	|		|	authority	|
+3384194	|	Thermotogati	|		|	scientific name	|
+3384194	|	"Thermotogida" Luketa 2012	|		|	authority	|
+3384194	|	Thermotogida	|		|	synonym	|
+3438723	|	Thermus sp. FJN-A	|		|	scientific name	|
+3591387	|	Thermus sp. KWY1	|		|	scientific name	|
+3683182	|	Thermus sp. H19.2	|		|	scientific name	|

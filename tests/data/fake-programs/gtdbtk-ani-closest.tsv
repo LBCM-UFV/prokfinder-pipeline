@@ -1,0 +1,3 @@
+user_genome	reference_genome	skani_ani	skani_af	reference_taxonomy	satisfies_gtdb_circumscription_criteria
+GCA_061250155.1	GCF_000381045.1	96.12	0.812	d__Bacteria;p__Deinococcota;c__Deinococci;o__Deinococcales;f__Thermaceae;g__Thermus;s__Thermus scotoductus	True
+GCA_040289965.1	GCF_000381045.1	93.5	0.41	d__Bacteria;p__Deinococcota;c__Deinococci;o__Deinococcales;f__Thermaceae;g__Thermus;s__Thermus scotoductus	False

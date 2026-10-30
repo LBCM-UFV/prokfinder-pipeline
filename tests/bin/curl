@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# curl - fake curl of the tests: serves the Zenodo packages from the folder $PF_FAKE_PACKAGES (the file name is taken
+# from the URL .../files/<file>?download=1). Any other URL fails (exit 22), as an unreachable server. With "-C -" a
+# partial output file is completed (the bytes it lacks are appended), as a resumed download.
+
+set -euo pipefail
+# shellcheck source=fake-lib.bash
+source "$(dirname "${BASH_SOURCE[0]}")/fake-lib.bash"
+fake_start curl "$@"
+
+OUT=""
+URL=""
+RESUME=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o) OUT="$2"; shift 2 ;;
+        -C) RESUME=1; shift 2 ;;
+        -*) shift ;;
+        *)  URL="$1"; shift ;;
+    esac
+done
+
+FILE="${URL##*/files/}"
+FILE="${FILE%%\?*}"
+if [[ -z "${OUT}" || "${URL}" != *"/files/"* || ! -f "${PF_FAKE_PACKAGES:-/nonexistent}/${FILE}" ]]; then
+    echo "fake curl: no package for ${URL}" >&2
+    exit 22
+fi
+if [[ "${RESUME}" -eq 1 && -s "${OUT}" ]]; then
+    tail -c +"$(( $(wc -c < "${OUT}") + 1 ))" "${PF_FAKE_PACKAGES}/${FILE}" >> "${OUT}"
+else
+    cp "${PF_FAKE_PACKAGES}/${FILE}" "${OUT}"
+fi

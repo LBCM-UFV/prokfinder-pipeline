@@ -1,0 +1,5 @@
+BacDive reference data downloaded on 2026-10-24 09:20:32
+api=https://api.bacdive.dsmz.de/v2
+strains=101317
+format=3
+fixture=tests/data/make-fixture.sh 2026-10-25

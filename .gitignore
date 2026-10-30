@@ -3,6 +3,13 @@ Prokfinder/
 prokfinder-results/
 *.log
 
+# Local session notes of the maintainer (cluster account, paths): never published
+context.md
+
 # R / editors
 .Rhistory
 .vscode/
+*.code-workspace
+
+# Local test outputs
+test-tiny-genomes/

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# datasets - fake NCBI Datasets CLI of the tests: "rehydrate" copies the genomes of tests/data/genomes to the paths of
+# the fetch.txt manifest (data/<accession>/<file>_genomic.fna[.gz]); a genome that is not there is left out, as a
+# failed download (the fake always exits 0, so the retries of the module, 5 s apart, are not tested)
+
+set -euo pipefail
+# shellcheck source=fake-lib.bash
+source "$(dirname "${BASH_SOURCE[0]}")/fake-lib.bash"
+fake_start datasets "$@"
+
+case "${1:-}" in
+    --version|version) echo "datasets version: 18.26.0 (fake)"; exit 0 ;;
+    rehydrate)         ;;
+    *)                 echo "fake datasets: unsupported command: $*" >&2; exit 1 ;;
+esac
+
+DIR="$(fake_option --directory "$@")"
+GZIP=0
+[[ " $* " != *" --gzip "* ]] || GZIP=1
+[[ -f "${DIR}/ncbi_dataset/fetch.txt" ]] || { echo "fake datasets: ${DIR}/ncbi_dataset/fetch.txt not found" >&2; exit 1; }
+
+while IFS=$'\t' read -r _ _ FILE_PATH; do
+    FILE_PATH="${FILE_PATH%$'\r'}"
+    ACC="$(basename "$(dirname "${FILE_PATH}")")"
+    SOURCE="${FAKE_GENOMES}/${ACC}.fna.gz"
+    [[ -f "${SOURCE}" ]] || continue
+    mkdir -p "${DIR}/ncbi_dataset/$(dirname "${FILE_PATH}")"
+    if [[ "${GZIP}" -eq 1 ]]; then
+        cp "${SOURCE}" "${DIR}/ncbi_dataset/${FILE_PATH}.gz"
+    else
+        gzip -dc "${SOURCE}" > "${DIR}/ncbi_dataset/${FILE_PATH}"
+    fi
+done < "${DIR}/ncbi_dataset/fetch.txt"

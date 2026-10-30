@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 #
-# summarize-final-results.sh - Prokfinder module 8: final results and statistics
+# summarize-final-results.sh - Prokfinder module 10: final results and statistics
 #
 # Reads the genome metadata table (one row per selected genome, with the columns added by every step) and writes:
 #   high-quality-selected-genomes.txt           accession + path of the clean genome of every genome that passed the
 #                                               quality filters and is representative of its taxon
 #   high-quality-selected-genomes-metadata.txt  metadata of those genomes only
+#   genomes-left-out.tsv                        genomes without GTDB taxonomy (NOT_CLASSIFIED) or whose taxon failed in
+#                                               the dereplication (NOT_DEREPLICATED), with what to do; both are also
+#                                               reported as warnings
 #   STATISTICS/TABLES/
-#     selection-funnel.tsv                      number of genomes left after each step
+#     selection-funnel.tsv                     number of genomes left after each step
 #     qc-status.tsv                             genomes per quality result
 #     genomes-per-gtdb-<rank>.tsv               selected / high-quality / representative genomes per taxon
 #     all-prokaryote-genomes-status.tsv.gz      every genome of the NCBI table with flags for selected,
 #                                               high-quality and representative (for comparison studies)
 #   STATISTICS/GRAPHS/                          plots made by plot-statistics.R (only if Rscript is installed)
+# (versions.tsv and parameters.tsv of the same folder are written by main-prokfinder.sh before this module runs)
 #
 # Usage: summarize-final-results.sh -m <genome_metadata.tsv> -r <ncbi_dir> -s <genbank|refseq> -o <final_results_dir>
 
@@ -74,7 +78,7 @@ col() {
 C_DOWNLOAD="$(col DOWNLOAD_STATUS)"
 C_CONTIG="$(col CONTIG_FILTER_STATUS)"
 C_QC="$(col QC_STATUS)"
-C_TAX_SOURCE="$(col GTDB_TAXONOMY_SOURCE)"
+C_TAX_METHOD="$(col GTDB_CLASSIFICATION_METHOD)"
 C_REP="$(col REPRESENTATIVE_GENOME)"
 C_CLEAN_FILE="$(col CLEAN_GENOME_FILE)"
 
@@ -89,14 +93,14 @@ awk -F'\t' -v OFS='\t' -v c_qc="${C_QC}" -v c_rep="${C_REP}" -v c_file="${C_CLEA
 log "message" "High-quality representative genomes: $(count_records "${HQ_METADATA}") -> ${HQ_LIST}"
 
 # 2. Selection funnel
-awk -F'\t' -v OFS='\t' -v c_dl="${C_DOWNLOAD}" -v c_ct="${C_CONTIG}" -v c_qc="${C_QC}" -v c_tx="${C_TAX_SOURCE}" -v c_rep="${C_REP}" '
+awk -F'\t' -v OFS='\t' -v c_dl="${C_DOWNLOAD}" -v c_ct="${C_CONTIG}" -v c_qc="${C_QC}" -v c_tx="${C_TAX_METHOD}" -v c_rep="${C_REP}" '
     NR == 1 { next }
     {
         n_sel++
         if (c_dl && $c_dl == "DOWNLOADED") n_dl++
         if (c_ct && $c_ct == "OK") n_ct++
         if (c_qc && $c_qc == "PASSED") n_qc++
-        if (c_qc && c_tx && $c_qc == "PASSED" && $c_tx != "NULL") n_tx++
+        if (c_qc && c_tx && $c_qc == "PASSED" && $c_tx != "NOT_CLASSIFIED" && $c_tx != "NULL") n_tx++
         if (c_rep && $c_rep == "yes") n_rep++
     }
     END {
@@ -115,11 +119,36 @@ while IFS=$'\t' read -r STEP COUNT; do
     log "message" "    ${STEP}: ${COUNT}"
 done < <(tail -n +2 "${TABLES_DIR}/selection-funnel.tsv")
 
+# 2b. Genomes that passed the quality filters but were left out of the final list by a failure (not by a decision)
+LEFT_OUT="${FINAL_DIR}/genomes-left-out.tsv"
+awk -F'\t' -v OFS='\t' -v c_tx="${C_TAX_METHOD}" -v c_rep="${C_REP}" '
+    BEGIN { print "ASSEMBLY_ACCESSION", "REASON", "WHAT_TO_DO" }
+    NR == 1 { next }
+    c_tx && $c_tx == "NOT_CLASSIFIED" { print $1, "NOT_CLASSIFIED", "no GTDB taxonomy: left out of the taxonomic hierarchy and of the dereplication; see NON-CLASSIFIED-GENOMES-BY-GTDB.txt, or run again with --use-gtdbtk-tree" }
+    c_rep && $c_rep == "NOT_DEREPLICATED" { print $1, "NOT_DEREPLICATED", "the dereplication of its taxon failed: run the same command again to retry (see GENOME-DEREPLICATION/dereplicate-genomes.log)" }
+' "${METADATA}" > "${LEFT_OUT}"
+N_NOT_CLASSIFIED="$(awk -F'\t' 'NR > 1 && $2 == "NOT_CLASSIFIED"' "${LEFT_OUT}" | wc -l)"
+N_NOT_DEREPLICATED="$(awk -F'\t' 'NR > 1 && $2 == "NOT_DEREPLICATED"' "${LEFT_OUT}" | wc -l)"
+if [[ "${N_NOT_CLASSIFIED}" -gt 0 ]]; then
+    log "warning" "${N_NOT_CLASSIFIED} genome(s) have no GTDB taxonomy (NOT_CLASSIFIED) and are not in the final list: use --use-gtdbtk-tree to place them in the GTDB tree. Listed in ${LEFT_OUT}"
+fi
+if [[ "${N_NOT_DEREPLICATED}" -gt 0 ]]; then
+    log "warning" "${N_NOT_DEREPLICATED} genome(s) could not be dereplicated (NOT_DEREPLICATED) and are not in the final list: run the same command again to retry. Listed in ${LEFT_OUT}"
+fi
+
 # 3. Quality results
 if [[ "${C_QC}" -gt 0 ]]; then
     { printf 'QC_STATUS\tGENOMES\n'
       awk -F'\t' -v c="${C_QC}" 'NR > 1 { n[$c]++ } END { for (s in n) printf "%s\t%d\n", s, n[s] }' "${METADATA}" | LC_ALL=C sort -t $'\t' -k2,2nr
     } > "${TABLES_DIR}/qc-status.tsv"
+fi
+
+# 3b. How the high-quality genomes got their GTDB taxonomy (GTDB table, GTDB-Tk ANI or tree, not classified)
+if [[ "${C_QC}" -gt 0 && "${C_TAX_METHOD}" -gt 0 ]]; then
+    { printf 'GTDB_CLASSIFICATION_METHOD\tHIGH_QUALITY_GENOMES\n'
+      awk -F'\t' -v c_qc="${C_QC}" -v c="${C_TAX_METHOD}" 'NR > 1 && $c_qc == "PASSED" { n[$c]++ } END { for (m in n) printf "%s\t%d\n", m, n[m] }' \
+          "${METADATA}" | LC_ALL=C sort -t $'\t' -k2,2nr
+    } > "${TABLES_DIR}/gtdb-classification-methods.tsv"
 fi
 
 # 4. Genomes per GTDB taxon (phylum, family, genus and species)

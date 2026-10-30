@@ -1,23 +1,29 @@
 #!/usr/bin/env python3
 """
-predict-genes-pyrodigal.py - Prokfinder: gene prediction (Pyrodigal, the Python port of Prodigal)
+predict-genes-pyrodigal.py - Prokfinder module 5 (helper of predict-genes-pyrodigal.sh): gene prediction (Pyrodigal, the Python port of Prodigal)
 
 Predicts the genes of each genome once, so that the next steps (CheckM2, BUSCO, GTDB-Tk and CiDDER) all use the
 same predicted proteins. Called by predict-genes-pyrodigal.sh, which decides which genomes must be (re)predicted.
+
+Usage: predict-genes-pyrodigal.py --genomes <genomes.tsv> --out-dir <genes_dir> --table <table.tsv> [--threads <n>] [--complete-only]
 
 Gene calling mode and translation table (the heuristic of GTDB-Tk):
   - single mode ("-p single"): Pyrodigal is trained on the genome with translation table 11 and with table 4.
     Table 4 is used only when its coding density is more than 5 percentage points higher than with table 11 and
     above 70%; otherwise table 11 is used (e.g., Mycoplasma uses table 4).
-  - meta mode ("-p meta", pre-trained models): genomes shorter than 100 kbp (too short to train Prodigal) and,
-    with --meta-for-mags, the metagenome-assembled genomes (MAGs).
+  - meta mode ("-p meta", pre-trained models): only genomes shorter than 100 kbp (too short to train Prodigal).
+    The meta mode is meant for sequences of several organisms or too short to train on; a MAG is the genome of a
+    single organism, so it is predicted in single mode too (as GTDB-Tk does).
 
-Input: a TSV file, one genome per line: <accession> <TAB> <genome FASTA, .fna or .fna.gz> <TAB> <genome type>
-(isolate_genome or mag).
+Input: a TSV file, one genome per line: <accession> <TAB> <genome FASTA, .fna or .fna.gz>.
 Output, in --out-dir, for each genome: <ACCESSION>.faa (proteins, without the stop "*"), <ACCESSION>.ffn (gene
 nucleotide sequences) and <ACCESSION>.gff; and a TSV table (--table) with one row per genome:
   ASSEMBLY_ACCESSION GENE_CALLING_MODE TRANSLATION_TABLE CODING_DENSITY_TABLE11 CODING_DENSITY_TABLE4
   PREDICTED_GENES PROTEIN_FILE
+
+With --complete-only (the second pass, for CiDDER) the genome is predicted again with the same mode and translation
+table but with closed ends (Pyrodigal -c: no gene runs off a contig edge, as CiDDER does when it predicts the genes
+itself) and only the proteins are written, to --out-dir/<ACCESSION>.faa; the .faa of the first pass is not touched.
 """
 
 import argparse
@@ -90,8 +96,30 @@ def write_outputs(accession, records, predictions, out_dir):
     return faa
 
 
+def predict_complete_genome(task):
+    """Proteins of the genes that do not run off a contig edge (Pyrodigal -c), with the mode and table of the genome."""
+    accession, path, mode, table, out_dir = task
+    try:
+        records = read_fasta(path)
+        if mode == "meta":
+            finder = GeneFinder(meta=True, closed=True)
+        else:
+            finder = GeneFinder(meta=False, closed=True)
+            finder.train(*[seq for _, seq in records], translation_table=int(table))
+        predictions = [finder.find_genes(seq) for _, seq in records]
+        faa = os.path.join(out_dir, accession + ".faa")
+        tmp = os.path.join(out_dir, "." + accession + ".faa.tmp")
+        with open(tmp, "w") as f_faa:
+            for (name, _), genes in zip(records, predictions):
+                genes.write_translations(f_faa, sequence_id=name, include_stop=False)
+        os.replace(tmp, faa)
+        return "%s\t%d" % (accession, sum(len(genes) for genes in predictions)), None
+    except Exception as error:   # one bad genome must not stop the others
+        return None, "%s: %s" % (accession, error)
+
+
 def predict_genome(task):
-    accession, path, genome_type, out_dir, meta_for_mags = task
+    accession, path, out_dir = task
     try:
         records = read_fasta(path)
         total_length = sum(len(seq) for _, seq in records)
@@ -99,7 +127,7 @@ def predict_genome(task):
             raise ValueError("empty genome")
         density11 = density4 = "NULL"
 
-        if (meta_for_mags and genome_type == "mag") or total_length < MIN_TRAINING_LENGTH:
+        if total_length < MIN_TRAINING_LENGTH:
             mode = "meta"
             finder = GeneFinder(meta=True)
             predictions = [finder.find_genes(seq) for _, seq in records]
@@ -122,23 +150,50 @@ def predict_genome(task):
         return None, "%s: %s" % (accession, error)
 
 
+def run_complete_only(args):
+    tasks = []
+    with open(args.genomes) as handle:
+        for line in handle:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) >= 4 and fields[0]:
+                tasks.append((fields[0], fields[1], fields[2], fields[3], args.out_dir))
+    failures = 0
+    with open(args.table, "w") as out:
+        out.write("ASSEMBLY_ACCESSION\tPREDICTED_COMPLETE_GENES\n")
+        with multiprocessing.Pool(max(1, args.threads)) as pool:
+            for done, (row, error) in enumerate(pool.imap_unordered(predict_complete_genome, tasks), start=1):
+                if row:
+                    out.write(row + "\n")
+                    out.flush()
+                else:
+                    failures += 1
+                    print("WARNING: prediction of complete genes failed for " + error, file=sys.stderr)
+                if done % 100 == 0 or done == len(tasks):
+                    print("  complete genes predicted for %d of %d genome(s)" % (done, len(tasks)), file=sys.stderr)
+    print("pyrodigal %s: complete genes of %d genome(s), %d failed" % (pyrodigal.__version__, len(tasks) - failures,
+          failures), file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--genomes", required=True, help="TSV: accession, genome FASTA, genome type")
+    parser.add_argument("--genomes", required=True, help="TSV: accession, genome FASTA")
     parser.add_argument("--out-dir", required=True, help="folder of the .faa/.ffn/.gff files")
     parser.add_argument("--table", required=True, help="TSV written with one row per genome predicted")
     parser.add_argument("--threads", type=int, default=1, help="genomes predicted at the same time")
-    parser.add_argument("--meta-for-mags", action="store_true", help="predict the MAGs in meta mode")
+    parser.add_argument("--complete-only", action="store_true",
+                        help="write only the proteins of complete genes (-c); --genomes has 4 columns: accession, "
+                             "genome FASTA, mode (single|meta), translation table; --table has accession, genes")
     args = parser.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
+    if args.complete_only:
+        return run_complete_only(args)
     tasks = []
     with open(args.genomes) as handle:
         for line in handle:
             fields = line.rstrip("\n").split("\t")
             if len(fields) >= 2 and fields[0]:
-                genome_type = fields[2] if len(fields) > 2 else "isolate_genome"
-                tasks.append((fields[0], fields[1], genome_type, args.out_dir, args.meta_for_mags))
+                tasks.append((fields[0], fields[1], args.out_dir))
 
     failures = 0
     with open(args.table, "w") as out:

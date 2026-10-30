@@ -209,15 +209,65 @@ require_column() {
     echo "${INDEX}"
 }
 
+############ EMPTY AND INVALID VALUES (NULL) ################
+#   One rule for every reference table: a cell whose value is empty or means "no information" becomes NULL. Each
+#   database records the values it converted in NULL-VALUES-<DB>.tsv (pf_write_null_mapping), so the conversion can
+#   be checked. Rules (case-insensitive, after trimming the spaces):
+#     EMPTY            the cell is empty
+#     DASH             only dashes ("-", "--")
+#     INVALID_WORD     null, na, n/a, nd, nan, none, unknown, missing
+#     NO_INFO_PREFIX   starts with "not " / "missing " ("not applicable", "not collected", "missing: data agreement...")
+
+# awk functions of the rule: pf_null_rule(v) prints the rule that makes v NULL ("" when v is valid);
+# pf_null_record(column, v, rule) counts a conversion; pf_null_write(file, table) appends the counts to <file> as
+# <table> TAB <column> TAB <original value> TAB <rule> TAB <occurrences>
+PF_AWK_NULL='
+function pf_null_rule(v,   l) {
+    l = tolower(v)
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", l)
+    if (l == "") return "EMPTY"
+    if (l ~ /^-+$/) return "DASH"
+    if (l ~ /^(null|na|n\/a|nd|nan|none|unknown|missing)$/) return "INVALID_WORD"
+    if (l ~ /^(not|missing)[ _:-]/) return "NO_INFO_PREFIX"
+    return ""
+}
+function pf_null_record(column, v, rule) { pf_null_count[column SUBSEP v SUBSEP rule]++ }
+function pf_null_write(file, table,   k, p) {
+    if (file == "") return
+    for (k in pf_null_count) {
+        split(k, p, SUBSEP)
+        printf "%s\t%s\t%s\t%s\t%d\n", table, p[1], p[2], p[3], pf_null_count[k] >> file
+    }
+    close(file)
+}
+'
+
+# Writes the mapping of the values converted to NULL (rows appended by pf_null_write) with its header, the same
+# value of the same column summed over the parts, sorted by table, column and occurrences
+# Usage: pf_write_null_mapping <output.tsv> <rows file> [rows file ...]
+pf_write_null_mapping() {
+    local OUT="$1"
+    shift
+    {
+        printf 'SOURCE_TABLE\tCOLUMN\tORIGINAL_VALUE\tRULE\tCONVERTED_TO\tOCCURRENCES\n'
+        cat "$@" 2>/dev/null | awk -F'\t' -v OFS='\t' '
+            { n[$1 SUBSEP $2 SUBSEP $3 SUBSEP $4] += $5 }
+            END { for (k in n) { split(k, p, SUBSEP); print p[1], p[2], (p[3] == "" ? "(empty)" : p[3]), p[4], "NULL", n[k] } }' \
+            | LC_ALL=C sort -t $'\t' -k1,1 -k2,2 -k6,6nr
+    } > "${OUT}.tmp"
+    mv "${OUT}.tmp" "${OUT}"
+}
+
 # Formats a TSV read from stdin and writes it to stdout:
 #   - header: spaces are replaced by "_" (with <upper> = 1 the header is also converted to upper case and every
 #     run of characters other than letters/digits becomes "_", e.g. "Assembly BioSample Isolation source" ->
 #     ASSEMBLY_BIOSAMPLE_ISOLATION_SOURCE)
-#   - cells: trimmed; empty or invalid values ("-", NA, N/A, ND, NaN, none, unknown, missing..., not ...) -> NULL
+#   - cells: trimmed; empty or invalid values (see PF_AWK_NULL) -> NULL; with <null_rows> the converted values are
+#     appended to it (pf_null_write), under the name <table>
 #   - every row gets the same number of columns as the header (missing cells -> NULL)
-# Usage: format_tsv <upper: 0|1> < input.tsv > output.tsv
+# Usage: format_tsv <upper: 0|1> [<null_rows> <table>] < input.tsv > output.tsv
 format_tsv() {
-    awk -F'\t' -v OFS='\t' -v upper="${1:-0}" '
+    awk -F'\t' -v OFS='\t' -v upper="${1:-0}" -v null_rows="${2:-}" -v table="${3:-}" "${PF_AWK_NULL}"'
     NR == 1 {
         for (i = 1; i <= NF; i++) {
             h = $i
@@ -226,6 +276,7 @@ format_tsv() {
             if (upper + 0) { h = toupper(h); gsub(/[^A-Z0-9]+/, "_", h); gsub(/^_+|_+$/, "", h) }
             else gsub(/[[:space:]]+/, "_", h)
             $i = h
+            name[i] = h
         }
         nh = NF
         print
@@ -236,14 +287,16 @@ format_tsv() {
             v = (i <= NF ? $i : "")
             gsub(/\r/, "", v)
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
-            l = tolower(v)
-            if (v == "" || l ~ /^-+$/ || l ~ /^(null|na|n\/a|nd|nan|none|unknown|missing)$/ || l ~ /^(not|missing)[ _:-]/)
+            if (v != "NULL" && (rule = pf_null_rule(v)) != "") {
+                if (null_rows != "") pf_null_record(name[i], v, rule)
                 v = "NULL"
+            }
             $i = v
         }
         NF = nh
         print
-    }'
+    }
+    END { pf_null_write(null_rows, table) }'
 }
 
 # Adds the columns of <table> to <master>. In both files the first column is the assembly accession.
@@ -365,6 +418,79 @@ pf_python_with_pyrodigal() {
     done
 }
 
+# Runs a program with the folder of its own executable first in the PATH. A program installed in its own conda
+# environment that starts with "#!/usr/bin/env python3" (e.g., BUSCO) would otherwise run with the python3 of another
+# environment that comes first in the PATH (on the UFV cluster, the module skder, loaded last) and fail with "No
+# module named ...". The helpers of the program (e.g., hmmsearch for BUSCO) are also taken from its environment.
+# Usage: run_in_own_env <program> [arguments]
+run_in_own_env() {
+    local BIN_DIR
+    BIN_DIR="$(dirname "$(command -v "$1")")"
+    PATH="${BIN_DIR}:${PATH}" "$@"
+}
+
+# Returns 0 if the version <version> is the same as or newer than <minimum> (numbers separated by dots)
+# Usage: pf_version_ge <version> <minimum>
+pf_version_ge() {
+    [[ "$(printf '%s\n%s\n' "$1" "$2" | LC_ALL=C sort -V | awk 'NR == 1')" == "$2" ]]
+}
+
+# The oldest CiDDER that dereplicates predicted proteomes (1.3.6 stops without genome files; fixed in 1.3.7)
+# shellcheck disable=SC2034  # used by the modules
+PF_CIDDER_MIN_PROTEOME_VERSION=1.3.7
+
+############ CITATIONS ################
+
+# Prints the DOIs (or the website) to cite for a component of versions.tsv, separated by "; " (CITATIONS.md has the
+# full references; a new program or database gets a line here and in CITATIONS.md). Nothing for an unknown component.
+# Usage: pf_citation <component>
+pf_citation() {
+    case "$1" in
+        prokfinder)                 echo "https://github.com/LBCM-UFV/prokfinder-pipeline" ;;
+        datasets|NCBI)              echo "10.1038/s41597-024-03571-y" ;;
+        seqkit)                     echo "10.1002/imt2.191" ;;
+        pyrodigal)                  echo "10.21105/joss.04296; 10.1186/1471-2105-11-119" ;;
+        checkm2|checkm2-database)   echo "10.1038/s41592-023-01940-w" ;;
+        busco|busco-lineages)       echo "10.1093/nar/gkae987; 10.1093/molbev/msab199" ;;
+        gtdbtk)                     echo "10.1093/bioinformatics/btac672; 10.1038/s41592-023-02018-3" ;;
+        skder)                      echo "10.1099/mgen.0.001438; 10.1038/s41592-023-02018-3" ;;
+        cidder)                     echo "10.1099/mgen.0.001438" ;;
+        BACDIVE)                    echo "10.1093/nar/gkae959; 10.1093/nar/gkab961" ;;
+        GTDB|gtdbtk-reference)      echo "10.1093/nar/gkaf1040; 10.1093/nar/gkab776" ;;
+        Rscript)                    echo "https://www.r-project.org" ;;
+    esac
+}
+
+############ RESOURCES ################
+
+# RAM (GB) that CheckM2 needs in its normal mode: it used 17.3 GB with 166 genomes and 8 CPUs on the UFV cluster.
+# With less, CheckM2 runs with --lowmem (smaller DIAMOND blocks: less RAM, slower). Used by the modules.
+# shellcheck disable=SC2034
+PF_CHECKM2_MIN_MEMORY_GB=18
+
+# Prints an amount of RAM in GB, rounded down: "20gb", "20g" or "20" -> 20; "24000mb" -> 23. Returns 1 (prints
+# nothing) if the format is invalid.
+# Usage: pf_memory_gb <ram>
+pf_memory_gb() {
+    local VALUE="${1,,}"
+    if [[ "${VALUE}" =~ ^([0-9]+)(gb|g)?$ ]]; then
+        echo $(( 10#${BASH_REMATCH[1]} ))
+    elif [[ "${VALUE}" =~ ^([0-9]+)(mb|m)$ ]]; then
+        echo $(( 10#${BASH_REMATCH[1]} / 1024 ))
+    else
+        return 1
+    fi
+}
+
+# Prints the total RAM of the computer in GB (rounded down), or nothing when it cannot be found
+pf_system_memory_gb() {
+    if [[ -r /proc/meminfo ]]; then
+        awk '$1 == "MemTotal:" { printf "%d\n", $2 / 1048576; exit }' /proc/meminfo
+    elif command -v sysctl >/dev/null 2>&1; then
+        sysctl -n hw.memsize 2>/dev/null | awk '{ printf "%d\n", $1 / 1073741824 }'
+    fi
+}
+
 # Stops the script if one of the given programs is not in the PATH
 # Usage: require_programs <program> [program ...]
 require_programs() {
@@ -422,14 +548,185 @@ pf_completed_marker()    { echo "$1/COMPLETED-DOWNLOAD.txt"; }
 # module changes the tables it writes, its number is increased, and Prokfinder runs the module again: the tables
 # are rebuilt from the files already downloaded (nothing is downloaded again).
 # shellcheck disable=SC2034  # used by the modules
-PF_REFDB_FORMAT_NCBI=2
+PF_REFDB_FORMAT_NCBI=3      # 3: NULL-VALUES-NCBI.tsv (values converted to NULL)
 # shellcheck disable=SC2034
-PF_REFDB_FORMAT_BACDIVE=2
+PF_REFDB_FORMAT_BACDIVE=3   # 3: NULL-VALUES-BACDIVE.tsv
 # shellcheck disable=SC2034
-PF_REFDB_FORMAT_GTDB=2
+PF_REFDB_FORMAT_GTDB=4      # 3: status of each genome in GTDB (species representative, type material) in the taxonomy;
+#                             4: the same NULL rule for these columns ("not used as type" -> NULL), NULL-VALUES-GTDB.tsv
 
 # Returns 0 if the checkpoint of <db_dir> exists and records the table format <version>
 # Usage: pf_refdb_format_ok <db_dir> <version>
 pf_refdb_format_ok() {
     grep -qx "format=$2" "$(pf_completed_marker "$1")" 2>/dev/null
+}
+
+# Reference databases packaged on Zenodo (registry: refdb-zenodo.tsv; format in its header)
+# Prints the value of a HOST or RECORD line
+# Usage: pf_registry_value <registry> HOST|RECORD
+pf_registry_value() {
+    awk -F'\t' -v key="$2" '{ sub(/\r$/, "") } $1 == key { print $2; exit }' "$1"
+}
+
+# Prints "<file><TAB><md5>" of the package of a database with the given table format (nothing if there is none)
+# Usage: pf_registry_package <registry> <DB> <format>
+pf_registry_package() {
+    awk -F'\t' -v db="$2" -v fmt="$3" '{ sub(/\r$/, "") } $1 == "PACKAGE" && $2 == db && $3 == fmt { print $4 "\t" $5; exit }' "$1"
+}
+
+# Returns 0 if <db_dir> was installed from a Zenodo package (so it has no raw files to rebuild the tables from)
+# Usage: pf_refdb_from_package <db_dir>
+pf_refdb_from_package() {
+    grep -q '^package=' "$(pf_completed_marker "$1")" 2>/dev/null
+}
+
+# Prints the value of the first "<key>=<value>" line of the checkpoint of <db_dir> (nothing if there is none)
+# Usage: pf_marker_value <db_dir> <key>
+pf_marker_value() {
+    sed -n "s/^$2=//p" "$(pf_completed_marker "$1")" 2>/dev/null | awk 'NR == 1' || true
+}
+
+# Returns 1 if the registry has, for the table format <format>, another package than the one installed in <db_dir>
+# (another record, file or MD5: a newer package was published); 0 otherwise, also when the registry has no package of
+# that format
+# Usage: pf_refdb_package_current <registry> <DB> <format> <db_dir>
+pf_refdb_package_current() {
+    local ENTRY MARKER RECORD MD5
+    ENTRY="$(pf_registry_package "$1" "$2" "$3")"
+    RECORD="$(pf_registry_value "$1" RECORD)"
+    [[ -n "${ENTRY}" && -n "${RECORD}" ]] || return 0
+    MARKER="$(pf_completed_marker "$4")"
+    grep -qxF "package=zenodo:${RECORD}:${ENTRY%%$'\t'*}" "${MARKER}" 2>/dev/null || return 1
+    # (packages installed before the MD5 was recorded are compared by record and file only)
+    MD5="$(sed -n 's/^package_md5=//p' "${MARKER}" | awk 'NR == 1')"
+    [[ -z "${MD5}" || "${MD5}" == "${ENTRY#*$'\t'}" ]]
+}
+
+# Downloads the Zenodo package of a database, checks its MD5 and extracts it into <target_dir> (which must be empty or
+# new). The package must record the table format the code expects. Stops with an error otherwise. A download
+# interrupted (a partial file in <download_dir>) is resumed by the next call.
+# Usage: pf_install_refdb_package <registry> <DB> <format> <target_dir> <download_dir>
+pf_install_refdb_package() {
+    local REGISTRY="$1" DB="$2" FORMAT="$3" TARGET="$4" WORK="$5"
+    local HOST RECORD ENTRY FILE MD5 URL
+    [[ -f "${REGISTRY}" ]] || die "Registry of the Zenodo packages not found: ${REGISTRY}."
+    HOST="$(pf_registry_value "${REGISTRY}" HOST)"
+    RECORD="$(pf_registry_value "${REGISTRY}" RECORD)"
+    ENTRY="$(pf_registry_package "${REGISTRY}" "${DB}" "${FORMAT}")"
+    if [[ -z "${HOST}" || -z "${RECORD}" || -z "${ENTRY}" ]]; then
+        die "No Zenodo package with the ${DB} table format ${FORMAT} that this version of Prokfinder reads (registry ${REGISTRY}). Use setup --from-source to build the database from its sources."
+    fi
+    FILE="${ENTRY%%$'\t'*}"
+    MD5="${ENTRY#*$'\t'}"
+    URL="https://${HOST}/records/${RECORD}/files/${FILE}?download=1"
+
+    mkdir -p "${WORK}" "${TARGET}"
+    if [[ -f "${WORK}/${FILE}" && "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" == "${MD5}" ]]; then
+        log "message" "${DB}: package ${FILE} already downloaded."
+    else
+        local RC=0
+        if [[ -s "${WORK}/${FILE}" ]]; then
+            log "message" "${DB}: resuming the download of ${FILE} from Zenodo (record ${RECORD} on ${HOST})..."
+            curl -fL --retry 3 --retry-delay 10 -C - -o "${WORK}/${FILE}" "${URL}" || RC=$?
+            # A partial file that cannot be completed (server without byte ranges, or a file of another package with
+            # the same name) is downloaded again from the start
+            if [[ "${RC}" -eq 33 || "${RC}" -eq 36 ]] \
+                || [[ "${RC}" -eq 0 && "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" != "${MD5}" ]]; then
+                log "warning" "${DB}: the partial file ${FILE} could not be completed; downloading it again from the start."
+                rm -f "${WORK}/${FILE}"
+                RC=0
+            fi
+        fi
+        if [[ ! -s "${WORK}/${FILE}" ]]; then
+            log "message" "${DB}: downloading ${FILE} from Zenodo (record ${RECORD} on ${HOST})..."
+            curl -fL --retry 3 --retry-delay 10 -o "${WORK}/${FILE}" "${URL}" || RC=$?
+        fi
+        [[ "${RC}" -eq 0 ]] || die "Download of ${URL} failed. Check the connection and run setup again (the download is resumed)."
+        [[ "$(md5sum "${WORK}/${FILE}" | cut -d' ' -f1)" == "${MD5}" ]] \
+            || { rm -f "${WORK}/${FILE}"; die "MD5 of ${FILE} differs from the registry (${MD5}); the file was removed. Run setup again."; }
+    fi
+    tar -xzf "${WORK}/${FILE}" -C "${TARGET}" --strip-components=1 || die "Could not extract ${WORK}/${FILE}."
+    pf_refdb_format_ok "${TARGET}" "${FORMAT}" || die "The package ${FILE} does not record the table format ${FORMAT}."
+    printf 'package=zenodo:%s:%s\npackage_md5=%s\n' "${RECORD}" "${FILE}" "${MD5}" >> "$(pf_completed_marker "${TARGET}")"
+    rm -f "${WORK}/${FILE}"
+}
+
+############ HELP IN BOXES ############
+
+# Width of the help boxes: the terminal width (60-100) when the output is a terminal, otherwise 80
+pf_help_width() {
+    local WIDTH=80
+    if [[ -t 1 ]]; then
+        WIDTH="${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}"
+        [[ "${WIDTH}" =~ ^[0-9]+$ ]] || WIDTH=80
+        (( WIDTH >= 60 )) || WIDTH=60
+        (( WIDTH <= 100 )) || WIDTH=100
+    fi
+    echo "${WIDTH}"
+}
+
+# Prints the rows read from stdin inside a box with a title (the help of the options, as in rich/typer programs).
+# A row "  <names>  <description>" (two spaces, then a name that is not "- ", and two or more spaces before the
+# description) is shown in two columns, with the description wrapped; a line indented by 4 or more spaces continues
+# the row above; any other line is plain text, wrapped. Only ASCII text is allowed in the rows (the widths are counted
+# in characters).
+# Usage: pf_help_box <title> < rows
+pf_help_box() {
+    awk -v title="$1" -v width="$(pf_help_width)" '
+    function wrap(text, w, indent,   out, line, n, i, words, pad) {
+        # words of text, lines of at most w characters, the next lines indented by "indent" spaces
+        n = split(text, words, " ")
+        out = ""; line = ""; pad = sprintf("%" indent "s", "")
+        for (i = 1; i <= n; i++) {
+            if (line == "") line = words[i]
+            else if (length(line) + 1 + length(words[i]) <= w - (out == "" ? 0 : indent)) line = line " " words[i]
+            else { out = out (out == "" ? "" : "\n" pad) line; line = words[i] }
+        }
+        return out (out == "" ? "" : (line == "" ? "" : "\n" pad)) line
+    }
+    function emit(s, w) { printf "\342\224\202 %s%*s \342\224\202\n", s, w - length(s), "" }
+    BEGIN { inner = width - 4 }
+    {
+        sub(/\r$/, "")
+        if ($0 ~ /^ {4,}[^ ]/ && n > 0) { v = $0; sub(/^ +/, "", v); desc[n] = desc[n] (desc[n] == "" ? "" : " ") v; next }
+        n++
+        line = substr($0, 3)
+        if (($0 ~ /^  [^ -]/ || $0 ~ /^  -[^ ]/) && (match(line, /  +/) || $0 ~ /^  -/)) {
+            if (match(line, /  +/)) { name[n] = substr(line, 1, RSTART - 1); desc[n] = substr(line, RSTART + RLENGTH) }
+            else { name[n] = line; desc[n] = "" }
+            kind[n] = "row"
+            if (length(name[n]) > wname && length(name[n]) <= 40) wname = length(name[n])
+        } else {
+            kind[n] = "text"; desc[n] = ($0 ~ /^  / ? line : $0); sub(/[ ]+$/, "", desc[n])
+        }
+    }
+    END {
+        # top border: "+- Title ----+"
+        printf "\342\225\255\342\224\200 %s ", title
+        for (i = 0; i < width - length(title) - 5; i++) printf "\342\224\200"
+        printf "\342\225\256\n"
+        for (r = 1; r <= n; r++) {
+            if (kind[r] == "row") {
+                dw = inner - wname - 2
+                text = wrap(desc[r], dw, 0)
+                m = split(text, dl, "\n")
+                if (m == 0) { m = 1; dl[1] = "" }
+                nm = name[r]
+                if (length(nm) > wname) { emit(nm, inner); nm = "" }
+                for (k = 1; k <= m; k++) {
+                    emit(sprintf("%-" wname "s  %s", (k == 1 ? nm : ""), dl[k]), inner)
+                }
+            } else {
+                if (desc[r] == "") { emit("", inner); continue }
+                lead = match(desc[r], /[^ ]/) - 1
+                hang = lead + (substr(desc[r], lead + 1, 2) == "- " ? 2 : 0)
+                text = wrap(substr(desc[r], lead + 1), inner - lead, hang - lead)
+                m = split(text, dl, "\n")
+                for (k = 1; k <= m; k++) emit(sprintf("%" lead "s%s", "", dl[k]), inner)
+            }
+        }
+        printf "\342\225\260"
+        for (i = 0; i < width - 2; i++) printf "\342\224\200"
+        printf "\342\225\257\n"
+    }'
 }

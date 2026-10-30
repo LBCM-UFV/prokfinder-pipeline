@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# checkm2 - fake CheckM2 of the tests: "predict" writes <output-directory>/quality_report.tsv for the protein files of
+# --input, with the completeness and contamination of tests/data/fake-programs/checkm2-quality.tsv (99.90 and 0.10 for
+# a genome that is not in the table)
+
+set -euo pipefail
+# shellcheck source=fake-lib.bash
+source "$(dirname "${BASH_SOURCE[0]}")/fake-lib.bash"
+fake_start checkm2 "$@"
+
+case "${1:-}" in
+    --version) echo "1.1.0"; exit 0 ;;
+    predict)   ;;
+    *)         echo "fake checkm2: unsupported command: $*" >&2; exit 1 ;;
+esac
+
+INPUT="$(fake_option --input "$@")"
+OUT="$(fake_option --output-directory "$@")"
+EXTENSION="$(fake_option --extension "$@")"
+[[ -f "$(fake_option --database_path "$@")" ]] || { echo "fake checkm2: --database_path is not a file" >&2; exit 1; }
+mkdir -p "${OUT}"
+
+{
+    printf 'Name\tCompleteness\tContamination\tCompleteness_Model_Used\tAdditional_Notes\n'
+    for FILE in "${INPUT}"/*."${EXTENSION:-faa}"; do
+        NAME="$(basename "${FILE}" ".${EXTENSION:-faa}")"
+        awk -F'\t' -v OFS='\t' -v name="${NAME}" '
+            NR > 1 && $1 == name { print $1, $2, $3, $4, "None"; found = 1 }
+            END { if (!found) print name, "99.90", "0.10", "Neural Network (Specific Model)", "None" }' \
+            "${FAKE_DATA}/checkm2-quality.tsv"
+    done
+} > "${OUT}/quality_report.tsv"

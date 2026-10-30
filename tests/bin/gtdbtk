@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# gtdbtk - fake GTDB-Tk of the tests (2.7.2):
+#   ani_rep    writes <out_dir>/gtdbtk.ani_closest.tsv with the rows of tests/data/fake-programs/gtdbtk-ani-closest.tsv
+#              (or of PF_FAKE_ANI_CLOSEST) for the genomes of --batchfile; a genome that is not there has no row
+#   identify, align
+#              only make --out_dir
+#   classify   writes <out_dir>/gtdbtk.bac120.summary.tsv with the rows of tests/data/fake-programs/gtdbtk-classify.tsv
+#              for the genomes of --batchfile ("Unclassified Bacteria" for a genome that is not there)
+
+set -euo pipefail
+# shellcheck source=fake-lib.bash
+source "$(dirname "${BASH_SOURCE[0]}")/fake-lib.bash"
+fake_start gtdbtk "$@"
+
+COMMAND="${1:-}"
+if [[ "${COMMAND}" == "--version" ]]; then
+    echo "gtdbtk: version 2.7.2 Copyright 2017 Pierre-Alain Chaumeil, Aaron Mussig and Donovan Parks"
+    exit 0
+fi
+[[ -n "${GTDBTK_DATA_PATH:-}" && -d "${GTDBTK_DATA_PATH}" ]] || { echo "fake gtdbtk: GTDBTK_DATA_PATH is not a folder" >&2; exit 1; }
+OUT="$(fake_option --out_dir "$@")"
+BATCH="$(fake_option --batchfile "$@")"
+mkdir -p "${OUT}"
+
+# Rows of <table> (header kept) whose first column is a genome of the batch file
+batch_rows() {
+    awk -F'\t' 'NR == FNR { batch[$2] = 1; next } FNR == 1 || ($1 in batch)' "${BATCH}" "$1"
+}
+
+case "${COMMAND}" in
+    ani_rep)
+        batch_rows "${PF_FAKE_ANI_CLOSEST:-${FAKE_DATA}/gtdbtk-ani-closest.tsv}" > "${OUT}/gtdbtk.ani_closest.tsv"
+        ;;
+    identify|align)
+        ;;
+    classify)
+        [[ -n "$(fake_option --align_dir "$@")" ]] || { echo "fake gtdbtk: classify needs --align_dir" >&2; exit 1; }
+        batch_rows "${FAKE_DATA}/gtdbtk-classify.tsv" > "${OUT}/gtdbtk.bac120.summary.tsv"
+        awk -F'\t' -v OFS='\t' 'NR == FNR { if (FNR > 1) done[$1] = 1; next } !($2 in done) { print $2, "Unclassified Bacteria", "NULL", "NULL" }' \
+            "${OUT}/gtdbtk.bac120.summary.tsv" "${BATCH}" >> "${OUT}/gtdbtk.bac120.summary.tsv"
+        ;;
+    *)
+        echo "fake gtdbtk: unsupported command: $*" >&2
+        exit 1
+        ;;
+esac
