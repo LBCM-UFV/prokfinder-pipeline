@@ -6,11 +6,11 @@ the versions follow [Semantic Versioning](https://semver.org/). Changes waiting 
 
 Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructed from the commit history.
 
-## [Unreleased] - 0.5.0-dev
+## [Unreleased]
+
+## [0.5.0] - 2026-10-29
 
 ### Changed
-- The repository is renamed from `LBCM-UFV/prokfinder-pipeline` to `LBCM-UFV/prokfinder` (GitHub redirects the old
-  address; existing clones can run `git remote set-url origin https://github.com/LBCM-UFV/prokfinder.git`).
 - The help (`-h`) is written in boxes, one per group of options, as in `fastq-dl` and Bactopia; the descriptions of
   `setup`, `search-genomes` and `run-on-cluster` are one line.
 - `-o, --results-dir` is now `-o, --output-dir`. Without `-o`, a new `search-genomes` in an existing

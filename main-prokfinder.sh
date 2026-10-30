@@ -31,7 +31,7 @@ MODULES_DIR="${SCRIPT_DIR}/modules"
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
-PROKFINDER_VERSION="0.5.0-dev"
+PROKFINDER_VERSION="0.5.0"
 PROG="$(basename "$0")"
 
 ############ HELP ############

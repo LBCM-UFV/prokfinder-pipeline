@@ -170,7 +170,7 @@ def build():
         "version": shell_string(main, "PROKFINDER_VERSION"),
         "description": "Selection, download and curation of prokaryote genomes (NCBI metadata, BacDive phenotypes, "
                        "GTDB taxonomy)",
-        "repository": "https://github.com/LBCM-UFV/prokfinder",
+        "repository": "https://github.com/LBCM-UFV/prokfinder-pipeline",
         "license": "GPL-3.0-or-later",
         "entry_point": "main-prokfinder.sh",
         "generated_by": "tools/build-catalog.py (do not edit by hand)",

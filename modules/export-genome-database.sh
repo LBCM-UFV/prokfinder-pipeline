@@ -221,7 +221,7 @@ Prokfinder genome database
 ==========================
 
 ${N_GENOMES} prokaryote genome(s): ${CRITERION}.
-Built by Prokfinder ${PROKFINDER_VERSION_USED:-(version in parameters.tsv)} (https://github.com/LBCM-UFV/prokfinder).
+Built by Prokfinder ${PROKFINDER_VERSION_USED:-(version in parameters.tsv)} (https://github.com/LBCM-UFV/prokfinder-pipeline).
 
 Files
   genomes/<ACCESSION>.fna.gz      genome sequences (contigs shorter than the minimum length removed), gzip
@@ -239,7 +239,7 @@ This folder has no links to other places: it can be moved or copied.
 How to cite
   Cite Prokfinder and the programs and databases listed in versions.tsv (NCBI, BacDive, GTDB, CheckM2, BUSCO,
   GTDB-Tk, Pyrodigal, seqkit, skDER or CiDDER, as used in the run): their DOIs are in the CITATION column, and the
-  full references in CITATIONS.md of Prokfinder (https://github.com/LBCM-UFV/prokfinder/blob/main/CITATIONS.md).
+  full references in CITATIONS.md of Prokfinder (https://github.com/LBCM-UFV/prokfinder-pipeline/blob/main/CITATIONS.md).
   The GTDB taxonomy is licensed CC BY-SA 4.0: attribution is required.
 EOF
 

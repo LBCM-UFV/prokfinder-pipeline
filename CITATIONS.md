@@ -7,7 +7,7 @@ copied to `GENOME-DATABASE/versions.tsv`).
 ## Prokfinder
 
 - Castro da Rocha JP, Almeida ELM. Prokfinder: selection, download and curation of prokaryote genomes.
-  https://github.com/LBCM-UFV/prokfinder (a manuscript is in preparation).
+  https://github.com/LBCM-UFV/prokfinder-pipeline (a manuscript is in preparation).
 
 ## Reference databases
 

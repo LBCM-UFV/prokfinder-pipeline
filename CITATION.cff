@@ -11,10 +11,10 @@ authors:
     given-names: "Eduardo Luís Menezes de"
     affiliation: "Universidade Federal de Viçosa (UFV)"
     orcid: "https://orcid.org/0000-0002-3526-0975"
-version: "0.5.0-dev"
-date-released: "2026-10-22"
+version: "0.5.0"
+date-released: "2026-10-29"
 license: GPL-3.0-or-later
-repository-code: "https://github.com/LBCM-UFV/prokfinder"
+repository-code: "https://github.com/LBCM-UFV/prokfinder-pipeline"
 keywords:
   - bioinformatics
   - prokaryotes

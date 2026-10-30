@@ -446,7 +446,7 @@ PF_CIDDER_MIN_PROTEOME_VERSION=1.3.7
 # Usage: pf_citation <component>
 pf_citation() {
     case "$1" in
-        prokfinder)                 echo "https://github.com/LBCM-UFV/prokfinder" ;;
+        prokfinder)                 echo "https://github.com/LBCM-UFV/prokfinder-pipeline" ;;
         datasets|NCBI)              echo "10.1038/s41597-024-03571-y" ;;
         seqkit)                     echo "10.1002/imt2.191" ;;
         pyrodigal)                  echo "10.21105/joss.04296; 10.1186/1471-2105-11-119" ;;

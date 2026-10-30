@@ -53,8 +53,8 @@ Vários sub-comandos podem ser dados juntos; eles sempre rodam na ordem `setup` 
 O Prokfinder é um conjunto de scripts em Bash: basta clonar o repositório (não há compilação).
 
 ```bash
-git clone https://github.com/LBCM-UFV/prokfinder.git
-cd prokfinder
+git clone https://github.com/LBCM-UFV/prokfinder-pipeline.git
+cd prokfinder-pipeline
 chmod +x main-prokfinder.sh modules/*.sh modules/plot-statistics.R   # se o bit de execução tiver se perdido
 ./main-prokfinder.sh --check                                         # confere as dependências
 ```
@@ -70,8 +70,8 @@ GTDB-Tk e R), sem precisar instalar dependências na máquina. Os **bancos** nã
 máquina e são montados no contêiner.
 
 ```bash
-git clone https://github.com/LBCM-UFV/prokfinder.git
-cd prokfinder
+git clone https://github.com/LBCM-UFV/prokfinder-pipeline.git
+cd prokfinder-pipeline
 docker build -f docker/Dockerfile -t prokfinder .                       # imagem completa (~15-20 min; ~14 GB em disco)
 docker build -f docker/Dockerfile --build-arg WITH_GTDBTK=0 -t prokfinder .   # sem GTDB-Tk (menor)
 
