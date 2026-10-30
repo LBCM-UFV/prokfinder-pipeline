@@ -1,6 +1,5 @@
 NCBI reference data downloaded on 2026-10-24 09:12:17
 assembly_source=all
 datasets=datasets version: 18.26.0
-taxdump=/home/es112637/prokfinder-refdb/NCBI/TAXDUMP
-format=3
+format=4
 fixture=tests/data/make-fixture.sh 2026-10-25

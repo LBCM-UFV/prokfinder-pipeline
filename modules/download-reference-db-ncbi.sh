@@ -10,10 +10,10 @@
 #      the different values of a cell are joined with ";"
 #   4. header: spaces -> "_" (upper case); empty/invalid cells ("missing", "not ...", NA, N/A, ND, NaN) -> NULL,
 #      every converted value listed in NULL-VALUES-NCBI.tsv (see PF_AWK_NULL in lib/common.sh)
-#   5. taxonkit (lineage + reformat2): name and TaxID of each rank (domain to species) and the strain TaxID
-#      (NO_TAXID when there is none)
-#   6. the table is split into GenBank (GCA_ accessions) and RefSeq (GCF_ accessions)
-#   7. OPTIONAL (--complete-table): complete table with EVERY field of the assembly reports (dataformat default
+#   5. the table is split into GenBank (GCA_ accessions) and RefSeq (GCF_ accessions); each table gets the accession
+#      of the paired assembly of the other database (NULL when there is none, or when NCBI says that the GenBank and
+#      the RefSeq assemblies are different: then there is no correspondence between them)
+#   6. OPTIONAL (--complete-table): complete table with EVERY field of the assembly reports (dataformat default
 #      fields), one row per accession; fields with several values are joined with ";" (paired fields, such as the
 #      BioSample attribute names and values, are kept aligned: the n-th name goes with the n-th value). It is slow
 #      (many hours for Bacteria) and is not used by the genome search
@@ -26,7 +26,9 @@
 # INTERNAL_ERROR). To avoid this, each domain is split into chunks by release date (one per year), downloaded
 # separately and merged afterwards. Chunks already downloaded are reused if the script is interrupted.
 #
-# Usage: download-reference-db-ncbi.sh -o <ncbi_dir> [--assembly-source all|genbank|refseq] [--taxdump-dir <dir>]
+# The NCBI taxonomy (taxdump) and the normalization of the TaxIDs are not done here: see normalize-ncbi-taxids.sh.
+#
+# Usage: download-reference-db-ncbi.sh -o <ncbi_dir> [--assembly-source all|genbank|refseq]
 #                                      [--complete-table] [--force]
 #
 # Output (per domain, <DOMAIN> = BACTERIA or ARCHAEA):
@@ -35,7 +37,6 @@
 #   <ncbi_dir>/<DOMAIN>-NCBI-METADATA/genbank-metadata.tsv        (curated table, GCA_ accessions)
 #   <ncbi_dir>/<DOMAIN>-NCBI-METADATA/refseq-metadata.tsv         (curated table, GCF_ accessions)
 #   <ncbi_dir>/<DOMAIN>-NCBI-METADATA/complete-metadata.tsv       (OPTIONAL: every field, GCA_ and GCF_ accessions)
-#   <ncbi_dir>/TAXDUMP/                                           (NCBI taxonomy used by taxonkit)
 #   <ncbi_dir>/COMPLETED-DOWNLOAD.txt                             (checkpoint: written only at the end)
 
 set -euo pipefail
@@ -52,7 +53,6 @@ Usage: $(basename "$0") -o <ncbi_dir> [options]
 
   -o <ncbi_dir>              Directory where the NCBI reference data will be saved (required)
   --assembly-source <src>    all, genbank or refseq (default: all; the tables are split into GenBank and RefSeq anyway)
-  --taxdump-dir <dir>        Use this NCBI taxdump (names.dmp, nodes.dmp...) instead of downloading a new one
   --complete-table           Also write complete-metadata.tsv: every field of the assembly reports converted to TSV
                              (slow: many hours for Bacteria; not used by the genome search)
   --force                    Remove the previous download of this module and start again
@@ -64,7 +64,6 @@ EOF
 
 OUTPUT_DIR=""
 ASSEMBLY_SOURCE="all"
-TAXDUMP_DIR=""
 COMPLETE_TABLE=0
 FORCE=0
 
@@ -72,7 +71,6 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -o) OUTPUT_DIR="${2%/}"; shift 2 ;;
         --assembly-source) ASSEMBLY_SOURCE="$(echo "$2" | tr '[:upper:]' '[:lower:]')"; shift 2 ;;
-        --taxdump-dir) TAXDUMP_DIR="${2%/}"; shift 2 ;;
         --complete-table) COMPLETE_TABLE=1; shift ;;
         --force) FORCE=1; shift ;;
         -h|--help) usage 0 ;;
@@ -94,18 +92,12 @@ esac
 
 mkdir -p "${OUTPUT_DIR}"
 setup_module_log "${OUTPUT_DIR}/download-reference-db-ncbi.log"
-require_programs datasets dataformat taxonkit unzip curl tar
+require_programs datasets dataformat unzip
 
 ############ SETTINGS ################
 
-FIELDS="accession,organism-name,organism-tax-id,organism-infraspecific-strain,assminfo-level,assminfo-release-date,assminfo-biosample-accession,assminfo-biosample-isolation-source,assminfo-biosample-geo-loc-name,assminfo-biosample-lat-lon,assminfo-biosample-host,assminfo-biosample-collection-date,assmstats-total-sequence-len,assmstats-gc-percent,assmstats-number-of-contigs,assmstats-contig-n50,checkm-completeness,checkm-contamination,assminfo-notes"
+FIELDS="accession,organism-name,organism-tax-id,organism-infraspecific-strain,assminfo-level,assminfo-release-date,assminfo-biosample-accession,assminfo-biosample-isolation-source,assminfo-biosample-geo-loc-name,assminfo-biosample-lat-lon,assminfo-biosample-host,assminfo-biosample-collection-date,assmstats-total-sequence-len,assmstats-gc-percent,assmstats-number-of-contigs,assmstats-contig-n50,checkm-completeness,checkm-contamination,assminfo-notes,assminfo-paired-assm-accession,assminfo-paired-assm-refseq-genbank-are-different"
 declare -A DOMAIN_TAXID=( ["BACTERIA"]="2" ["ARCHAEA"]="2157" )
-
-TAXDUMP_URL="https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz"
-
-# Ranks written by taxonkit reformat2 (NCBI renamed "superkingdom" to "domain" in 2025: both are accepted)
-TAXONKIT_FORMAT="{domain|superkingdom};{phylum};{class};{order};{family};{genus};{species};{strain|subspecies|no rank}"
-RANK_NAMES="DOMAIN PHYLUM CLASS ORDER FAMILY GENUS SPECIES STRAIN"
 
 # Chunks by release year: everything released up to 12/31 of FIRST_YEAR goes in a single chunk,
 # then one chunk per year until the current year
@@ -175,32 +167,6 @@ download_year_chunk() {
 
     rm -f "${ZIP_FILE}"
     return 1
-}
-
-# Makes sure an NCBI taxdump is available for taxonkit and prints its folder.
-# A new taxdump is downloaded together with the metadata, so that every TaxID of the new assemblies is known.
-prepare_taxdump() {
-    local DIR
-
-    if [[ -n "${TAXDUMP_DIR}" ]]; then
-        if [[ ! -f "${TAXDUMP_DIR}/names.dmp" || ! -f "${TAXDUMP_DIR}/nodes.dmp" ]]; then
-            die "names.dmp/nodes.dmp not found in --taxdump-dir ${TAXDUMP_DIR}"
-        fi
-        echo "${TAXDUMP_DIR}"
-        return 0
-    fi
-
-    DIR="$(pf_ncbi_taxdump_dir "${OUTPUT_DIR}")"
-    if [[ ! -f "${DIR}/names.dmp" || ! -f "${DIR}/nodes.dmp" ]]; then
-        log "message" "Downloading NCBI taxdump (used by taxonkit) from ${TAXDUMP_URL}..." >&2
-        mkdir -p "${DIR}"
-        curl -fsSL --retry 5 --retry-delay 10 -o "${DIR}/taxdump.tar.gz" "${TAXDUMP_URL}" \
-            || die "Could not download ${TAXDUMP_URL}"
-        tar -xzf "${DIR}/taxdump.tar.gz" -C "${DIR}" names.dmp nodes.dmp delnodes.dmp merged.dmp \
-            || die "Could not extract ${DIR}/taxdump.tar.gz"
-        rm -f "${DIR}/taxdump.tar.gz"
-    fi
-    echo "${DIR}"
 }
 
 # awk function used by the merges below: 1 if a value is empty or invalid (the same rule as format_tsv), so it is
@@ -326,62 +292,6 @@ build_complete_table() {
     mv "${OUTPUT}.tmp" "${OUTPUT}"
 }
 
-# Adds the NCBI lineage (name and TaxID of each rank) to a curated table.
-# Usage: add_ncbi_lineage <curated_tsv> <taxdump_dir> <output_tsv>
-add_ncbi_lineage() {
-    local TABLE="$1"
-    local TAXDUMP="$2"
-    local OUTPUT="$3"
-    local TAXID_COL LINEAGE_FILE
-
-    TAXID_COL="$(require_column "${TABLE}" "ORGANISM_TAXONOMIC_ID")"
-    LINEAGE_FILE="${OUTPUT}.lineage"
-
-    # reformat2 output: <taxid> <TAB> <names joined by ";"> <TAB> <taxids joined by ";">
-    awk -F'\t' -v c="${TAXID_COL}" 'NR > 1 && $c ~ /^[0-9]+$/ { print $c }' "${TABLE}" | sort -u \
-        | taxonkit reformat2 --data-dir "${TAXDUMP}" -I 1 -t -f "${TAXONKIT_FORMAT}" 2> "${LINEAGE_FILE}.err" \
-        > "${LINEAGE_FILE}" || {
-            log "error" "taxonkit failed. Messages: $(head -n 5 "${LINEAGE_FILE}.err")"
-            exit 1
-        }
-
-    if [[ -s "${LINEAGE_FILE}.err" ]]; then
-        log "warning" "taxonkit reported $(wc -l < "${LINEAGE_FILE}.err") warning(s) (e.g., TaxIDs merged or deleted from the NCBI taxonomy). First lines: $(head -n 3 "${LINEAGE_FILE}.err" | tr '\n' ' ')"
-    fi
-
-    awk -F'\t' -v OFS='\t' -v c="${TAXID_COL}" -v lineage_file="${LINEAGE_FILE}" -v ranks="${RANK_NAMES}" '
-    BEGIN {
-        nr = split(ranks, rank, " ")
-        while ((getline line < lineage_file) > 0) {
-            split(line, f, "\t")
-            names[f[1]] = f[2]
-            ids[f[1]] = f[3]
-        }
-        close(lineage_file)
-    }
-    NR == 1 {
-        out = $0
-        for (i = 1; i <= nr; i++) out = out OFS "NCBI_" rank[i]
-        for (i = 1; i <= nr; i++) out = out OFS "NCBI_" rank[i] "_TAXID"
-        print out
-        next
-    }
-    {
-        out = $0
-        split((($c in names) ? names[$c] : ""), nm, ";")
-        split((($c in ids) ? ids[$c] : ""), id, ";")
-        for (i = 1; i <= nr; i++) out = out OFS ((i in nm) && nm[i] != "" ? nm[i] : "NULL")
-        for (i = 1; i <= nr; i++) {
-            if ((i in id) && id[i] != "") v = id[i]
-            else v = (rank[i] == "STRAIN" ? "NO_TAXID" : "NULL")
-            out = out OFS v
-        }
-        print out
-    }' "${TABLE}" > "${OUTPUT}"
-
-    rm -f "${LINEAGE_FILE}" "${LINEAGE_FILE}.err"
-}
-
 ############ DOWNLOAD ################
 
 if [[ "${FORCE}" -eq 1 ]]; then
@@ -391,7 +301,6 @@ if [[ "${FORCE}" -eq 1 ]]; then
         rm -rf "$(pf_ncbi_genomes_dir "${OUTPUT_DIR}" "${DOMAIN}")" "$(pf_ncbi_metadata_dir "${OUTPUT_DIR}" "${DOMAIN}")" \
                "${OUTPUT_DIR}/${DOMAIN}-YEARLY-CHUNKS"
     done
-    rm -rf "$(pf_ncbi_taxdump_dir "${OUTPUT_DIR}")"
 elif [[ -f "${COMPLETED_MARKER}" ]] && ! pf_refdb_format_ok "${OUTPUT_DIR}" "${PF_REFDB_FORMAT_NCBI}"; then
     # Tables of an older Prokfinder: they are rebuilt from the assembly reports already downloaded
     log "message" "The NCBI tables were written by an older version of Prokfinder: rebuilding them from the assembly reports already downloaded."
@@ -404,9 +313,7 @@ log "message" "Downloading NCBI reference data (assembly source: ${DATASETS_SOUR
 if [[ "${COMPLETE_TABLE}" -eq 1 ]]; then
     log "message" "Option --complete-table: the complete metadata table (every field) is also written (slow: many hours for Bacteria)."
 fi
-log "message" "datasets: $(datasets --version 2>&1 | head -n 1) | taxonkit: $(taxonkit version 2>&1 | head -n 1)"
-
-TAXDUMP_IN_USE="$(prepare_taxdump)"
+log "message" "datasets: $(datasets --version 2>&1 | head -n 1)"
 
 for DOMAIN in "${PF_DOMAINS[@]}"; do
     TAXID="${DOMAIN_TAXID[$DOMAIN]}"
@@ -509,19 +416,30 @@ for DOMAIN in "${PF_DOMAINS[@]}"; do
             { print $0, ((c && index(tolower($c), "derived from metagenome") > 0) ? "mag" : "isolate_genome") }
         ' > "${CURATED_TMP}"
 
-    # 5. NCBI lineage of each assembly
-    log "message" "[${DOMAIN}] Adding the NCBI lineage (names and TaxIDs of each rank) with taxonkit..."
-    add_ncbi_lineage "${CURATED_TMP}" "${TAXDUMP_IN_USE}" "${CURATED_TMP}.lineage"
-    mv "${CURATED_TMP}.lineage" "${CURATED_TMP}"
-
-    # 6. Split into GenBank (GCA_) and RefSeq (GCF_). The tables are written under temporary names and renamed
-    #    only at the end: their presence works as the checkpoint of the domain.
-    awk -F'\t' -v gb="${GENBANK_TSV}.tmp" -v rs="${REFSEQ_TSV}.tmp" '
-        NR == 1 { print > gb; print > rs; next }
-        $1 ~ /^GCA_/ { print > gb; n_gb++; next }
-        $1 ~ /^GCF_/ { print > rs; n_rs++; next }
+    # 5. Split into GenBank (GCA_) and RefSeq (GCF_), adding the accession of the paired assembly of the other
+    #    database: NCBI_REFSEQ_ASSEMBLY_ACCESSION in the GenBank table and NCBI_GENBANK_ASSEMBLY_ACCESSION in the
+    #    RefSeq table. It is NULL when there is no paired assembly of the right database or when NCBI says that the two
+    #    are different (...ARE_DIFFERENT = true: no correspondence). Every GCF_ has a GCA_, not every GCA_ has a GCF_.
+    #    The tables are written under temporary names and renamed only at the end: their presence works as the
+    #    checkpoint of the domain.
+    awk -F'\t' -v OFS='\t' -v gb="${GENBANK_TSV}.tmp" -v rs="${REFSEQ_TSV}.tmp" '
+        NR == 1 {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "ASSEMBLY_PAIRED_ASSEMBLY_ACCESSION") p = i
+                if ($i == "ASSEMBLY_PAIRED_ASSEMBLY_REFSEQ_GENBANK_ARE_DIFFERENT") d = i
+            }
+            if (!p || !d) { print "paired-assembly columns not found in the curated table" > "/dev/stderr"; exit 1 }
+            print $0, "NCBI_REFSEQ_ASSEMBLY_ACCESSION" > gb
+            print $0, "NCBI_GENBANK_ASSEMBLY_ACCESSION" > rs
+            next
+        }
+        {
+            different = (tolower($d) == "true")
+            if ($1 ~ /^GCA_/) { print $0, (!different && $p ~ /^GCF_/ ? $p : "NULL") > gb; n_gb++ }
+            else if ($1 ~ /^GCF_/) { print $0, (!different && $p ~ /^GCA_/ ? $p : "NULL") > rs; n_rs++ }
+        }
         END { printf "%d\t%d\n", n_gb, n_rs > "/dev/stderr" }
-    ' "${CURATED_TMP}" 2> "${CURATED_TMP}.counts"
+    ' "${CURATED_TMP}" 2> "${CURATED_TMP}.counts" || die "[${DOMAIN}] $(cat "${CURATED_TMP}.counts")"
 
     read -r N_GENBANK N_REFSEQ < "${CURATED_TMP}.counts"
     mv "${GENBANK_TSV}.tmp" "${GENBANK_TSV}"
@@ -532,7 +450,7 @@ for DOMAIN in "${PF_DOMAINS[@]}"; do
     log "message" "[${DOMAIN}] GenBank: ${N_GENBANK} assemblies -> ${GENBANK_TSV}"
     log "message" "[${DOMAIN}] RefSeq: ${N_REFSEQ} assemblies -> ${REFSEQ_TSV}"
 
-    # 7. Complete table (every field of the assembly reports), only with --complete-table
+    # 6. Complete table (every field of the assembly reports), only with --complete-table
     if [[ "${COMPLETE_TABLE}" -eq 1 ]]; then
         log "message" "[${DOMAIN}] Writing the complete metadata table (every field)..."
         build_complete_table "${REPORT_FILE}" "${COMPLETE_TSV}"
@@ -552,7 +470,6 @@ log "message" "Values converted to NULL (empty or invalid): ${OUTPUT_DIR}/NULL-V
     echo "NCBI reference data downloaded on $(date +"%Y-%m-%d %H:%M:%S")"
     echo "assembly_source=${DATASETS_SOURCE}"
     echo "datasets=$(datasets --version 2>&1 | head -n 1)"
-    echo "taxdump=${TAXDUMP_IN_USE}"
     echo "format=${PF_REFDB_FORMAT_NCBI}"
 } > "${COMPLETED_MARKER}"
 

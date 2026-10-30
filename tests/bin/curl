@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 #
 # curl - fake curl of the tests: serves the Zenodo packages from the folder $PF_FAKE_PACKAGES (the file name is taken
-# from the URL .../files/<file>?download=1). Any other URL fails (exit 22), as an unreachable server. With "-C -" a
-# partial output file is completed (the bytes it lacks are appended), as a resumed download.
+# from the URL .../files/<file>?download=1) and the NCBI taxdump (.../taxdump.tar.gz: the file taxdump.tar.gz of the
+# same folder, with the modification date 2026-10-01, as the server date that "curl -R" would give). Any other URL
+# fails (exit 22), as an unreachable server. With "-C -" a partial output file is completed (the bytes it lacks are
+# appended), as a resumed download.
 
 set -euo pipefail
 # shellcheck source=fake-lib.bash
@@ -20,6 +22,12 @@ while [[ $# -gt 0 ]]; do
         *)  URL="$1"; shift ;;
     esac
 done
+
+if [[ "${URL}" == */taxdump.tar.gz && -n "${OUT}" && -f "${PF_FAKE_PACKAGES:-/nonexistent}/taxdump.tar.gz" ]]; then
+    cp "${PF_FAKE_PACKAGES}/taxdump.tar.gz" "${OUT}"
+    touch -d "2026-10-01 12:00:00 UTC" "${OUT}"
+    exit 0
+fi
 
 FILE="${URL##*/files/}"
 FILE="${FILE%%\?*}"

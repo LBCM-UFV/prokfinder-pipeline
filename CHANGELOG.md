@@ -8,6 +8,41 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 
 ## [Unreleased]
 
+### Added
+- `setup --from-zenodo` (only installs or updates the Zenodo databases) and `setup --update-taxdump-file` (only
+  downloads the current NCBI taxdump and normalizes the NCBI TaxIDs again). The three options of `setup` are
+  alternatives.
+- Module `normalize-ncbi-taxids.sh`: downloads the NCBI taxdump into `<refdb>/NCBI/TAXDUMP` (replaced as a whole, under
+  a lock) and checks the NCBI TaxIDs of the NCBI and BacDive tables against it. The result is written next to the
+  tables (`<source>-taxid-status.tsv`, `bacdive-taxid-status.tsv`, with `TAXID_STATUS` CURRENT/MERGED/DELETED/INVALID,
+  the current TaxID, its species and rank); a DELETED or INVALID TaxID of an assembly is rescued by the organism name
+  (RESCUED/AMBIGUOUS/UNRESOLVED) and listed in `NCBI/taxid-unresolved.tsv`. The checkpoint
+  `TAXID-NORMALIZATION-COMPLETED.txt` is written last.
+- The NCBI tables have the paired assembly of the other database (`ASSEMBLY_PAIRED_ASSEMBLY_ACCESSION`,
+  `ASSEMBLY_PAIRED_ASSEMBLY_REFSEQ_GENBANK_ARE_DIFFERENT`, and `NCBI_REFSEQ_ASSEMBLY_ACCESSION` in the GenBank table or
+  `NCBI_GENBANK_ASSEMBLY_ACCESSION` in the RefSeq table; NULL when there is none or when NCBI says they are different).
+- `search-genomes` writes `NCBI_TAXID_STATUS`, `NCBI_UPDATED_TAXID` and `NCBI_SPECIES_TAXID` (the normalized NCBI
+  TaxID) in the genome metadata. The NCBI taxdump date is recorded in `versions.tsv` (`ncbi-taxdump`, with its citation).
+
+### Changed
+- Reference table formats: NCBI 3 → 4 (no lineage columns `NCBI_<RANK>` and `NCBI_<RANK>_TAXID`; the paired assembly
+  columns above) and BacDive 3 → 4 (no `ncbi_tax_id_rank`: the rank is in `bacdive-taxid-status.tsv`). Tables of the
+  older format are rebuilt from the raw files already downloaded (`setup`), or replaced by new Zenodo packages (**the
+  Zenodo packages of format 3 are obsolete**).
+- `setup` without options does what is missing (installs the databases, downloads the taxdump and normalizes) and only
+  warns when the registry has a newer Zenodo package (before, it replaced the package); `--from-zenodo` replaces it.
+- `search-genomes` and `download-wf` stop when the NCBI TaxIDs were not normalized (run `setup` or `setup
+  --update-taxdump-file`) and warn when the normalization is from a previous day.
+- `search-genomes -t/-f/--ncbi-taxon/-N`: the TaxID filters match the current TaxID of the assembly or any ancestor of it
+  in the NCBI taxonomy (`nodes.dmp`), at any rank (before, only the 8 ranks of the lineage columns), and never use the
+  global `~/.taxonkit` taxdump. The BacDive link uses the current TaxIDs.
+- `setup --from-source` does not use taxonkit and does not download the taxdump (it removes the checkpoint of the
+  normalization; run `setup` afterwards). It cannot be given together with `search-genomes` or `download-wf` in the same
+  command, as `--from-zenodo`.
+
+### Removed
+- `download-reference-db-ncbi.sh --taxdump-dir` and `download-reference-db-bacdive.sh --taxdump-dir`.
+
 ## [0.5.0] - 2026-10-29
 
 ### Changed

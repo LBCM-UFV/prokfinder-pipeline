@@ -1,0 +1,8 @@
+NCBI TaxID normalization finished on 2026-10-30 14:55:39
+date=2099-12-31
+taxdump_date=2026-10-01
+status.BACTERIA-genbank.CURRENT=294
+status.BACTERIA-refseq.CURRENT=239
+status.ARCHAEA-genbank.CURRENT=31
+status.ARCHAEA-refseq.CURRENT=28
+status.BACDIVE.CURRENT=53

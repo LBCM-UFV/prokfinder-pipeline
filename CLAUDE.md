@@ -21,7 +21,8 @@ Index files kept in the repository:
 ```
 main-prokfinder.sh          controller: reads the command line, checks the dependencies and the reference
                             databases, then calls the modules in order. Sub-commands (run in this order):
-                              setup           reference databases (Zenodo packages, or --from-source: NCBI, BacDive, GTDB)
+                              setup           reference databases (Zenodo packages, or --from-source: NCBI, BacDive, GTDB),
+                                              NCBI taxdump and normalization of the NCBI TaxIDs (--update-taxdump-file)
                               search-genomes  genome selection (filters joined with AND/OR)
                               download-wf     download -> curation -> taxonomy -> dereplication -> summary
                               run-on-cluster  writes a PBS job that runs the other sub-commands
@@ -30,6 +31,7 @@ lib/common.sh               sourced by every script: log/die, temporary folders,
                             reference databases (pf_*), table formats (PF_REFDB_FORMAT_*), run_in_own_env
 modules/                    one script per step; each one runs alone too (-h shows its usage)
   download-reference-db-{ncbi,bacdive,gtdb}.sh   setup (0.1-0.3)
+  normalize-ncbi-taxids.sh                       setup 0.4: taxdump + TaxID status tables (CURRENT/MERGED/...)
   search-genomes-in-reference-db.sh              1  selection (reads genome-selection-query.txt)
   download-selected-genomes-from-db.sh           2  datasets rehydrate
   filter-low-quality-contigs-from-genomes.sh     3  seqkit
@@ -57,7 +59,10 @@ previous one (`accessions_where` in main-prokfinder.sh).
 Reference databases (`~/prokfinder-refdb`, `--refdb-dir`) are shared by every run. Each database folder has
 `COMPLETED-DOWNLOAD.txt` with `format=<n>`; when the format in the folder differs from `PF_REFDB_FORMAT_<DB>`,
 search-genomes/download-wf stop and `setup` rebuilds the tables from the raw files already downloaded (nothing is
-downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values converted to NULL).
+downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values converted to NULL). Tables changed by
+`setup` (a package, `--from-source`, a rebuild) invalidate the TaxID normalization: its checkpoint
+(`NCBI/TAXID-NORMALIZATION-COMPLETED.txt`) is removed and `search-genomes`/`download-wf` stop until `setup` makes it
+again (a checkpoint of a previous day is only a warning).
 
 ## Conventions (follow them in every change)
 
@@ -81,7 +86,13 @@ downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values conv
 - **Programs from conda environments** are called with `run_in_own_env <program>` (otherwise another environment's
   python3 may be used; this broke BUSCO on the cluster).
 - **Resources**: programs use `-p` CPUs and `--memory` GB; never more than a PBS job asked for.
-- **Taxonomy is GTDB only** (no NCBI taxonomy filters). NCBI TaxIDs are used only to link BacDive.
+- **The taxonomy of the results is GTDB only.** NCBI TaxIDs are used to filter the search (`-t`, `-N`) and to link
+  BacDive, and always **normalized** first: `setup` downloads the NCBI taxdump (`<refdb>/NCBI/TAXDUMP`) and
+  `modules/normalize-ncbi-taxids.sh` writes the current TaxID of each genome next to the reference tables
+  (`<source>-taxid-status.tsv`, `bacdive-taxid-status.tsv`). Never read `~/.taxonkit`, never use a raw TaxID of the
+  reference tables in a filter.
+- **GenBank and RefSeq (GCA_/GCF_) are different genomes** (their FASTA can differ): never mix them; the NCBI tables
+  carry the paired accession of the other database (and NULL when there is none or NCBI says they differ).
 - Module headers: line 3 is `# <file> - Prokfinder module <step>: <description>` and a `# Usage:` block
   (tools/build-catalog.py reads them). The Python and R helpers (`.py`, `.R`) have the same line 3 and a `Usage:`
   line (in the docstring of the `.py`, without the `# `); tests/cli/static.bats checks all of them.

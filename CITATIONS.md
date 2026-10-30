@@ -17,6 +17,12 @@ copied to `GENOME-DATABASE/versions.tsv`).
   > Exploring and retrieving sequence and metadata for species across the tree of life with NCBI Datasets.
   > Scientific Data. 2024;11(1):732. doi: [10.1038/s41597-024-03571-y](https://doi.org/10.1038/s41597-024-03571-y)
 
+- **NCBI Taxonomy** (taxdump: the NCBI TaxIDs of the NCBI and BacDive tables are checked against it)
+
+  > Schoch CL, Ciufo S, Domrachev M, Hotton CL, Kannan S, Khovanskaya R, Leipe D, Mcveigh R, O'Neill K, Robbertse B,
+  > et al. NCBI Taxonomy: a comprehensive update on curation, resources and tools. Database. 2020;2020:baaa062.
+  > doi: [10.1093/database/baaa062](https://doi.org/10.1093/database/baaa062)
+
 - **BacDive** (phenotypes of the strains)
 
   > Schober I, Koblitz J, Sardà Carbasse J, Ebeling C, Schmidt ML, Podstawka A, Gupta R, Ilangovan V, Chamanara J,

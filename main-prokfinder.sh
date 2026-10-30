@@ -82,15 +82,22 @@ help_setup() {
     cat << EOF
 Usage: ${PROG} setup [options]
 
-Installs the reference databases (NCBI, BacDive and GTDB) from Zenodo and adds them to the reference
-databases directory.
+Installs the reference databases (NCBI, BacDive and GTDB) from Zenodo, downloads the NCBI taxonomy (taxdump)
+and normalizes the NCBI TaxIDs of the tables against it. Without options, it does what is missing: installs the
+databases, and downloads the taxdump and normalizes when that was not done yet; with everything ready, it only
+reports it. The options below are alternatives (use one at most).
 
 Zenodo: ${ZENODO_URL}
 
 EOF
     pf_help_box "Options" << EOF
-  --from-source   Builds the NCBI, BacDive, and GTDB databases via API using their latest versions (replaces the
-                  default Zenodo packages). Note: This performs a full update and may take several hours.
+  --from-zenodo          Only installs or updates the databases from the latest Zenodo packages of the registry
+                         (the TaxIDs must be normalized afterwards: run setup)
+  --update-taxdump-file  Only downloads the current NCBI taxdump and normalizes the NCBI TaxIDs of the NCBI and
+                         BacDive tables again (the taxdump changes every day)
+  --from-source          Builds the NCBI, BacDive, and GTDB databases via API using their latest versions (replaces
+                         the default Zenodo packages). Note: This performs a full update and may take several hours.
+                         It does not download the taxdump: run setup afterwards
 EOF
     help_global_options
 }
@@ -276,7 +283,7 @@ SUBCOMMANDS=" setup search-genomes download-wf run-on-cluster "
 # Options of each section: flags (no value) and options with a value
 GLOBAL_FLAGS=" -h --help --check "
 GLOBAL_VALUES=" -o --output-dir --refdb-dir -p --threads --memory "
-SETUP_FLAGS=" --from-source "
+SETUP_FLAGS=" --from-source --from-zenodo --update-taxdump-file "
 SETUP_VALUES=" "
 SEARCH_FLAGS=" --force-selection --force-search "
 SEARCH_VALUES=" -s --assembly-source "
@@ -313,6 +320,8 @@ THREADS=4
 MEMORY=""
 CHECK_DEPS=0
 FROM_SOURCE=0
+FROM_ZENODO=0
+UPDATE_TAXDUMP=0
 REFDB_REGISTRY="${SCRIPT_DIR}/refdb-zenodo.tsv"
 ZENODO_URL="https://$(pf_registry_value "${REFDB_REGISTRY}" HOST)/records/$(pf_registry_value "${REFDB_REGISTRY}" RECORD)"
 OUTPUT_DIR_GIVEN=0
@@ -519,6 +528,8 @@ while [[ $# -gt 0 ]]; do
         --check)                      CHECK_DEPS=1 ;;
         # setup
         --from-source)                FROM_SOURCE=1 ;;
+        --from-zenodo)                FROM_ZENODO=1 ;;
+        --update-taxdump-file)        UPDATE_TAXDUMP=1 ;;
         # search-genomes: options
         -s|--assembly-source)         ASSEMBLY_SOURCE="${VAL,,}"; QUERY_LINES+=("ASSEMBLY_SOURCE"$'\t'"${VAL,,}") ;;
         --force-selection)            FORCE_SELECTION=1 ;;
@@ -680,6 +691,10 @@ fi
 # an older Prokfinder, whose tables have another format)
 declare -A REFDB_MISSING=()
 declare -A REFDB_OUTDATED=()
+# Normalization of the NCBI TaxIDs (normalize-ncbi-taxids.sh), checked only when the three databases are installed
+# and current: TAXID_MISSING = 1 without its checkpoint; TAXID_DATE = the day it was made
+TAXID_MISSING=0
+TAXID_DATE=""
 # Usage: refdb_dir_of NCBI|BACDIVE|GTDB
 refdb_dir_of() {
     case "$1" in
@@ -692,6 +707,8 @@ check_refdb_state() {
     local DB DB_DIR FORMAT_VAR
     REFDB_MISSING=()
     REFDB_OUTDATED=()
+    TAXID_MISSING=0
+    TAXID_DATE=""
     for DB in NCBI BACDIVE GTDB; do
         DB_DIR="$(refdb_dir_of "${DB}")"
         FORMAT_VAR="PF_REFDB_FORMAT_${DB}"
@@ -701,6 +718,13 @@ check_refdb_state() {
             REFDB_OUTDATED["${DB}"]=1
         fi
     done
+    if [[ "${#REFDB_MISSING[@]}" -eq 0 && "${#REFDB_OUTDATED[@]}" -eq 0 ]]; then
+        if [[ -f "$(pf_taxid_marker "${NCBI_DIR}")" ]]; then
+            TAXID_DATE="$(pf_taxid_marker_value "${NCBI_DIR}" date)"
+        else
+            TAXID_MISSING=1
+        fi
+    fi
 }
 check_refdb_state
 
@@ -713,7 +737,7 @@ check_refdb_state
 DEPS_SEARCH=(
     "datasets|conda install -c conda-forge ncbi-datasets-cli"
     "dataformat|conda install -c conda-forge ncbi-datasets-cli (installed together with datasets)"
-    "taxonkit|conda install -c bioconda taxonkit (used by setup)"
+    "taxonkit|conda install -c bioconda taxonkit (used by search-genomes to convert taxon names to TaxIDs)"
 )
 DEPS_DOWNLOAD=(
     "seqkit|conda install -c bioconda seqkit"
@@ -885,6 +909,15 @@ if [[ -n "${RUN[run-on-cluster]:-}" && "${#RUN[@]}" -eq 1 && "${PBS_ARGS[*]:-}" 
     cli_error "run-on-cluster needs another sub-command to run on the cluster (setup, search-genomes and/or download-wf), or --test." run-on-cluster
 fi
 
+if [[ -n "${RUN[setup]:-}" ]]; then
+    [[ $(( FROM_SOURCE + FROM_ZENODO + UPDATE_TAXDUMP )) -le 1 ]] \
+        || cli_error "--from-source, --from-zenodo and --update-taxdump-file cannot be used together: each one does a different part of the setup." setup
+    # (the TaxIDs of tables installed by these options are normalized afterwards: by setup or --update-taxdump-file)
+    if [[ $(( FROM_SOURCE + FROM_ZENODO )) -gt 0 && ( -n "${RUN[search-genomes]:-}" || -n "${RUN[download-wf]:-}" ) ]]; then
+        cli_error "setup --from-source and setup --from-zenodo do not normalize the NCBI TaxIDs, which search-genomes and download-wf need: run '${PROG} setup' (or '${PROG} setup --update-taxdump-file') after them, and then the other sub-commands." setup
+    fi
+fi
+
 if [[ -n "${RUN[search-genomes]:-}" ]]; then
     [[ "${N_FILTERS}" -gt 0 ]] || cli_error "search-genomes needs at least one selection filter." search-genomes
     if [[ "${EXPR_PREV}" == "operator" || "${EXPR_PREV}" == "open" ]]; then
@@ -1004,6 +1037,17 @@ if [[ -z "${RUN[setup]:-}" && ( -n "${RUN[search-genomes]:-}" || -n "${RUN[downl
     if [[ "${#REFDB_OUTDATED[@]}" -gt 0 ]]; then
         cli_error "The reference databases in ${REF_DIR} were installed by an older version of Prokfinder (tables to update: $(for DB in NCBI BACDIVE GTDB; do [[ -n "${REFDB_OUTDATED[${DB}]:-}" ]] && printf "%s " "${DB}"; done | sed "s/ $//")). Update them with: ${PROG} setup (databases built from the sources are rebuilt from the files already downloaded; the ones from Zenodo are downloaded again as the new package)."
     fi
+    if [[ "${TAXID_MISSING}" -eq 1 ]]; then
+        cli_error "The NCBI TaxIDs of the reference databases in ${REF_DIR} were not normalized (the tables were installed or changed without the taxdump, or the normalization was interrupted). Run: ${PROG} setup (or ${PROG} setup --update-taxdump-file)."
+    fi
+    if [[ -n "${TAXID_DATE}" && "${TAXID_DATE}" < "$(date +%F)" ]]; then
+        log "warning" "The NCBI TaxIDs were normalized on ${TAXID_DATE}, with the taxdump of that day. To use the current NCBI taxonomy, run: ${PROG} setup --update-taxdump-file"
+    fi
+fi
+
+# setup --update-taxdump-file needs the databases installed and current (it only downloads the taxdump and normalizes)
+if [[ -n "${RUN[setup]:-}" && "${UPDATE_TAXDUMP}" -eq 1 ]] && [[ "${#REFDB_MISSING[@]}" -gt 0 || "${#REFDB_OUTDATED[@]}" -gt 0 ]]; then
+    cli_error "--update-taxdump-file needs the reference databases installed and current in ${REF_DIR}. Install or update them first with: ${PROG} setup" setup
 fi
 
 # download-wf works on the genomes selected by search-genomes (in this command or before, in the same results folder)
@@ -1085,20 +1129,27 @@ fi
 # Reference databases whose module must run (setup):
 #   - not installed: from the Zenodo package, or from the sources with --from-source;
 #   - full update (REFDB_FULL_UPDATE, confirmed): downloaded again from the sources;
-#   - installed from Zenodo: replaced when the registry has a newer package or the table format changed;
-#   - built from the sources, of an older table format: rebuilt from the raw files already downloaded;
+#   - installed from Zenodo: replaced when the table format changed, or (only with --from-zenodo) when the registry
+#     has a newer package; plain setup only warns about the newer package;
+#   - built from the sources, of an older table format: rebuilt from the raw files already downloaded (not with
+#     --from-zenodo, which only handles the Zenodo databases);
+#   - --update-taxdump-file: no database is installed.
 
 declare -A REFDB_NEEDED=()
 # ... and, among them, those installed from a Zenodo package
 declare -A REFDB_PACKAGE=()
 # ... and those installed from Zenodo that have a newer package in the registry (only for the log)
 declare -A REFDB_NEW_PACKAGE=()
+# Databases installed from Zenodo that have a newer package in the registry, not installed (plain setup: warning)
+declare -A REFDB_NEWER_AVAILABLE=()
 refdb_needed() {
     local DB DB_DIR FORMAT_VAR
     REFDB_NEEDED=()
     REFDB_PACKAGE=()
     REFDB_NEW_PACKAGE=()
+    REFDB_NEWER_AVAILABLE=()
     check_refdb_state
+    [[ "${UPDATE_TAXDUMP}" -eq 0 ]] || return 0
     for DB in NCBI BACDIVE GTDB; do
         DB_DIR="$(refdb_dir_of "${DB}")"
         FORMAT_VAR="PF_REFDB_FORMAT_${DB}"
@@ -1115,17 +1166,36 @@ refdb_needed() {
                 REFDB_NEEDED["${DB}"]=1
                 REFDB_PACKAGE["${DB}"]=1
             elif ! pf_refdb_package_current "${REFDB_REGISTRY}" "${DB}" "${!FORMAT_VAR}" "${DB_DIR}"; then
-                REFDB_NEEDED["${DB}"]=1
-                REFDB_PACKAGE["${DB}"]=1
-                REFDB_NEW_PACKAGE["${DB}"]=1
+                if [[ "${FROM_ZENODO}" -eq 1 ]]; then
+                    REFDB_NEEDED["${DB}"]=1
+                    REFDB_PACKAGE["${DB}"]=1
+                    REFDB_NEW_PACKAGE["${DB}"]=1
+                else
+                    REFDB_NEWER_AVAILABLE["${DB}"]=1
+                fi
             fi
-        elif [[ -n "${REFDB_OUTDATED[${DB}]:-}" ]]; then
+        elif [[ -n "${REFDB_OUTDATED[${DB}]:-}" && "${FROM_ZENODO}" -eq 0 ]]; then
             REFDB_NEEDED["${DB}"]=1
         fi
     done
 }
+# Whether setup downloads the taxdump and normalizes the NCBI TaxIDs: always with --update-taxdump-file; never with
+# --from-source and --from-zenodo (they change the tables, so they remove the checkpoint of the normalization);
+# plain setup when it installs a database, or the checkpoint or the taxdump is missing
+NORMALIZE=0
+# 0 if setup changes a table with NCBI TaxIDs (NCBI or BacDive); the GTDB tables do not have any
+taxid_tables_change() { [[ -n "${REFDB_NEEDED[NCBI]:-}" || -n "${REFDB_NEEDED[BACDIVE]:-}" ]]; }
+normalize_needed() {
+    NORMALIZE=0
+    [[ "${FROM_SOURCE}" -eq 0 && "${FROM_ZENODO}" -eq 0 ]] || return 0
+    if [[ "${UPDATE_TAXDUMP}" -eq 1 ]] || taxid_tables_change || [[ "${TAXID_MISSING}" -eq 1 \
+            || ! -s "$(pf_ncbi_taxdump_dir "${NCBI_DIR}")/names.dmp" ]]; then
+        NORMALIZE=1
+    fi
+}
 if [[ -n "${RUN[setup]:-}" ]]; then
     refdb_needed
+    normalize_needed
 fi
 
 # Only the programs of the sub-commands given are required (the genome search does not need the programs of
@@ -1147,14 +1217,17 @@ if [[ "${#REFDB_PACKAGE[@]}" -gt 0 ]]; then
     done
 fi
 if [[ -n "${REFDB_NEEDED[NCBI]:-}" && -z "${REFDB_PACKAGE[NCBI]:-}" ]]; then
-    for TOOL in datasets dataformat taxonkit unzip tar; do
+    for TOOL in datasets dataformat unzip; do
         check_program "${TOOL}"
     done
 fi
 if [[ -n "${REFDB_NEEDED[BACDIVE]:-}" && -z "${REFDB_PACKAGE[BACDIVE]:-}" ]]; then
-    for TOOL in jq gawk taxonkit; do
+    for TOOL in jq gawk; do
         check_program "${TOOL}"
     done
+fi
+if [[ "${NORMALIZE}" -eq 1 ]]; then
+    check_program tar
 fi
 if [[ -n "${REFDB_NEEDED[GTDB]:-}" && -z "${REFDB_PACKAGE[GTDB]:-}" ]]; then
     check_program md5sum
@@ -1273,6 +1346,11 @@ install_refdb() {
     fi
     mv "${NEW_DIR}" "${DB_DIR}"
     sed -i "s#${NEW_DIR}#${DB_DIR}#g" "$(pf_completed_marker "${DB_DIR}")"
+    # The taxdump is not part of the packages nor of the sources: the one already downloaded is kept (the tables are
+    # new, so the TaxIDs have to be normalized again)
+    if [[ "${DB}" == "NCBI" && -d "${OLD_DIR}/TAXDUMP" && ! -e "${DB_DIR}/TAXDUMP" ]]; then
+        mv "${OLD_DIR}/TAXDUMP" "${DB_DIR}/TAXDUMP"
+    fi
     rm -rf "${OLD_DIR}"
     [[ -z "${REFDB_FULL_UPDATE[${DB}]:-}" ]] || echo "${DB}" >> "${FULL_UPDATE_STATE}"
     log "message" "New ${DB} reference database installed in ${DB_DIR} (the previous one was removed)."
@@ -1282,6 +1360,10 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     log "message" "======== setup: reference databases ========"
     if [[ "${FROM_SOURCE}" -eq 1 ]]; then
         log "message" "Option --from-source: the databases are built from the NCBI, BacDive and GTDB sources."
+    elif [[ "${UPDATE_TAXDUMP}" -eq 1 ]]; then
+        log "message" "Option --update-taxdump-file: only the NCBI taxdump and the normalization of the NCBI TaxIDs are updated."
+    elif [[ "${FROM_ZENODO}" -eq 1 ]]; then
+        log "message" "Option --from-zenodo: the databases are installed or updated from Zenodo (registry ${REFDB_REGISTRY})."
     else
         log "message" "The databases are downloaded from Zenodo (registry ${REFDB_REGISTRY}); use --from-source to build them from the sources."
     fi
@@ -1304,14 +1386,23 @@ if [[ -n "${RUN[setup]:-}" ]]; then
                 log "message" "Another Prokfinder run is installing the reference databases in ${REF_DIR}; waiting for it to finish..."
                 flock 9
                 refdb_needed
+                normalize_needed
             fi
             REFDB_LOCKED=1
         else
             log "warning" "'flock' not found: two Prokfinder runs installing the reference databases at the same time could conflict."
         fi
     fi
+    # The tables are going to change: their TaxIDs are not normalized any more (the checkpoint is written again by
+    # the normalization, or by setup / setup --update-taxdump-file later)
+    if taxid_tables_change; then
+        rm -f "$(pf_taxid_marker "${NCBI_DIR}")"
+    fi
 
     for DB in NCBI BACDIVE GTDB; do
+        if [[ -n "${REFDB_NEWER_AVAILABLE[${DB}]:-}" ]]; then
+            log "warning" "The registry ${REFDB_REGISTRY} has a newer Zenodo package of ${DB} than the one installed; setup does not replace it. To install it, run: ${PROG} setup --from-zenodo"
+        fi
         if [[ -n "${REFDB_NEW_PACKAGE[${DB}]:-}" ]]; then
             log "message" "The registry ${REFDB_REGISTRY} has a newer Zenodo package of ${DB}: it replaces the installed one."
         elif [[ -z "${REFDB_FULL_UPDATE[${DB}]:-}" && -n "${REFDB_OUTDATED[${DB}]:-}" ]]; then
@@ -1329,12 +1420,11 @@ if [[ -n "${RUN[setup]:-}" ]]; then
         log "message" "NCBI reference data already installed ($(head -n 1 "$(pf_completed_marker "${NCBI_DIR}")"))."
     fi
 
-    # The rank of the BacDive TaxIDs is found with the NCBI taxonomy downloaded with the NCBI tables. Tables of an
-    # older Prokfinder are rebuilt from the strains already downloaded (no request to the BacDive API)
+    # Tables of an older Prokfinder are rebuilt from the strains already downloaded (no request to the BacDive API)
     if [[ -n "${REFDB_NEEDED[BACDIVE]:-}" ]]; then
-        BACDIVE_ARGS=(--taxdump-dir "$(pf_ncbi_taxdump_dir "${NCBI_DIR}")")
+        BACDIVE_ARGS=()
         [[ -n "${REFDB_FULL_UPDATE[BACDIVE]:-}" || -z "${REFDB_OUTDATED[BACDIVE]:-}" ]] || BACDIVE_ARGS+=(--skip-download)
-        install_refdb BACDIVE "${BACDIVE_DIR}" download-reference-db-bacdive.sh "${BACDIVE_ARGS[@]}"
+        install_refdb BACDIVE "${BACDIVE_DIR}" download-reference-db-bacdive.sh ${BACDIVE_ARGS[@]+"${BACDIVE_ARGS[@]}"}
     else
         log "message" "BacDive reference data already installed ($(head -n 1 "$(pf_completed_marker "${BACDIVE_DIR}")"))."
     fi
@@ -1347,6 +1437,22 @@ if [[ -n "${RUN[setup]:-}" ]]; then
     # Every database is installed: the next full update starts from scratch
     rm -f "${FULL_UPDATE_STATE}" "${SOURCE_INSTALL_STATE}"
     rmdir "${REF_DIR}/.zenodo-download" 2>/dev/null || true
+
+    # NCBI taxdump and normalization of the NCBI TaxIDs (a new taxdump is downloaded every time)
+    if [[ "${NORMALIZE}" -eq 1 ]]; then
+        run_module normalize-ncbi-taxids.sh -o "${REF_DIR}"
+    elif [[ "${FROM_SOURCE}" -eq 1 ]] || { [[ "${FROM_ZENODO}" -eq 1 ]] && taxid_tables_change; }; then
+        log "warning" "The NCBI TaxIDs of the new tables are not normalized yet: run '${PROG} setup' (or '${PROG} setup --update-taxdump-file') before search-genomes and download-wf."
+    else
+        check_refdb_state
+        if [[ "${#REFDB_MISSING[@]}" -gt 0 || "${#REFDB_OUTDATED[@]}" -gt 0 ]]; then
+            log "warning" "Some reference databases are still missing or installed by an older version of Prokfinder: run '${PROG} setup' (without options) to update them and normalize the NCBI TaxIDs."
+        elif [[ "${TAXID_MISSING}" -eq 1 ]]; then
+            log "warning" "The NCBI TaxIDs of the reference databases are not normalized: run '${PROG} setup' (or '${PROG} setup --update-taxdump-file')."
+        else
+            log "message" "The reference databases are ready: NCBI TaxIDs normalized on ${TAXID_DATE:-?} (taxdump of $(pf_taxid_marker_value "${NCBI_DIR}" taxdump_date)). To use the current NCBI taxonomy, run: ${PROG} setup --update-taxdump-file"
+        fi
+    fi
 
     if [[ "${REFDB_LOCKED}" -eq 1 ]]; then
         flock -u 9
@@ -1513,6 +1619,8 @@ write_run_record() {
             fi
             printf '%s\tdatabase\t%s\t%s\n' "${DB}" "${VALUE}" "${SOURCE}"
         done
+        printf 'ncbi-taxdump\tdatabase\t%s (NCBI TaxIDs normalized on %s)\t%s\n' \
+            "$(pf_taxid_marker_value "${NCBI_DIR}" taxdump_date)" "$(pf_taxid_marker_value "${NCBI_DIR}" date)" "$(pf_ncbi_taxdump_dir "${NCBI_DIR}")"
         printf 'checkm2-database\tdatabase\t%s\t%s\n' "$(basename "${CHECKM2DB:-}")" "${CHECKM2DB:-}"
         if [[ "${SKIP_BUSCO}" -eq 0 ]]; then
             LINEAGES=""

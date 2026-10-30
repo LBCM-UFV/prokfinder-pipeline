@@ -91,7 +91,29 @@
       "kind": "option",
       "takes_value": false,
       "argument": "",
-      "description": "Builds the NCBI, BacDive, and GTDB databases via API using their latest versions (replaces the"
+      "description": "Builds the NCBI, BacDive, and GTDB databases via API using their latest versions (replaces the default Zenodo packages). Note: This performs a full update and may take several hours. It does not download the taxdump: run setup afterwards"
+    },
+    {
+      "name": "--from-zenodo",
+      "aliases": [
+        "--from-zenodo"
+      ],
+      "section": "setup",
+      "kind": "option",
+      "takes_value": false,
+      "argument": "",
+      "description": "Only installs or updates the databases from the latest Zenodo packages of the registry (the TaxIDs must be normalized afterwards: run setup)"
+    },
+    {
+      "name": "--update-taxdump-file",
+      "aliases": [
+        "--update-taxdump-file"
+      ],
+      "section": "setup",
+      "kind": "option",
+      "takes_value": false,
+      "argument": "",
+      "description": "Only downloads the current NCBI taxdump and normalizes the NCBI TaxIDs of the NCBI and BacDive tables again (the taxdump changes every day)"
     },
     {
       "name": "--force-selection",
@@ -753,7 +775,7 @@
       "description": "NCBI reference database",
       "usage": [
         "download-reference-db-ncbi.sh - Prokfinder module 0.1: NCBI reference database",
-        "Usage: download-reference-db-ncbi.sh -o <ncbi_dir> [--assembly-source all|genbank|refseq] [--taxdump-dir <dir>]"
+        "Usage: download-reference-db-ncbi.sh -o <ncbi_dir> [--assembly-source all|genbank|refseq]"
       ],
       "language": "bash"
     },
@@ -804,6 +826,16 @@
       "usage": [
         "filter-low-quality-contigs-from-genomes.sh - Prokfinder module 3: contig filtering",
         "Usage: filter-low-quality-contigs-from-genomes.sh -l <accession_list> -i <raw_genomes_dir>"
+      ],
+      "language": "bash"
+    },
+    {
+      "file": "modules/normalize-ncbi-taxids.sh",
+      "step": "0.4",
+      "description": "NCBI taxdump and normalization of the NCBI TaxIDs",
+      "usage": [
+        "normalize-ncbi-taxids.sh - Prokfinder module 0.4: NCBI taxdump and normalization of the NCBI TaxIDs",
+        "Usage: normalize-ncbi-taxids.sh -o <refdb_dir> [--skip-download]"
       ],
       "language": "bash"
     },
@@ -1054,6 +1086,26 @@
       "usage": ""
     },
     {
+      "name": "pf_ncbi_taxid_status_table",
+      "summary": "TaxID normalization (normalize-ncbi-taxids.sh): derived table next to each NCBI table, report and checkpoint",
+      "usage": ""
+    },
+    {
+      "name": "pf_ncbi_taxid_report",
+      "summary": "",
+      "usage": ""
+    },
+    {
+      "name": "pf_taxid_marker",
+      "summary": "",
+      "usage": ""
+    },
+    {
+      "name": "pf_taxid_marker_value",
+      "summary": "Prints the value of the first \"<key>=<value>\" line of the TaxID normalization checkpoint (nothing if there is none)",
+      "usage": "Usage: pf_taxid_marker_value <ncbi_dir> <key>"
+    },
+    {
       "name": "pf_bacdive_brute_dir",
       "summary": "BacDive (<bacdive_dir> = .../REFERENCE-METADATA/BACDIVE)",
       "usage": ""
@@ -1070,6 +1122,11 @@
     },
     {
       "name": "pf_bacdive_species_table",
+      "summary": "",
+      "usage": ""
+    },
+    {
+      "name": "pf_bacdive_taxid_status_table",
       "summary": "",
       "usage": ""
     },
@@ -1145,8 +1202,8 @@
     }
   ],
   "reference_database_formats": {
-    "NCBI": 3,
-    "BACDIVE": 3,
+    "NCBI": 4,
+    "BACDIVE": 4,
     "GTDB": 4
   },
   "dependencies": {
@@ -1161,7 +1218,7 @@
       },
       {
         "program": "taxonkit",
-        "install": "conda install -c bioconda taxonkit (used by setup)"
+        "install": "conda install -c bioconda taxonkit (used by search-genomes to convert taxon names to TaxIDs)"
       }
     ],
     "download-wf": [

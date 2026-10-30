@@ -61,6 +61,15 @@ Refazer a fixture (depois de mudar o formato de um banco, `PF_REFDB_FORMAT_*`): 
 copiar `refdb`, `refdb-raw`, `FIXTURE.txt` e `fixture-accession-numbers.txt` para `tests/data/`, depois
 `tests/run-tests.sh --update-expected` e revisar o `git diff`.
 
+A `refdb` também já está **normalizada** (como depois de um `setup`): tem o `NCBI/TAXDUMP` mínimo (com
+`taxdump-date.txt` = 2026-10-01), as tabelas `*-taxid-status.tsv` e o marcador `TAXID-NORMALIZATION-COMPLETED.txt`, com
+`date=2099-12-31` para os testes nunca receberem o aviso de normalização de um dia anterior. Os pacotes do Zenodo dos
+testes (`setup-zenodo.bats`) não levam nada disso: o `setup` baixa o taxdump (o `curl` falso serve o de `refdb-raw`) e
+normaliza. Na regeneração de 30/10/2026 (formatos NCBI 4 e BacDive 4) a `refdb` foi refeita **sem o cluster**, rodando o
+`setup` sobre uma cópia de `refdb-raw` com os marcadores em `format=1` e montando a `refdb` com as tabelas resultantes
+(a tabela por espécie do BacDive filtrada aos TaxIDs antigos); o `make-fixture.sh` produz o mesmo resultado a partir de
+um banco completo e normalizado.
+
 ## O download-wf nos testes (tests/module/download-wf.bats)
 
 O `download-wf` roda inteiro (módulos 2 a 11) sobre a fixture, com os genomas de `data/genomes`:

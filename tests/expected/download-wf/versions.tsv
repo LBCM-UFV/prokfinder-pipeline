@@ -9,6 +9,7 @@ checkm2-database	database	10.1038/s41592-023-01940-w
 datasets	program	10.1038/s41597-024-03571-y
 gtdbtk	program	10.1093/bioinformatics/btac672; 10.1038/s41592-023-02018-3
 gtdbtk-reference	database	10.1093/nar/gkaf1040; 10.1093/nar/gkab776
+ncbi-taxdump	database	10.1093/database/baaa062
 prokfinder	program	https://github.com/LBCM-UFV/prokfinder-pipeline
 pyrodigal	program	10.21105/joss.04296; 10.1186/1471-2105-11-119
 seqkit	program	10.1002/imt2.191

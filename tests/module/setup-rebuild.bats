@@ -5,7 +5,7 @@
 # (tests/data/refdb: the same rows, copied by tests/data/make-fixture.sh)
 
 # Programs used by the rebuild of the three databases
-REBUILD_PROGRAMS="datasets dataformat taxonkit jq gawk unzip md5sum"
+REBUILD_PROGRAMS="datasets dataformat jq gawk unzip md5sum"
 
 setup_file() {
     load ../helpers/common
@@ -21,11 +21,15 @@ setup_file() {
     # Checkpoints of an older Prokfinder
     sed -i 's/^format=.*/format=1/' "${REFDB}"/*/COMPLETED-DOWNLOAD.txt
 
-    # Sentinels: any download attempt is recorded (and fails)
+    # Sentinels: any download attempt is recorded (and fails), except the NCBI taxdump, which the normalization of the
+    # TaxIDs downloads (served by the fake curl)
     local BIN="${BATS_FILE_TMPDIR}/bin" REAL_DATASETS
     REAL_DATASETS="$(command -v datasets)"
-    mkdir -p "${BIN}"
-    printf '#!/usr/bin/env bash\necho "curl $*" >> "%s/downloads.txt"\nexit 22\n' "${BATS_FILE_TMPDIR}" > "${BIN}/curl"
+    mkdir -p "${BIN}" "${BATS_FILE_TMPDIR}/packages"
+    tar -czf "${BATS_FILE_TMPDIR}/packages/taxdump.tar.gz" -C "${PF_FIXTURE_RAW}/NCBI/TAXDUMP" names.dmp nodes.dmp merged.dmp delnodes.dmp
+    export PF_FAKE_PACKAGES="${BATS_FILE_TMPDIR}/packages" PF_FAKE_LOG="${BATS_FILE_TMPDIR}/calls.log"
+    printf '#!/usr/bin/env bash\nfor A in "$@"; do U="$A"; done\n[[ "$U" == */taxdump.tar.gz ]] && exec "%s/bin/curl" "$@"\necho "curl $*" >> "%s/downloads.txt"\nexit 22\n' \
+        "${PF_TESTS}" "${BATS_FILE_TMPDIR}" > "${BIN}/curl"
     printf '#!/usr/bin/env bash\n[[ "$1" == "--version" || "$1" == "version" ]] && exec "%s" "$@"\necho "datasets $*" >> "%s/downloads.txt"\nexit 1\n' \
         "${REAL_DATASETS}" "${BATS_FILE_TMPDIR}" > "${BIN}/datasets"
     chmod +x "${BIN}"/*
@@ -75,6 +79,32 @@ assert_rebuilt_table() {
             assert_rebuilt_table "NCBI/${DOMAIN}-NCBI-METADATA/${SOURCE}-metadata.tsv"
         done
     done
+}
+
+@test "NCBI: no lineage columns; the paired accession of the other database (NULL when there is none)" {
+    local TABLE
+    for TABLE in genbank refseq; do
+        run awk -F'\t' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i ~ /^NCBI_(DOMAIN|PHYLUM|SPECIES|STRAIN)/) n++ } END { print n + 0 }' \
+            "${REFDB}/NCBI/BACTERIA-NCBI-METADATA/${TABLE}-metadata.tsv"
+        assert_output_equals "0"
+    done
+    run tsv_value "${REFDB}/NCBI/BACTERIA-NCBI-METADATA/genbank-metadata.tsv" GCA_000008125.1 NCBI_REFSEQ_ASSEMBLY_ACCESSION
+    assert_output_equals "GCF_000008125.1"
+    run tsv_value "${REFDB}/NCBI/BACTERIA-NCBI-METADATA/refseq-metadata.tsv" GCF_000008125.1 NCBI_GENBANK_ASSEMBLY_ACCESSION
+    assert_output_equals "GCA_000008125.1"
+}
+
+@test "the TaxIDs are normalized after the rebuild: status tables as in the complete database, checkpoint written" {
+    run cat "${BATS_FILE_TMPDIR}/setup.log"
+    assert_output_contains "NCBI TaxID normalization completed successfully!"
+    local DOMAIN SOURCE
+    for DOMAIN in BACTERIA ARCHAEA; do
+        for SOURCE in genbank refseq; do
+            assert_rebuilt_table "NCBI/${DOMAIN}-NCBI-METADATA/${SOURCE}-taxid-status.tsv"
+        done
+    done
+    assert_file_exists "${REFDB}/NCBI/TAXID-NORMALIZATION-COMPLETED.txt"
+    assert_file_exists "${REFDB}/BACDIVE/BACDIVE-FORMATTED-TSV/bacdive-taxid-status.tsv"
 }
 
 @test "BacDive: strain and species tables are the same as in the complete database" {

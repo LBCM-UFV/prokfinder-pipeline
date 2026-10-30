@@ -276,18 +276,18 @@ rows_violating() {
 
 @test "--ncbi-taxon and -N: the names are converted to TaxIDs with taxonkit; a name without TaxID is an invalid filter" {
     command -v taxonkit >/dev/null 2>&1 || skip "taxonkit not installed"
-    cp -r "${PF_FIXTURE_REFDB}" refdb-with-taxdump
-    cp -r "${PF_FIXTURE_RAW}/NCBI/TAXDUMP" refdb-with-taxdump/NCBI/TAXDUMP
-    run bash "${PF_MAIN}" --refdb-dir refdb-with-taxdump -o taxon search-genomes --ncbi-taxon "Thermus thermophilus"
+    # (the fixture has its own mini taxdump, NCBI/TAXDUMP)
+    local REFDB_WITH_TAXDUMP="${PF_FIXTURE_REFDB}"
+    run bash "${PF_MAIN}" --refdb-dir "${REFDB_WITH_TAXDUMP}" -o taxon search-genomes --ncbi-taxon "Thermus thermophilus"
     assert_success
     assert_genome_selected taxon GCA_000008125.1
     assert_genome_selected taxon GCA_000091545.1
     refute_genome_selected taxon "${D_RADIODURANS}"
     printf 'Species Name\nPyrococcus horikoshii\n' > names.txt
-    run bash "${PF_MAIN}" --refdb-dir refdb-with-taxdump -o names search-genomes -N names.txt
+    run bash "${PF_MAIN}" --refdb-dir "${REFDB_WITH_TAXDUMP}" -o names search-genomes -N names.txt
     assert_success
     assert_genome_selected names GCA_000011105.1
-    run bash "${PF_MAIN}" --refdb-dir refdb-with-taxdump -o missing search-genomes --ncbi-taxon "Thermus nonexistentus"
+    run bash "${PF_MAIN}" --refdb-dir "${REFDB_WITH_TAXDUMP}" -o missing search-genomes --ncbi-taxon "Thermus nonexistentus"
     assert_failure
     assert_output_contains "taxon name not found in the NCBI taxonomy"
     assert_file_exists missing/SEARCH-GENOMES-ERRORS.tsv

@@ -41,7 +41,8 @@ pf_var() {
 }
 
 # Writes the checkpoints of the three reference databases in <refdb_dir> with the formats expected by the code
-# (or <format> for every database), without any table: enough for the checks made before a run
+# (or <format> for every database), and the checkpoint of the normalization of the NCBI TaxIDs (dated today; not
+# written when NO_TAXID_MARKER=1), without any table: enough for the checks made before a run
 # Usage: make_refdb_markers <refdb_dir> [format]
 make_refdb_markers() {
     local DB FORMAT
@@ -50,6 +51,9 @@ make_refdb_markers() {
         mkdir -p "$1/${DB}"
         printf 'format=%s\n' "${FORMAT}" > "$1/${DB}/COMPLETED-DOWNLOAD.txt"
     done
+    if [[ "${NO_TAXID_MARKER:-0}" -ne 1 ]]; then
+        printf 'date=%s\ntaxdump_date=%s\n' "$(date +%F)" "$(date +%F)" > "$1/NCBI/TAXID-NORMALIZATION-COMPLETED.txt"
+    fi
 }
 
 # Runs Prokfinder on a terminal (util-linux script), typing <answer> to its question; skips when script is missing

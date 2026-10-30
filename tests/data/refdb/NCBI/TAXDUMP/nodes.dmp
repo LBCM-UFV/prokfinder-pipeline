@@ -1,0 +1,128 @@
+1	|	1	|	no rank	|		|	8	|	0	|	1	|	0	|	0	|	0	|	0	|	0	|		|
+2	|	131567	|	domain	|		|	0	|	0	|	11	|	0	|	0	|	0	|	0	|	0	|		|
+270	|	188786	|	genus	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+271	|	270	|	species	|	TA	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+274	|	270	|	species	|	TT	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+275	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+276	|	270	|	species	|	TF	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1297	|	3384194	|	phylum	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+1298	|	183710	|	genus	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+1299	|	1298	|	species	|	DR	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1678	|	31953	|	genus	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+1760	|	201174	|	class	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+2157	|	131567	|	domain	|		|	0	|	0	|	11	|	0	|	0	|	0	|	0	|	0	|		|
+2182	|	183939	|	order	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+2190	|	196118	|	species	|	MJ	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+2258	|	183968	|	order	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+2259	|	2258	|	family	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+2260	|	2259	|	genus	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+2261	|	2260	|	species	|	PF	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+2262	|	2260	|	species	|	PW	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+2263	|	2259	|	genus	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+2335	|	188709	|	genus	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+2336	|	2335	|	species	|	TM	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+2419	|	188708	|	order	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+28890	|	3366610	|	phylum	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+29292	|	2260	|	species	|	PA	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	effective current name;specified	|
+31953	|	85004	|	family	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+33866	|	2629106	|	species	|	PS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+37636	|	270	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+48510	|	2157	|	no rank	|		|	11	|	0	|	11	|	1	|	0	|	1	|	0	|	0	|	uncultured	|
+49928	|	2	|	no rank	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+53953	|	2260	|	species	|	PH	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+54262	|	2263	|	species	|	TC	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+56956	|	270	|	species	|	TB	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+56957	|	270	|	species	|	TO	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+62269	|	270	|	no rank	|		|	11	|	0	|	11	|	1	|	0	|	1	|	0	|	0	|	uncultured	|
+68933	|	188787	|	order	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+70601	|	53953	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+78344	|	78448	|	subspecies	|	BP	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+78448	|	1678	|	species	|	BP	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+85004	|	1760	|	order	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+88189	|	270	|	species	|	TI	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+88190	|	270	|	species	|	TA	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+115547	|	48510	|	species	|	UA	|	11	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	uncultured	|
+118964	|	188787	|	order	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+131567	|	1	|	cellular root	|	CO	|	8	|	1	|	1	|	1	|	0	|	1	|	1	|	0	|		|
+157149	|	62269	|	species	|	UT	|	11	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	uncultured	|
+167875	|	1297	|	no rank	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+171864	|	270	|	species	|	TK	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	effective current name;specified	|
+183710	|	118964	|	family	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+183939	|	2283794	|	class	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+183968	|	28890	|	class	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+186497	|	2261	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+188708	|	200918	|	class	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+188709	|	2419	|	family	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+188786	|	68933	|	family	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+188787	|	1297	|	class	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+196117	|	2182	|	family	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+196118	|	196117	|	genus	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant	|
+200918	|	3384194	|	phylum	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+201174	|	1783272	|	phylum	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+243230	|	1299	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+243232	|	2190	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+243274	|	2336	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+262724	|	274	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+272844	|	29292	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+300852	|	274	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+342949	|	2629106	|	species	|	PS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+456163	|	270	|	species	|	TP	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	effective current name;specified	|
+482827	|	270	|	species	|	TA	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+498848	|	271	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+529709	|	1008460	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+532059	|	270	|	species	|	TC	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+540988	|	270	|	species	|	TI	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+570924	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+743525	|	37636	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+751945	|	56957	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+762633	|	274	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+798128	|	274	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+874265	|	188786	|	no rank	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1008460	|	2260	|	species	|	PY	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1046939	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1111069	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1123386	|	88190	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1123387	|	271	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1123388	|	88189	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1123389	|	540988	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1123390	|	56957	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1123391	|	37636	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1183377	|	2629106	|	species	|	PS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1185654	|	2261	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1214928	|	270	|	species	|	TT	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1293587	|	171864	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1293589	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1316935	|	274	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1330700	|	270	|	species	|	TC	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1382313	|	37636	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1449080	|	270	|	species	|	TA	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1449357	|	1214928	|	strain	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1577051	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1609559	|	2260	|	species	|	PK	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1761908	|	270	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+1783272	|	2	|	kingdom	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+1869227	|	49928	|	species	|	BX	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1913990	|	167875	|	species	|	DB	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+1930763	|	270	|	species	|	TC	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+2078690	|	270	|	species	|	TT	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|	code compliant; specified	|
+2250253	|	183968	|	no rank	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+2250254	|	2250253	|	species	|	TA	|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+2283794	|	28890	|	clade	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+2483360	|	270	|	species	|	TC	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2509362	|	270	|	species	|	TT	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2614257	|	874265	|	species	|	TB	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+2619321	|	270	|	no rank	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+2629106	|	2260	|	no rank	|		|	0	|	1	|	11	|	1	|	0	|	1	|	1	|	0	|		|
+2862456	|	270	|	species	|	TB	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2908145	|	270	|	species	|	TA	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2908146	|	270	|	species	|	TA	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2908147	|	270	|	species	|	TT	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2908148	|	270	|	species	|	TH	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2908149	|	270	|	species	|	TN	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+2918899	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+3026935	|	270	|	species	|	TJ	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|	code compliant; specified	|
+3366610	|	2157	|	kingdom	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+3384194	|	2	|	kingdom	|		|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+3438723	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+3591387	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|
+3683182	|	2619321	|	species	|	TS	|	0	|	1	|	11	|	1	|	0	|	1	|	0	|	0	|		|

@@ -448,6 +448,7 @@ pf_citation() {
     case "$1" in
         prokfinder)                 echo "https://github.com/LBCM-UFV/prokfinder-pipeline" ;;
         datasets|NCBI)              echo "10.1038/s41597-024-03571-y" ;;
+        ncbi-taxdump)               echo "10.1093/database/baaa062" ;;
         seqkit)                     echo "10.1002/imt2.191" ;;
         pyrodigal)                  echo "10.21105/joss.04296; 10.1186/1471-2105-11-119" ;;
         checkm2|checkm2-database)   echo "10.1038/s41592-023-01940-w" ;;
@@ -522,12 +523,22 @@ pf_ncbi_metadata_dir()  { echo "$1/$2-NCBI-METADATA"; }
 pf_ncbi_metadata_table() { echo "$1/$2-NCBI-METADATA/$3-metadata.tsv"; }
 pf_ncbi_complete_table() { echo "$1/$2-NCBI-METADATA/complete-metadata.tsv"; }
 pf_ncbi_taxdump_dir()   { echo "$1/TAXDUMP"; }
+# TaxID normalization (normalize-ncbi-taxids.sh): derived table next to each NCBI table, report and checkpoint
+pf_ncbi_taxid_status_table() { echo "$1/$2-NCBI-METADATA/$3-taxid-status.tsv"; }
+pf_ncbi_taxid_report()  { echo "$1/taxid-unresolved.tsv"; }
+pf_taxid_marker()       { echo "$1/TAXID-NORMALIZATION-COMPLETED.txt"; }
+# Prints the value of the first "<key>=<value>" line of the TaxID normalization checkpoint (nothing if there is none)
+# Usage: pf_taxid_marker_value <ncbi_dir> <key>
+pf_taxid_marker_value() {
+    sed -n "s/^$2=//p" "$(pf_taxid_marker "$1")" 2>/dev/null | awk 'NR == 1' || true
+}
 
 # BacDive (<bacdive_dir> = .../REFERENCE-METADATA/BACDIVE)
 pf_bacdive_brute_dir()  { echo "$1/BACDIVE-DOWNLOAD-BRUTE"; }
 pf_bacdive_table()      { echo "$1/BACDIVE-FORMATTED-TSV/BACDIVE_DATA_FORMATTED.tsv"; }
 pf_bacdive_strain_table()  { echo "$1/BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv"; }
 pf_bacdive_species_table() { echo "$1/BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv"; }
+pf_bacdive_taxid_status_table() { echo "$1/BACDIVE-FORMATTED-TSV/bacdive-taxid-status.tsv"; }
 
 # GTDB (<gtdb_dir> = .../REFERENCE-METADATA/GTDB)
 pf_gtdb_prefix() {
@@ -548,9 +559,12 @@ pf_completed_marker()    { echo "$1/COMPLETED-DOWNLOAD.txt"; }
 # module changes the tables it writes, its number is increased, and Prokfinder runs the module again: the tables
 # are rebuilt from the files already downloaded (nothing is downloaded again).
 # shellcheck disable=SC2034  # used by the modules
-PF_REFDB_FORMAT_NCBI=3      # 3: NULL-VALUES-NCBI.tsv (values converted to NULL)
+PF_REFDB_FORMAT_NCBI=4      # 3: NULL-VALUES-NCBI.tsv (values converted to NULL)
+#                             4: no NCBI lineage columns (NCBI_<RANK>, NCBI_<RANK>_TAXID: the TaxIDs are normalized in
+#                                <source>-taxid-status.tsv); paired GenBank/RefSeq accession and NCBI_<GENBANK|REFSEQ>_ASSEMBLY_ACCESSION
 # shellcheck disable=SC2034
-PF_REFDB_FORMAT_BACDIVE=3   # 3: NULL-VALUES-BACDIVE.tsv
+PF_REFDB_FORMAT_BACDIVE=4   # 3: NULL-VALUES-BACDIVE.tsv
+#                             4: no ncbi_tax_id_rank column (the rank is in bacdive-taxid-status.tsv)
 # shellcheck disable=SC2034
 PF_REFDB_FORMAT_GTDB=4      # 3: status of each genome in GTDB (species representative, type material) in the taxonomy;
 #                             4: the same NULL rule for these columns ("not used as type" -> NULL), NULL-VALUES-GTDB.tsv

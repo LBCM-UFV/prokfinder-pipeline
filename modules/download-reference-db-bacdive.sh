@@ -8,7 +8,6 @@
 #   1. downloads the list of BacDive IDs (advanced search CSV -> TSV with header)
 #   2. downloads the JSON records of every strain through the API, in batches (interrupted runs are resumed)
 #   3. extracts the NCBI TaxIDs and 29 traits of each strain into one TSV (header without spaces, empty -> NULL)
-#      and adds the rank of each NCBI TaxID (taxonkit lineage -L -r)
 #   4. merges the references of each strain (one value per trait), then the strains of each NCBI TaxID, following
 #      BactoTraits (each reference, and then each strain, has the same weight):
 #        numeric traits   mean of the references of the strain (the mean of each reference first); per TaxID, mean of
@@ -27,14 +26,15 @@
 #    BACDIVE-DOWNLOAD-BRUTE/advsearch_bacdive.tsv       (list of BacDive IDs, TSV with header)
 #    BACDIVE-DOWNLOAD-BRUTE/batch_*.jsonl               (raw API results in JSON, one strain per line)
 #    BACDIVE-DOWNLOAD-BRUTE/list_download_errors.tsv    (IDs that failed after all retry attempts)
-#    BACDIVE-FORMATTED-TSV/BACDIVE_DATA_FORMATTED.tsv   (one row per strain: bacdive_id, ncbi_tax_id,
-#                                                       ncbi_tax_id_rank and one column per trait, every reference)
+#    BACDIVE-FORMATTED-TSV/BACDIVE_DATA_FORMATTED.tsv   (one row per strain: bacdive_id, ncbi_tax_id and one
+#                                                       column per trait, every reference)
 #    BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv
 #                                                       (one row per strain, references merged)
 #    BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv
-#                                                       (one row per NCBI TaxID: ncbi_tax_id, ncbi_tax_id_rank,
-#                                                       bacdive_strains and the traits, strains merged; this is the
-#                                                       table used by the genome search)
+#                                                       (one row per NCBI TaxID: ncbi_tax_id, bacdive_strains and the
+#                                                       traits, strains merged; this is the table used by the genome
+#                                                       search. The rank and the current TaxID of each ncbi_tax_id are
+#                                                       in bacdive-taxid-status.tsv, see normalize-ncbi-taxids.sh)
 #    BACDIVE-FORMATTED-TSV/BACDIVE_DATA_UNFORMATTED.tsv (OPTIONAL, --unformatted: long dump
 #                                                       bacdive_id, L2, L3, L4, L5, value)
 #    COMPLETED-DOWNLOAD.txt                             (checkpoint: written only when every batch was downloaded)
@@ -42,8 +42,7 @@
 # Format of a trait cell, e.g. temperature_preference = "20:35:40;37":
 #    ";" separates references (each reference is a different publication or culture collection record)
 #    ":" separates values of the same reference (a range "20-40" is kept as its two endpoints, 20:40)
-#    ncbi_tax_id holds every distinct NCBI TaxID of the strain (e.g. species and strain level), joined with ";",
-#    and ncbi_tax_id_rank the rank of each one, in the same order (NULL when the TaxID is not in the NCBI taxonomy)
+#    ncbi_tax_id holds every distinct NCBI TaxID of the strain (e.g. species and strain level), joined with ";"
 #  *_opt        values recorded as "optimum"
 #  *_preference every growth-positive value, whatever its label (growth, optimum, minimum or maximum)
 #  *_range      only values recorded as minimum or maximum (so "10:40" means minimum 10 and maximum 40)
@@ -65,7 +64,6 @@ RETRY_WAIT=5             # Wait 5 seconds before each retry
 OUT_DIR=""
 IDS_FILE=""
 LIMIT=""
-TAXDUMP_DIR=""
 SKIP_DOWNLOAD=0
 MAKE_UNFORMATTED=0
 FORCE=0
@@ -93,7 +91,7 @@ CLASS_TRAITS=(
 usage() {
     cat <<EOF
 Usage: $(basename "$0") -o|--out-dir DIR [--ids-file FILE] [--limit N] [--retry-wait S] [--batch-size N]
-          [--taxdump-dir DIR] [--skip-download] [--unformatted] [--force]
+          [--skip-download] [--unformatted] [--force]
 
 Required:
   -o, --out-dir DIR    Output directory (~/prokfinder-refdb/BACDIVE).
@@ -102,8 +100,6 @@ Options:
   --ids-file FILE      Alternative TSV/CSV file whose first column holds BacDive IDs.
                        Default: downloaded to BACDIVE-DOWNLOAD-BRUTE/advsearch_bacdive.tsv
   --limit N            Process only the first N IDs (useful for testing)
-  --taxdump-dir DIR    NCBI taxdump used by taxonkit to find the rank of the TaxIDs
-                       (default: the taxonkit default, ~/.taxonkit; Prokfinder uses ~/prokfinder-refdb/NCBI/TAXDUMP)
   --retry-wait S       Wait S seconds between retries (default: 5)
   --batch-size N       Strains requested per API request (default: 100)
   --skip-download      Skip the API download; only rebuild the tables from the batch files already downloaded
@@ -118,7 +114,6 @@ while [ $# -gt 0 ]; do
         -o|--out-dir) OUT_DIR="${2%/}"; shift 2 ;;
         --ids-file|--ids-csv) IDS_FILE="$2"; shift 2 ;;
         --limit) LIMIT="$2"; shift 2 ;;
-        --taxdump-dir) TAXDUMP_DIR="${2%/}"; shift 2 ;;
         --retry-wait) RETRY_WAIT="$2"; shift 2 ;;
         --batch-size) BATCH_SIZE="$2"; shift 2 ;;
         --skip-download) SKIP_DOWNLOAD=1; shift ;;
@@ -145,16 +140,7 @@ ERROR_FILE="$DOWNLOAD_DIR/list_download_errors.tsv"
 
 mkdir -p "$OUT_DIR"
 setup_module_log "$OUT_DIR/download-reference-db-bacdive.log"
-require_programs curl jq gawk taxonkit
-
-TAXONKIT_ARGS=()
-if [ -n "$TAXDUMP_DIR" ]; then
-    if [ -f "$TAXDUMP_DIR/names.dmp" ] && [ -f "$TAXDUMP_DIR/nodes.dmp" ]; then
-        TAXONKIT_ARGS=(--data-dir "$TAXDUMP_DIR")
-    else
-        log "warning" "names.dmp/nodes.dmp not found in --taxdump-dir $TAXDUMP_DIR; taxonkit uses its default taxdump."
-    fi
-fi
+require_programs curl jq gawk
 
 if [ "$FORCE" -eq 1 ]; then
     log "message" "Option --force: removing the previous BacDive download in $OUT_DIR"
@@ -625,49 +611,6 @@ format_bacdive() {
     log "message" "Traits saved to $FORMATTED ($nstrains strains; blank cells replaced with NULL; converted values: $OUT_DIR/NULL-VALUES-BACDIVE.tsv)."
 }
 
-# ---------------------------------------------------------------------------
-# 4/6 — RANK OF THE NCBI TAXIDS (column ncbi_tax_id_rank, right after ncbi_tax_id)
-# ---------------------------------------------------------------------------
-add_taxid_ranks() {
-    log "message" "Finding the rank of the NCBI TaxIDs with taxonkit (lineage -L -r)..."
-    local tax_col ranks
-    tax_col="$(require_column "$FORMATTED" ncbi_tax_id)"
-    ranks="${FORMATTED}.ranks"
-
-    # taxonkit prints "<taxid> <TAB> <rank>" (empty rank when the TaxID is not in the taxdump)
-    gawk -F'\t' -v c="$tax_col" 'NR > 1 { n = split($c, a, ";"); for (i = 1; i <= n; i++) if (a[i] ~ /^[0-9]+$/) print a[i] }' "$FORMATTED" \
-        | sort -u \
-        | taxonkit lineage -L -r ${TAXONKIT_ARGS[@]+"${TAXONKIT_ARGS[@]}"} > "$ranks" 2> "${ranks}.err" || {
-            log "error" "taxonkit failed. Messages: $(head -n 5 "${ranks}.err")"
-            rm -f "$ranks" "${ranks}.err"
-            return 1
-        }
-    if [ -s "${ranks}.err" ]; then
-        log "warning" "taxonkit reported $(wc -l < "${ranks}.err") warning(s) (e.g., TaxIDs merged or deleted from the NCBI taxonomy). First lines: $(head -n 3 "${ranks}.err" | tr '\n' ' ')"
-    fi
-
-    gawk -F'\t' -v OFS='\t' -v c="$tax_col" -v ranks="$ranks" '
-        BEGIN { while ((getline line < ranks) > 0) { split(line, f, "\t"); if (f[2] != "") rank[f[1]] = f[2] } }
-        {
-            if (NR == 1) { r = "ncbi_tax_id_rank" }
-            else if ($c == "NULL" || $c == "") { r = "NULL" }
-            else {
-                n = split($c, a, ";"); r = ""
-                for (i = 1; i <= n; i++) r = r (i > 1 ? ";" : "") ((a[i] in rank) ? rank[a[i]] : "NULL")
-            }
-            out = $1
-            for (i = 2; i <= NF; i++) { out = out OFS $i; if (i == c) out = out OFS r }
-            print out
-        }' "$FORMATTED" > "${FORMATTED}.tmp"
-    mv "${FORMATTED}.tmp" "$FORMATTED"
-    rm -f "$ranks" "${ranks}.err"
-
-    log "message" "Ranks of the NCBI TaxIDs of the strains:"
-    gawk -F'\t' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "ncbi_tax_id_rank") c = i; next }
-        { n = split($c, a, ";"); for (i = 1; i <= n; i++) count[a[i]]++ }
-        END { for (r in count) printf "    %-20s %d\n", r, count[r] }' "$FORMATTED" | sort -k2,2nr >&2
-}
-
 # awk functions shared by the two merges below
 AWK_MERGE_LIB='
 function is_null(x) { return x == "" || x == "NULL" }
@@ -680,7 +623,7 @@ function column_kinds(classes,   n, a, i) {
     for (i = 1; i <= n; i++) is_class[a[i]] = 1
     for (i = 1; i <= NF; i++) {
         name[i] = $i
-        if ($i == "bacdive_id" || $i == "ncbi_tax_id" || $i == "ncbi_tax_id_rank" || $i == "bacdive_strains") kind[i] = "id"
+        if ($i == "bacdive_id" || $i == "ncbi_tax_id" || $i == "bacdive_strains") kind[i] = "id"
         else if ($i in is_class)  kind[i] = "class"
         else if ($i ~ /_range$/)  kind[i] = "range"
         else if ($i ~ /_delta$/)  kind[i] = "delta"
@@ -690,7 +633,7 @@ function column_kinds(classes,   n, a, i) {
 '
 
 # ---------------------------------------------------------------------------
-# 5/6 — REFERENCES OF EACH STRAIN MERGED -> BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv
+# 4/5 — REFERENCES OF EACH STRAIN MERGED -> BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv
 # ---------------------------------------------------------------------------
 build_strain_table() {
     log "message" "Merging the references of each strain..."
@@ -754,15 +697,15 @@ build_strain_table() {
 }
 
 # ---------------------------------------------------------------------------
-# 6/6 — STRAINS OF EACH NCBI TAXID MERGED -> BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv
+# 5/5 — STRAINS OF EACH NCBI TAXID MERGED -> BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv
 #   A strain with several TaxIDs (e.g. species and strain level) is counted in each of them.
 # ---------------------------------------------------------------------------
 build_species_table() {
     log "message" "Merging the strains of each NCBI TaxID..."
     local header
     header="$(gawk -F'\t' -v OFS='\t' 'NR == 1 {
-        out = "ncbi_tax_id" OFS "ncbi_tax_id_rank" OFS "bacdive_strains"
-        for (i = 1; i <= NF; i++) if ($i != "bacdive_id" && $i != "ncbi_tax_id" && $i != "ncbi_tax_id_rank") out = out OFS $i
+        out = "ncbi_tax_id" OFS "bacdive_strains"
+        for (i = 1; i <= NF; i++) if ($i != "bacdive_id" && $i != "ncbi_tax_id") out = out OFS $i
         print out; exit }' "$STRAIN_TABLE")"
 
     {
@@ -770,18 +713,18 @@ build_species_table() {
         gawk -F'\t' -v OFS='\t' -v classes="${CLASS_TRAITS[*]}" "$AWK_MERGE_LIB"'
         NR == 1 {
             column_kinds(classes)
-            for (i = 1; i <= NF; i++) { if ($i == "ncbi_tax_id") c_tax = i; if ($i == "ncbi_tax_id_rank") c_rank = i }
+            for (i = 1; i <= NF; i++) if ($i == "ncbi_tax_id") c_tax = i
             next
         }
         {
             if (is_null($c_tax)) next
-            n = split($c_tax, ids, ";"); split($c_rank, rk, ";")
+            n = split($c_tax, ids, ";")
             delete done
             for (t = 1; t <= n; t++) {
                 id = ids[t]
                 if (id !~ /^[0-9]+$/ || (id in done)) continue
                 done[id] = 1
-                if (!(id in strains)) { order[++nid] = id; rank[id] = ((t in rk) && rk[t] != "" ? rk[t] : "NULL") }
+                if (!(id in strains)) order[++nid] = id
                 strains[id]++
                 for (i = 1; i <= NF; i++) {
                     if (kind[i] == "id" || is_null($i)) continue
@@ -809,7 +752,7 @@ build_species_table() {
         END {
             for (k = 1; k <= nid; k++) {
                 id = order[k]
-                out = id OFS rank[id] OFS strains[id]
+                out = id OFS strains[id]
                 for (i = 1; i <= NF; i++) {
                     if (kind[i] == "id") continue
                     if (kind[i] == "numeric" || kind[i] == "delta") {
@@ -833,8 +776,7 @@ build_species_table() {
     } > "${SPECIES_TABLE}.tmp" || return 1
     mv "${SPECIES_TABLE}.tmp" "$SPECIES_TABLE"
 
-    log "message" "TaxID table (strains merged) saved to $SPECIES_TABLE ($(count_records "$SPECIES_TABLE") NCBI TaxIDs):"
-    gawk -F'\t' 'NR > 1 { count[$2]++ } END { for (r in count) printf "    %-20s %d\n", r, count[r] }' "$SPECIES_TABLE" | sort -k2,2nr >&2
+    log "message" "TaxID table (strains merged) saved to $SPECIES_TABLE ($(count_records "$SPECIES_TABLE") NCBI TaxIDs)."
 }
 
 # ---------------------------------------------------------------------------
@@ -852,7 +794,6 @@ main() {
         melt_batches_to_unformatted || exit 1
     fi
     format_bacdive || exit 1
-    add_taxid_ranks || exit 1
     build_strain_table || exit 1
     build_species_table || exit 1
 

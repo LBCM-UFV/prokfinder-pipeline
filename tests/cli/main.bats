@@ -270,14 +270,54 @@ assert_cli_error() {
     assert_output_contains "--export-all-hq"
 }
 
-@test "-h of setup is short and has only --from-source" {
+@test "-h of setup is short and has only --from-zenodo, --update-taxdump-file and --from-source" {
     run bash "${PF_MAIN}" setup -h
     assert_success
-    assert_output_contains "from Zenodo and adds them to the reference"
+    assert_output_contains "Installs the reference databases (NCBI, BacDive and GTDB) from Zenodo"
+    assert_output_contains "--from-zenodo"
+    assert_output_contains "--update-taxdump-file"
     assert_output_contains "--from-source"
     refute_output_contains "--yes"
     refute_output_contains "--ncbi-complete-metadata"
     refute_output_contains "--refdb-registry"
+}
+
+@test "setup: --from-source, --from-zenodo and --update-taxdump-file cannot be used together" {
+    run bash "${PF_MAIN}" --refdb-dir refdb setup --from-zenodo --update-taxdump-file
+    assert_cli_error "--from-source, --from-zenodo and --update-taxdump-file cannot be used together"
+    run bash "${PF_MAIN}" --refdb-dir refdb setup --from-source --from-zenodo
+    assert_failure 1
+    assert_output_contains "cannot be used together"
+}
+
+@test "setup --from-source and --from-zenodo cannot be followed by search-genomes in the same command (TaxIDs not normalized)" {
+    local OPTION
+    for OPTION in --from-source --from-zenodo; do
+        run bash "${PF_MAIN}" --refdb-dir refdb setup "${OPTION}" search-genomes -G 40:65
+        assert_failure 1
+        assert_output_contains "do not normalize the NCBI TaxIDs"
+    done
+}
+
+@test "setup --update-taxdump-file needs the databases installed" {
+    run bash "${PF_MAIN}" --refdb-dir refdb setup --update-taxdump-file
+    assert_cli_error "--update-taxdump-file needs the reference databases installed and current"
+}
+
+@test "search-genomes: databases without the normalization of the NCBI TaxIDs are an error that says to run setup" {
+    NO_TAXID_MARKER=1 make_refdb_markers refdb
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results search-genomes -G 40:65
+    assert_cli_error "The NCBI TaxIDs of the reference databases in refdb were not normalized"
+    assert_output_contains "setup --update-taxdump-file"
+}
+
+@test "search-genomes: a normalization of a previous day is a warning that suggests --update-taxdump-file" {
+    make_refdb_markers refdb
+    printf 'date=2020-01-01\ntaxdump_date=2020-01-01\n' > refdb/NCBI/TAXID-NORMALIZATION-COMPLETED.txt
+    run bash "${PF_MAIN}" --refdb-dir refdb -o results search-genomes -G 40:65
+    assert_output_contains "[WARNING] The NCBI TaxIDs were normalized on 2020-01-01"
+    assert_output_contains "setup --update-taxdump-file"
+    refute_output_contains "were not normalized"
 }
 
 @test "removed options: --country, --country-file, -z/--gzip and --results-dir are unknown" {

@@ -79,8 +79,9 @@ log "message" "Selecting the genomes (GTDB and NCBI genera: ${GENERA}; extra: ${
             'FNR > 1 && index(genera, " " $c " ") { print $1 }' "${TABLE}"
         for SOURCE in genbank refseq; do
             TABLE="$(pf_ncbi_metadata_table "${REFDB}/NCBI" "${DOMAIN}" "${SOURCE}")"
-            awk -F'\t' -v genera=" ${GENERA} " -v c="$(require_column "${TABLE}" NCBI_GENUS)" \
-                'FNR > 1 && index(genera, " " $c " ") { print $1 }' "${TABLE}"
+            # (the NCBI tables have no lineage columns: the genus is the first word of the organism name)
+            awk -F'\t' -v genera=" ${GENERA} " -v c="$(require_column "${TABLE}" ORGANISM_NAME)" \
+                'FNR > 1 { split($c, w, " ") } FNR > 1 && index(genera, " " w[1] " ") { print $1 }' "${TABLE}"
         done
     done
     printf '%s\n' ${EXTRA_ACCESSIONS}
@@ -106,21 +107,18 @@ for DOMAIN in "${PF_DOMAINS[@]}"; do
         "${NUMS}" "$(pf_ncbi_fetch_file "${REFDB}/NCBI" "${DOMAIN}")" > "${FETCH}"
 done
 
-# TaxIDs of the genomes: the organism, its strain and species link BacDive (.link); every rank goes to the taxdump
-# (.ncbi)
-for KIND in link ncbi; do
-    for DOMAIN in "${PF_DOMAINS[@]}"; do
-        for SOURCE in genbank refseq; do
-            SLICE="$(pf_ncbi_metadata_table "${FIX}/NCBI" "${DOMAIN}" "${SOURCE}")"
-            awk -F'\t' -v kind="${KIND}" 'NR == 1 {
-                    for (i = 1; i <= NF; i++)
-                        if ($i ~ /^(ORGANISM_TAXONOMIC_ID|NCBI_SPECIES_TAXID|NCBI_STRAIN_TAXID)$/ || (kind == "ncbi" && $i ~ /^NCBI_.*_TAXID$/)) c[i] = 1
-                    next
-                }
-                { for (i in c) if ($i ~ /^[0-9]+$/) print $i }' "${SLICE}"
-        done
-    done | LC_ALL=C sort -u > "${TAXIDS}.${KIND}"
-done
+# TaxIDs of the genomes: the organism, its current TaxID and its species (read from the normalization of the complete
+# database, <source>-taxid-status.tsv) link BacDive (.link); the taxdump gets them and their ancestors (.ncbi)
+[[ -f "$(pf_taxid_marker "${REFDB}/NCBI")" ]] || die "The TaxIDs of ${REFDB} are not normalized: run main-prokfinder.sh setup first."
+for DOMAIN in "${PF_DOMAINS[@]}"; do
+    for SOURCE in genbank refseq; do
+        awk -F'\t' 'NR == FNR { keep[$1] = 1; next }
+            FNR > 1 { a = $1; sub(/^GC[AF]_/, "", a) }
+            FNR > 1 && (a in keep) { print $2; print $4; print $5 }' \
+            "${NUMS}" "$(pf_ncbi_taxid_status_table "${REFDB}/NCBI" "${DOMAIN}" "${SOURCE}")"
+    done
+done | awk '$0 ~ /^[0-9]+$/' | LC_ALL=C sort -u > "${TAXIDS}.link"
+cp "${TAXIDS}.link" "${TAXIDS}.ncbi"
 
 log "message" "BacDive tables..."
 mkdir -p "${FIX}/BACDIVE/BACDIVE-FORMATTED-TSV"
@@ -232,6 +230,18 @@ cp "$(pf_gtdb_version_file "${REFDB}/GTDB")" "${RAW}/GTDB/"
 for DB in NCBI BACDIVE GTDB; do
     cp "$(pf_completed_marker "${FIX}/${DB}")" "$(pf_completed_marker "${RAW}/${DB}")"
 done
+
+############ 3b. NORMALIZATION OF THE TAXIDS (refdb) ################
+#   The fixture is ready to use: it has its mini taxdump and the TaxID status tables. The date of the checkpoint is
+#   far in the future so that the tests never get the warning of a normalization of a previous day.
+
+log "message" "Normalizing the NCBI TaxIDs of the fixture..."
+cp -r "${TAXDUMP_OUT}" "$(pf_ncbi_taxdump_dir "${FIX}/NCBI")"
+# (the date of the taxdump is a fixed one, so the status tables do not change every time)
+echo "2026-10-01" > "$(pf_ncbi_taxdump_dir "${FIX}/NCBI")/taxdump-date.txt"
+bash "${SCRIPT_DIR}/../../modules/normalize-ncbi-taxids.sh" -o "${FIX}" --skip-download
+rm -f "${FIX}"/NCBI/*.log "${FIX}/.taxdump.lock"
+sed -i 's/^date=.*/date=2099-12-31/' "$(pf_taxid_marker "${FIX}/NCBI")"
 
 ############ 4. SUMMARY ################
 

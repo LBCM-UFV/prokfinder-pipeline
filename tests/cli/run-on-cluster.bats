@@ -50,11 +50,11 @@ pbs_file() {
 }
 
 @test "setup --from-source over installed databases is confirmed before the job is written" {
-    run_on_terminal y --refdb-dir refdb -o results run-on-cluster --dry-run setup --from-source search-genomes --gtdb-taxon g__Thermus
+    run_on_terminal y --refdb-dir refdb -o results run-on-cluster --dry-run setup --from-source
     assert_success
     assert_output_contains "Continue? [y/N]"
     run awk '/^bash .*main-prokfinder.sh/' "$(pbs_file results)"
-    assert_output_contains "setup --from-source search-genomes --gtdb-taxon g__Thermus"
+    assert_output_contains "setup --from-source"
 }
 
 @test "setup --from-source over installed databases: no job is written when the answer is not y" {

@@ -94,7 +94,7 @@ incompatíveis), chamados por pequenos *wrappers*.
 ## Dependências
 
 Não é preciso instalar tudo: para **buscar genomas** (`setup` e `search-genomes`) bastam o NCBI Datasets e o
-taxonkit (o `setup` padrão só baixa os pacotes do Zenodo; o NCBI Datasets e o taxonkit são usados por `setup --from-source`). Os programas de análise de genomas só são necessários para o `download-wf`.
+taxonkit (o `setup` padrão só baixa os pacotes do Zenodo e o taxdump do NCBI; o NCBI Datasets é usado por `setup --from-source`, e o taxonkit converte nomes de táxons em TaxIDs no `search-genomes`). Os programas de análise de genomas só são necessários para o `download-wf`.
 
 `./main-prokfinder.sh --check` mostra o que está instalado (com a versão), o que falta (com o comando de instalação)
 e o estado dos bancos de referência, separando as dependências da busca e as do pipeline completo.
@@ -137,23 +137,46 @@ de uma vez. No cluster, o job de `run-on-cluster` carrega só os módulos `ncbi_
 ## setup: bancos de referência
 
 ```bash
-./main-prokfinder.sh setup                 # baixa os bancos prontos do Zenodo para ~/prokfinder-refdb (minutos)
-./main-prokfinder.sh setup --from-source   # monta os bancos a partir do NCBI, BacDive e GTDB (horas)
+./main-prokfinder.sh setup                       # instala os bancos do Zenodo (se faltarem), baixa o taxdump e normaliza os TaxIDs
+./main-prokfinder.sh setup --from-zenodo         # só instala/atualiza os bancos do Zenodo (pacote mais recente do registro)
+./main-prokfinder.sh setup --update-taxdump-file # só baixa o taxdump de hoje e normaliza de novo os TaxIDs
+./main-prokfinder.sh setup --from-source         # monta os bancos a partir do NCBI, BacDive e GTDB (horas)
 ```
 
-Há só dois caminhos: os bancos prontos do Zenodo ou os bancos montados a partir das fontes.
+As opções são alternativas (uma só por vez). Cada uma faz uma parte:
 
-| Comando | Banco ainda não instalado | Banco já instalado |
-|---|---|---|
-| `setup` | baixa o pacote do Zenodo | do Zenodo: troca pelo pacote mais novo, se o registro tiver um; das fontes: nada |
-| `setup --from-source` | baixa das fontes e monta as tabelas | **atualização completa**: baixa tudo de novo das fontes, depois de um aviso e de `Continue? [y/N]` |
+| Comando | O que faz |
+|---|---|
+| `setup` | banco ausente: instala o pacote do Zenodo. Depois, se o taxdump ou o marcador da normalização faltarem (ou um banco acabou de ser instalado), baixa o taxdump e normaliza os TaxIDs. Com tudo pronto, só informa. Se o registro tiver um pacote mais novo que o instalado, **só avisa** (use `--from-zenodo`) |
+| `setup --from-zenodo` | instala ou atualiza só os bancos do Zenodo; os pacotes mudam as tabelas, então a normalização precisa ser refeita (rode `setup`) |
+| `setup --update-taxdump-file` | só baixa o taxdump atual e refaz a normalização dos TaxIDs do NCBI e do BacDive (exige os bancos instalados) |
+| `setup --from-source` | **atualização completa** (com bancos instalados): baixa tudo de novo das fontes, depois de um aviso e de `Continue? [y/N]`. Não baixa o taxdump nem normaliza (rode `setup` depois) |
 
 - Por padrão o `setup` baixa os três bancos já formatados, publicados no **Zenodo** (um pacote `.tar.gz` por banco,
   com o MD5 conferido; um download interrompido é retomado). O registro usado (servidor, número do registro e MD5 de
   cada pacote) está em [`refdb-zenodo.tsv`](refdb-zenodo.tsv). Cada pacote tem
   o formato de tabela que o código lê (`format=` em `COMPLETED-DOWNLOAD.txt`): se o registro não tiver o formato
-  certo, o `setup` pede `--from-source`. Rodar `setup` de novo instala os pacotes mais novos do registro (outro
-  registro, arquivo ou MD5 do que está em `COMPLETED-DOWNLOAD.txt`, linhas `package=` e `package_md5=`).
+  certo, o `setup` pede `--from-source`. O pacote não leva o taxdump (que muda todo dia) nem a normalização dos
+  TaxIDs: são feitos pelo `setup` na sua máquina. `setup --from-zenodo` instala os pacotes mais novos do registro
+  (outro registro, arquivo ou MD5 do que está em `COMPLETED-DOWNLOAD.txt`, linhas `package=` e `package_md5=`).
+- **Normalização dos TaxIDs do NCBI** (módulo `normalize-ncbi-taxids.sh`): o taxdump (taxonomia do NCBI) fica em
+  `<refdb>/NCBI/TAXDUMP` e é trocado por inteiro a cada download (nunca é usado o `~/.taxonkit`). Cada TaxID das tabelas
+  do NCBI (`ORGANISM_TAXONOMIC_ID`) e do BacDive (`ncbi_tax_id`) é conferido contra ele, e o resultado vai para
+  arquivos ao lado das tabelas (as tabelas não mudam): `<fonte>-taxid-status.tsv` (NCBI) e `bacdive-taxid-status.tsv`.
+  O `TAXID_STATUS` é `CURRENT`, `MERGED` (o TaxID foi unido a outro: `UPDATED_TAXID`), `DELETED` ou `INVALID`; os dois
+  últimos (só no NCBI, que tem o nome do organismo) são resgatados pelo nome científico no `names.dmp`: um TaxID de
+  Bacteria/Archaea = `RESCUED`; vários = `AMBIGUOUS` (usa o primeiro); nenhum = `UNRESOLVED` (o genoma fica na tabela,
+  mas nenhum filtro de TaxID o encontra). `SPECIES_TAXID` é a espécie do TaxID atual e `RANK` o seu rank. Os casos que
+  não são `CURRENT` nem `MERGED` vão para `NCBI/taxid-unresolved.tsv`. O marcador
+  `NCBI/TAXID-NORMALIZATION-COMPLETED.txt` (com a data do taxdump) é gravado por último.
+- `search-genomes` e `download-wf` **exigem a normalização**: banco instalado sem o marcador (ou com uma
+  normalização interrompida) é um erro que pede `setup` ou `setup --update-taxdump-file`; um marcador de um dia
+  anterior gera só um aviso (o taxdump muda todo dia). A data do taxdump vai para `versions.tsv`.
+- As tabelas do NCBI não têm mais as colunas de linhagem (`NCBI_<RANK>` e `NCBI_<RANK>_TAXID`); têm, em compensação, o
+  par GenBank/RefSeq da montagem: `ASSEMBLY_PAIRED_ASSEMBLY_ACCESSION`, a booleana
+  `ASSEMBLY_PAIRED_ASSEMBLY_REFSEQ_GENBANK_ARE_DIFFERENT` (`true` = o NCBI diz que as duas montagens são diferentes,
+  sem correspondência) e `NCBI_REFSEQ_ASSEMBLY_ACCESSION` (tabela genbank) ou `NCBI_GENBANK_ASSEMBLY_ACCESSION` (tabela
+  refseq), `NULL` quando não há par.
 - `--from-source` monta os bancos como as versões anteriores faziam: NCBI Datasets, API do BacDive e GTDB. Leva
   horas; no cluster, use `run-on-cluster setup --from-source`.
 - **Atualização completa** (`setup --from-source` com os bancos já instalados, das fontes ou do Zenodo): o
@@ -183,7 +206,7 @@ referência). Cada referência e depois cada cepa tem o mesmo peso:
 | Tabela | Uma linha por | Números | `*_range` | Classes |
 |---|---|---|---|---|
 | `BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv` | cepa (`bacdive_id`) | média das referências | menor:maior valor | fração das referências que registraram cada classe (ex.: `coccus=0.25;rod=0.75`) |
-| `BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv` | TaxID do NCBI (`ncbi_tax_id`, `ncbi_tax_id_rank`, `bacdive_strains`) | média das cepas | menor:maior valor | média das frações das cepas |
+| `BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv` | TaxID do NCBI (`ncbi_tax_id`, `bacdive_strains`; o rank e o TaxID atual estão em `bacdive-taxid-status.tsv`) | média das cepas | menor:maior valor | média das frações das cepas |
 
 ---
 
@@ -230,7 +253,7 @@ ou Archaea é um filtro inválido.
 | `--gtdb-taxon` / `--gtdb-taxon-file` | GTDB | nome de um táxon da linhagem GTDB (sem diferenciar maiúsculas). Com o prefixo do rank (`g__Thermus`, `s__Thermus aquaticus`), só aquele rank; sem prefixo (`Thermus`), qualquer rank. Um nome que não está nas tabelas do GTDB (ex.: `g_Thermus`, com um `_` só) é um valor inválido |
 | `-a, --accession` / `-A, --accession-file` | NCBI | código de acesso **com versão** (`GCA_000005845.2`). A acessão inteira é comparada com a tabela pesquisada: `GCA_` só com a tabela GenBank (padrão) e `GCF_` só com `-s refseq`; as da outra tabela ficam de fora, com um aviso (assim um genoma não entra duas vezes pelos seus pares GCA/GCF). Todas as linhas inválidas são listadas no erro |
 | `-i` / `-I` | NCBI | texto **ou expressão regular** (ERE do POSIX, sem diferenciar maiúsculas) procurado na fonte de isolamento (ex.: `"hot spring","hydrothermal vent"`, `"hot ?springs?"`, `"^soil$"`). Um texto simples também funciona; para procurar literalmente `( ) [ ] . * + ? \| ^ $`, use `\` antes (ex.: `"soil \(forest\)"`). Uma expressão inválida dá erro antes da busca |
-| `-t, --taxid` / `-f, --taxid-file` | NCBI | TaxID do NCBI de qualquer rank, do organismo ou de qualquer nível da sua linhagem (ex.: `1239` seleciona todos os genomas de Bacillota) |
+| `-t, --taxid` / `-f, --taxid-file` | NCBI | TaxID do NCBI de qualquer rank: seleciona os genomas cujo TaxID atual (normalizado, ver `setup`) é esse TaxID ou um descendente dele (ex.: `1239` seleciona todos os genomas de Bacillota) |
 | `--ncbi-taxon` / `-N, --ncbi-taxon-file` | NCBI | nome de um táxon do NCBI de qualquer rank (ex.: `Thermus`, `Thermus aquaticus`), convertido em TaxID com `taxonkit name2taxid` (só Bacteria e Archaea; homônimos mantêm todos os TaxIDs). Nome sem TaxID é um valor inválido |
 | `-g` | NCBI | `isolate_genome` ou `mag` |
 | `-G` | NCBI | faixa de GC (%) da montagem (`min:max`) |
@@ -517,7 +540,7 @@ Bancos de referência (compartilhados, `--refdb-dir`):
 │   ├── BACTERIA-NCBI-GENOMES/fetch.txt                # só o manifesto, não os FASTA
 │   ├── BACTERIA-NCBI-METADATA/{genbank,refseq}-metadata.tsv   # tabelas usadas na busca (campos selecionados)
 │   ├── ARCHAEA-NCBI-GENOMES/  ARCHAEA-NCBI-METADATA/
-│   └── TAXDUMP/                                       # taxonomia NCBI (rank dos TaxIDs do BacDive, no setup)
+│   └── TAXDUMP/                                       # taxonomia NCBI (setup; usada para normalizar os TaxIDs e na busca por TaxID)
 ├── BACDIVE/
 │   ├── BACDIVE-DOWNLOAD-BRUTE/                        # JSON da API (batch_*.jsonl) e lista de IDs
 │   └── BACDIVE-FORMATTED-TSV/
