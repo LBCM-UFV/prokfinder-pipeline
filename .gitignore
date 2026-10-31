@@ -13,3 +13,6 @@ context.md
 
 # Local test outputs
 test-tiny-genomes/
+
+# lock created by the searches that run on the test fixture
+tests/data/refdb/.taxdump.lock

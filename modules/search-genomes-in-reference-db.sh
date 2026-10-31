@@ -121,6 +121,33 @@ fi
 
 make_temp_dir WORK_DIR
 
+############ LOCK ################
+#   The taxdump and the *-taxid-status.tsv tables are replaced by normalize-ncbi-taxids.sh under an exclusive lock:
+#   the search holds the shared lock while it reads them (released before the result is written), so it waits for a
+#   normalization in progress and a normalization waits for the searches.
+
+TAXDUMP_LOCKED=0
+if [[ "${VALIDATE_ONLY}" -eq 0 ]]; then
+    if command -v flock > /dev/null 2>&1; then
+        # (an existing lock file is opened for reading: a shared reference database may not be writable)
+        if { [[ -f "${REF_DIR}/.taxdump.lock" ]] && exec 9< "${REF_DIR}/.taxdump.lock"; } 2> /dev/null \
+            || { exec 9> "${REF_DIR}/.taxdump.lock"; } 2> /dev/null; then
+            if ! flock -n -s 9; then
+                log "message" "The NCBI TaxIDs of ${REF_DIR} are being normalized by another process; waiting for it..."
+                flock -s 9
+            fi
+            TAXDUMP_LOCKED=1
+        else
+            log "warning" "Could not open ${REF_DIR}/.taxdump.lock: the search does not wait for a TaxID normalization in progress."
+        fi
+    else
+        log "warning" "flock not found: the search does not wait for a TaxID normalization in progress."
+    fi
+    # (a normalization removes the checkpoint when it starts and writes it last)
+    [[ -f "$(pf_taxid_marker "${REF_DIR}/NCBI")" ]] \
+        || die "The NCBI TaxIDs of ${REF_DIR} are not normalized. Run: main-prokfinder.sh setup (or setup --update-taxdump-file)"
+fi
+
 # ---------- Traits of the BacDive table that are divided in classes ----------
 # Names are the BacDive table column names; classes are the values written by download-reference-db-bacdive.sh.
 # This is the only place to edit to add a trait or a class: the validation and the filtering read from it.
@@ -1301,6 +1328,12 @@ if [[ -f "${BACDIVE_TSV}" && "${TOTAL_SELECTED}" -gt 0 ]]; then
 
     add_metadata_columns "${SELECTED_TMP}" "${WORK_DIR}/bacdive_annotation.tsv"
     log "message" "  Selected genomes linked to BacDive: $(awk -F'\t' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "BACDIVE_LINK_LEVEL") c = i; next } $c != "NULL" { n[$c]++; t++ } END { printf "%d", t; s = ""; for (r in n) s = s (s == "" ? "" : ", ") n[r] " " r; if (s != "") printf " (%s)", s }' "${SELECTED_TMP}")"
+fi
+
+# Nothing else is read from the taxdump or the status tables
+if [[ "${TAXDUMP_LOCKED}" -eq 1 ]]; then
+    flock -u 9
+    exec 9<&-
 fi
 
 mkdir -p "$(dirname "${OUTPUT_TSV}")"

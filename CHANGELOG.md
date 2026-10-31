@@ -17,7 +17,9 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
   tables (`<source>-taxid-status.tsv`, `bacdive-taxid-status.tsv`, with `TAXID_STATUS` CURRENT/MERGED/DELETED/INVALID,
   the current TaxID, its species and rank); a DELETED or INVALID TaxID of an assembly is rescued by the organism name
   (RESCUED/AMBIGUOUS/UNRESOLVED) and listed in `NCBI/taxid-unresolved.tsv`. The checkpoint
-  `TAXID-NORMALIZATION-COMPLETED.txt` is written last.
+  `TAXID-NORMALIZATION-COMPLETED.txt` is written last. `search-genomes` holds a shared lock on
+  `<refdb>/.taxdump.lock` while it reads the taxdump and the status tables, so it waits for a normalization in progress
+  (and checks the checkpoint again after getting the lock).
 - The NCBI tables have the paired assembly of the other database (`ASSEMBLY_PAIRED_ASSEMBLY_ACCESSION`,
   `ASSEMBLY_PAIRED_ASSEMBLY_REFSEQ_GENBANK_ARE_DIFFERENT`, and `NCBI_REFSEQ_ASSEMBLY_ACCESSION` in the GenBank table or
   `NCBI_GENBANK_ASSEMBLY_ACCESSION` in the RefSeq table; NULL when there is none or when NCBI says they are different).

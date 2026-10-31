@@ -292,3 +292,56 @@ rows_violating() {
     assert_output_contains "taxon name not found in the NCBI taxonomy"
     assert_file_exists missing/SEARCH-GENOMES-ERRORS.tsv
 }
+
+############ TAXDUMP LOCK ################
+#   normalize-ncbi-taxids.sh replaces the taxdump and the status tables under an exclusive flock on
+#   <refdb>/.taxdump.lock; the search reads them under the shared lock
+
+# Writes a query file (TAXID 2336, Thermotoga maritima) and a copy of the fixture reference databases
+lock_setup() {
+    command -v flock > /dev/null 2>&1 || skip "flock not installed"
+    cp -r "${PF_FIXTURE_REFDB}" lock-refdb
+    printf 'ASSEMBLY_SOURCE\tgenbank\nFILTER\tf1\tTAXID\t2336\n' > lock-query.txt
+}
+
+lock_search() {
+    run bash "${PF_ROOT}/modules/search-genomes-in-reference-db.sh" -q lock-query.txt -r lock-refdb -o lock-out/selected.tsv
+}
+
+@test "the search waits for a normalization that holds the lock, and goes on when it ends" {
+    lock_setup
+    ( flock -x lock-refdb/.taxdump.lock -c 'sleep 3' ) &
+    sleep 1
+    lock_search
+    wait
+    assert_success
+    assert_output_contains "being normalized by another process; waiting for it"
+    assert_output_contains "saved to: lock-out/selected.tsv"
+}
+
+@test "the search ends with an error that asks for setup when the normalization removed the checkpoint" {
+    lock_setup
+    ( flock -x lock-refdb/.taxdump.lock -c 'rm lock-refdb/NCBI/TAXID-NORMALIZATION-COMPLETED.txt; sleep 3' ) &
+    sleep 1
+    lock_search
+    wait
+    assert_failure
+    assert_output_contains "are not normalized. Run: main-prokfinder.sh setup"
+}
+
+@test "the search without the checkpoint of the normalization is an error (module run alone)" {
+    lock_setup
+    rm lock-refdb/NCBI/TAXID-NORMALIZATION-COMPLETED.txt
+    lock_search
+    assert_failure
+    assert_output_contains "are not normalized"
+}
+
+@test "a lock file that cannot be written does not stop the search" {
+    lock_setup
+    : > lock-refdb/.taxdump.lock
+    chmod a-w lock-refdb/.taxdump.lock
+    lock_search
+    assert_success
+    refute_output_contains "Could not open"
+}

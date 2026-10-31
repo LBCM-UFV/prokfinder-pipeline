@@ -171,7 +171,9 @@ As opções são alternativas (uma só por vez). Cada uma faz uma parte:
   `NCBI/TAXID-NORMALIZATION-COMPLETED.txt` (com a data do taxdump) é gravado por último.
 - `search-genomes` e `download-wf` **exigem a normalização**: banco instalado sem o marcador (ou com uma
   normalização interrompida) é um erro que pede `setup` ou `setup --update-taxdump-file`; um marcador de um dia
-  anterior gera só um aviso (o taxdump muda todo dia). A data do taxdump vai para `versions.tsv`.
+  anterior gera só um aviso (o taxdump muda todo dia). A data do taxdump vai para `versions.tsv`. Uma busca em andamento
+  segura um lock compartilhado em `<refdb>/.taxdump.lock`: a normalização espera as buscas terminarem, e uma busca
+  iniciada durante a normalização espera ela acabar.
 - As tabelas do NCBI não têm mais as colunas de linhagem (`NCBI_<RANK>` e `NCBI_<RANK>_TAXID`); têm, em compensação, o
   par GenBank/RefSeq da montagem: `ASSEMBLY_PAIRED_ASSEMBLY_ACCESSION`, a booleana
   `ASSEMBLY_PAIRED_ASSEMBLY_REFSEQ_GENBANK_ARE_DIFFERENT` (`true` = o NCBI diz que as duas montagens são diferentes,

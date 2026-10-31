@@ -62,7 +62,8 @@ search-genomes/download-wf stop and `setup` rebuilds the tables from the raw fil
 downloaded again). Each database also writes `NULL-VALUES-<DB>.tsv` (values converted to NULL). Tables changed by
 `setup` (a package, `--from-source`, a rebuild) invalidate the TaxID normalization: its checkpoint
 (`NCBI/TAXID-NORMALIZATION-COMPLETED.txt`) is removed and `search-genomes`/`download-wf` stop until `setup` makes it
-again (a checkpoint of a previous day is only a warning).
+again (a checkpoint of a previous day is only a warning). The normalization replaces the taxdump and the status tables
+under an exclusive `flock` on `<refdb>/.taxdump.lock`; `search-genomes` reads them under the shared lock.
 
 ## Conventions (follow them in every change)
 
