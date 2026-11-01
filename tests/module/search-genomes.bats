@@ -66,8 +66,10 @@ refute_genome_selected() {
     assert_success
     assert_selected unnamed 1
     assert_genome_selected unnamed "${UNNAMED_ARCHAEON}"
-    run tsv_value "$(metadata unnamed)" "${UNNAMED_ARCHAEON}" BACDIVE_LINK_LEVEL
+    run tsv_value "$(metadata unnamed)" "${UNNAMED_ARCHAEON}" BACDIVE_TAXID
     assert_output_equals "NULL"
+    run tsv_value "$(metadata unnamed)" "${UNNAMED_ARCHAEON}" NCBI_SPECIES_IN_BACDIVE
+    assert_output_equals "FALSE"
 }
 
 @test "-s refseq searches the RefSeq table (GCF_ accessions only)" {
@@ -101,6 +103,68 @@ refute_genome_selected() {
     refute_genome_selected growth "${D_RADIODURANS}"
     assert_genome_selected growth "${T_MARITIMA}"
     assert_genome_selected growth "${M_JANNASCHII}"
+}
+
+@test "BacDive is linked by species: NCBI_UPDATED_RANK, name and NCBI_SPECIES_IN_BACDIVE of a strain assembly" {
+    search_fixture species -a "${D_RADIODURANS},${UNNAMED_ARCHAEON}"
+    run tsv_value "$(metadata species)" "${D_RADIODURANS}" NCBI_UPDATED_RANK
+    assert_output_equals "species"
+    run tsv_value "$(metadata species)" "${D_RADIODURANS}" NCBI_UPDATED_ORGANISM_NAME
+    assert_output_equals "Deinococcus radiodurans"
+    run tsv_value "$(metadata species)" "${D_RADIODURANS}" NCBI_SPECIES_IN_BACDIVE
+    assert_output_equals "TRUE"
+    run tsv_value "$(metadata species)" "${D_RADIODURANS}" BACDIVE_TAXID
+    assert_output_equals "1299"
+    run tsv_value "$(metadata species)" "${UNNAMED_ARCHAEON}" NCBI_SPECIES_IN_BACDIVE
+    assert_output_equals "FALSE"
+}
+
+@test "a TaxID asked below the species rank (-t of a strain) is replaced by its species, with a warning" {
+    run search_fixture strain -t 243230
+    assert_success
+    assert_output_contains "NCBI TaxID 243230 is below the species rank: the search uses its species, TaxID 1299."
+    assert_genome_selected strain "${D_RADIODURANS}"
+}
+
+@test "an assembly above the species rank has no BacDive row; NCBI_SPECIES_IN_BACDIVE is TRUE if a species below it has one" {
+    cp -r "${PF_FIXTURE_REFDB}" refdb-genus
+    # D. radiodurans R1 and T. maritima become assemblies of their genus (1298 and 2335); the archaeon of an unnamed species
+    # stays at species rank
+    awk -F'\t' -v OFS='\t' '
+        $1 == "GCA_000008565.1" { $4 = 1298; $6 = "genus"; $7 = "Deinococcus" }
+        $1 == "GCA_000008545.1" { $4 = 2335; $6 = "genus"; $7 = "Thermotoga" }
+        1' refdb-genus/NCBI/BACTERIA-NCBI-METADATA/genbank-taxid-status.tsv > status.tmp
+    mv status.tmp refdb-genus/NCBI/BACTERIA-NCBI-METADATA/genbank-taxid-status.tsv
+    run bash "${PF_MAIN}" --refdb-dir refdb-genus -o above search-genomes -a "${D_RADIODURANS},${T_MARITIMA},${UNNAMED_ARCHAEON}"
+    assert_success
+    run tsv_value "$(metadata above)" "${D_RADIODURANS}" NCBI_UPDATED_RANK
+    assert_output_equals "genus"
+    run tsv_value "$(metadata above)" "${D_RADIODURANS}" BACDIVE_TAXID
+    assert_output_equals "NULL"
+    run tsv_value "$(metadata above)" "${D_RADIODURANS}" BACDIVE_TEMPERATURE_OPT
+    assert_output_equals "NULL"
+    run tsv_value "$(metadata above)" "${D_RADIODURANS}" NCBI_SPECIES_IN_BACDIVE
+    assert_output_equals "TRUE"
+    run tsv_value "$(metadata above)" "${T_MARITIMA}" NCBI_SPECIES_IN_BACDIVE
+    assert_output_equals "TRUE"
+    run tsv_value "$(metadata above)" "${UNNAMED_ARCHAEON}" NCBI_SPECIES_IN_BACDIVE
+    assert_output_equals "FALSE"
+    # a BacDive filter does not select an assembly above species
+    run bash "${PF_MAIN}" --refdb-dir refdb-genus -o above-filter search-genomes -a "${D_RADIODURANS},${T_MARITIMA}" AND --temp-growth 45:
+    assert_success
+    refute_genome_selected above-filter "${T_MARITIMA}"
+    refute_genome_selected above-filter "${D_RADIODURANS}"
+}
+
+@test "BacDive class filter reads the columns of the classes: -O rod finds the species with rod > 0" {
+    run search_fixture rod -O rod
+    assert_success
+    assert_genome_selected rod "GCA_000008125.1"
+    refute_genome_selected rod "${D_RADIODURANS}"
+    run tsv_value "$(metadata rod)" "GCA_000008125.1" BACDIVE_CELL_SHAPE_ROD
+    assert_output_equals "1"
+    run tsv_value "$(metadata rod)" "GCA_000008125.1" BACDIVE_CELL_SHAPE_COCCUS
+    assert_output_equals "0"
 }
 
 @test "accessions: GCA_ only with genbank, GCF_ only with -s refseq; the others are left out with a warning" {

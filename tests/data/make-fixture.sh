@@ -107,28 +107,39 @@ for DOMAIN in "${PF_DOMAINS[@]}"; do
         "${NUMS}" "$(pf_ncbi_fetch_file "${REFDB}/NCBI" "${DOMAIN}")" > "${FETCH}"
 done
 
-# TaxIDs of the genomes: the organism, its current TaxID and its species (read from the normalization of the complete
-# database, <source>-taxid-status.tsv) link BacDive (.link); the taxdump gets them and their ancestors (.ncbi)
+# TaxIDs of the genomes, read from the normalization of the complete database (<source>-taxid-status.tsv): the species of
+# the genomes (UPDATED_TAXID) link BacDive (.link); the taxdump gets the original TaxID too, and the ancestors (.ncbi)
 [[ -f "$(pf_taxid_marker "${REFDB}/NCBI")" ]] || die "The TaxIDs of ${REFDB} are not normalized: run main-prokfinder.sh setup first."
 for DOMAIN in "${PF_DOMAINS[@]}"; do
     for SOURCE in genbank refseq; do
         awk -F'\t' 'NR == FNR { keep[$1] = 1; next }
             FNR > 1 { a = $1; sub(/^GC[AF]_/, "", a) }
-            FNR > 1 && (a in keep) { print $2; print $4; print $5 }' \
+            FNR > 1 && (a in keep) { print $2; print $4 }' \
+            "${NUMS}" "$(pf_ncbi_taxid_status_table "${REFDB}/NCBI" "${DOMAIN}" "${SOURCE}")"
+    done
+done | awk '$0 ~ /^[0-9]+$/' | LC_ALL=C sort -u > "${TAXIDS}.ncbi"
+for DOMAIN in "${PF_DOMAINS[@]}"; do
+    for SOURCE in genbank refseq; do
+        awk -F'\t' 'NR == FNR { keep[$1] = 1; next }
+            FNR > 1 { a = $1; sub(/^GC[AF]_/, "", a) }
+            FNR > 1 && (a in keep) { print $4 }' \
             "${NUMS}" "$(pf_ncbi_taxid_status_table "${REFDB}/NCBI" "${DOMAIN}" "${SOURCE}")"
     done
 done | awk '$0 ~ /^[0-9]+$/' | LC_ALL=C sort -u > "${TAXIDS}.link"
-cp "${TAXIDS}.link" "${TAXIDS}.ncbi"
 
 log "message" "BacDive tables..."
 mkdir -p "${FIX}/BACDIVE/BACDIVE-FORMATTED-TSV"
-# Strains (bacdive_id) with one of the TaxIDs of the genomes, and every TaxID of these strains (taxdump). The species
-# table keeps only the TaxIDs of the genomes: every strain of these TaxIDs is in the fixture, so their rows are the
-# same in the complete and in the rebuilt table (a rebuilt table also has partial rows of the other TaxIDs of the
-# strains)
+# Strains (bacdive_id) with a TaxID whose current species is the species of one of the genomes (the status table of
+# BacDive of the complete database maps each TaxID to its current one), and every TaxID of these strains (taxdump).
+# Every strain of these species is in the fixture, so the species table that the normalization makes from the fixture
+# has the same rows as the complete one for these species. The tables of the species are not copied: the
+# normalization (3b) writes them.
 awk -F'\t' 'NR == FNR { t[$1] = 1; next }
-    FNR > 1 { n = split($2, x, ";"); for (i = 1; i <= n; i++) if (x[i] in t) { print $1; next } }' \
-    "${TAXIDS}.link" "$(pf_bacdive_table "${REFDB}/BACDIVE")" | LC_ALL=C sort -u > "${WORK}/bacdive-ids.txt"
+    FILENAME == status { if (FNR > 1 && ($3 in t)) cur[$1] = 1; next }
+    FNR > 1 { n = split($2, x, ";"); for (i = 1; i <= n; i++) if (x[i] in cur) { print $1; next } }' \
+    status="$(pf_bacdive_taxid_status_table "${REFDB}/BACDIVE")" \
+    "${TAXIDS}.link" "$(pf_bacdive_taxid_status_table "${REFDB}/BACDIVE")" "$(pf_bacdive_table "${REFDB}/BACDIVE")" \
+    | LC_ALL=C sort -u > "${WORK}/bacdive-ids.txt"
 awk -F'\t' 'NR == FNR { b[$1] = 1; next }
     FNR > 1 && ($1 in b) { n = split($2, x, ";"); for (i = 1; i <= n; i++) print x[i] }' \
     "${WORK}/bacdive-ids.txt" "$(pf_bacdive_table "${REFDB}/BACDIVE")" | LC_ALL=C sort -u > "${TAXIDS}.bacdive"
@@ -137,9 +148,7 @@ for TABLE in "$(pf_bacdive_table "${REFDB}/BACDIVE")" "$(pf_bacdive_strain_table
     awk -F'\t' 'NR == FNR { b[$1] = 1; next } FNR == 1 || ($1 in b)' "${WORK}/bacdive-ids.txt" "${TABLE}" \
         > "${FIX}/BACDIVE/BACDIVE-FORMATTED-TSV/$(basename "${TABLE}")"
 done
-awk -F'\t' 'NR == FNR { t[$1] = 1; next } FNR == 1 || ($1 in t)' "${TAXIDS}.link" \
-    "$(pf_bacdive_species_table "${REFDB}/BACDIVE")" > "$(pf_bacdive_species_table "${FIX}/BACDIVE")"
-log "message" "  $(wc -l < "${WORK}/bacdive-ids.txt") strains, $(count_records "$(pf_bacdive_species_table "${FIX}/BACDIVE")") TaxIDs"
+log "message" "  $(wc -l < "${WORK}/bacdive-ids.txt") strains"
 
 log "message" "GTDB tables..."
 mkdir -p "${FIX}/GTDB"

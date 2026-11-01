@@ -205,7 +205,7 @@
       "kind": "filter",
       "takes_value": true,
       "argument": "<id>",
-      "description": "NCBI TaxID of any rank (e.g., 1239 selects every Bacillota genome)"
+      "description": "NCBI TaxID of any rank (e.g., 1239 selects every Bacillota genome); a strain or subspecies TaxID is replaced by its species"
     },
     {
       "name": "--taxid-file",
@@ -1131,6 +1131,21 @@
       "usage": ""
     },
     {
+      "name": "pf_bacdive_classes",
+      "summary": "Prints the classes of a trait divided in classes (nothing if the trait is not one of them)",
+      "usage": "Usage: pf_bacdive_classes <trait>"
+    },
+    {
+      "name": "pf_bacdive_class_spec",
+      "summary": "Prints \"<trait>:<class>,<class>\" for every trait divided in classes, separated by spaces (for the awk programs)",
+      "usage": ""
+    },
+    {
+      "name": "pf_bacdive_aggregate_species",
+      "summary": "Merges the strains of a BacDive strain table by the CURRENT NCBI TaxID of the species: the table of the species used by the genome search. A strain counts once in each species it is linked to (its ncbi_tax_id holds several TaxIDs joined with \";\"). Only TaxIDs whose UPDATED_RANK is species are kept (strains linked above species say nothing about a species and are ignored). Numeric traits and *_delta: mean of the strains that have a value; *_range_min and *_range_max: lowest and highest; class columns: mean of the shares of the strains that have data for the trait. <status_table> is bacdive-taxid-status.tsv (first column = the TaxID of the strain table; columns UPDATED_TAXID, UPDATED_RANK and UPDATED_ORGANISM_NAME, found by name). Output columns: ncbi_tax_id, species (the scientific name of the current TaxID), bacdive_strains and the columns of the strain table except bacdive_id, ncbi_tax_id and species.",
+      "usage": "Usage: pf_bacdive_aggregate_species <strain_table> <status_table> <output_table>"
+    },
+    {
       "name": "pf_gtdb_prefix",
       "summary": "GTDB (<gtdb_dir> = .../REFERENCE-METADATA/GTDB)",
       "usage": ""
@@ -1203,7 +1218,7 @@
   ],
   "reference_database_formats": {
     "NCBI": 5,
-    "BACDIVE": 4,
+    "BACDIVE": 5,
     "GTDB": 4
   },
   "dependencies": {

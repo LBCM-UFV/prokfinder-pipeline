@@ -122,7 +122,8 @@ EOF
   -a, --accession <acc>                Accession with version (e.g., GCA_000005845.2): GCA_ with the genbank table
                                        (default), GCF_ with -s refseq; the others are left out, with a warning
   -A, --accession-file <file>          List of accessions
-  -t, --taxid <id>                     NCBI TaxID of any rank (e.g., 1239 selects every Bacillota genome)
+  -t, --taxid <id>                     NCBI TaxID of any rank (e.g., 1239 selects every Bacillota genome); a strain
+                                       or subspecies TaxID is replaced by its species
   -f, --taxid-file <file>              List of NCBI TaxIDs
   --ncbi-taxon <name>                  NCBI taxon name, any rank (e.g., Thermus); converted to its TaxID with
                                        taxonkit
@@ -135,7 +136,7 @@ EOF
   --genome-size <min:max>              Genome size in Mb (e.g., 1:4)
   --assembly-level <level>             contig, scaffold, chromosome or complete (complete genome)
 EOF
-    pf_help_box "BacDive filters (phenotype of the species or strain)" << EOF
+    pf_help_box "BacDive filters (phenotype of the species: the mean of its strains)" << EOF
   -T, --temp-opt <min:max>             Optimal growth temperature in degrees C (e.g., 45:80)
   --temp-growth <min:max>              Growth temperature in degrees C (known for many more species than -T)
   -P, --ph-opt <min:max>               Optimal pH (e.g., 5.5:8.5)

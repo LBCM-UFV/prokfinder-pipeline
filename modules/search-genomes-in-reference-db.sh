@@ -8,12 +8,12 @@
 # and parentheses (AND is evaluated before OR). The filters can use the metadata of NCBI, the phenotypic traits of
 # BacDive and the taxonomy of GTDB:
 #
-#   BacDive -> the BacDive table used has one row per NCBI TaxID (the strains of the same TaxID merged, see
-#              download-reference-db-bacdive.sh). The TaxIDs are the current ones (bacdive-taxid-status.tsv, see
-#              normalize-ncbi-taxids.sh). A TaxID of rank species is linked to the assemblies of that species
-#              (NCBI_SPECIES_TAXID); a TaxID below the species rank (strain, subspecies...) to the assemblies of that
-#              organism or strain (exact TaxID); TaxIDs above the species rank (genus, family...) are not linked. An
-#              assembly linked to a TaxID below the species rank uses its row; otherwise the row of its species.
+#   BacDive -> the BacDive table used has one row per species (the strains of the same current NCBI species merged,
+#              see normalize-ncbi-taxids.sh and download-reference-db-bacdive.sh). The species is the lowest level of
+#              the mapping: a row is linked to the assemblies whose NCBI_UPDATED_TAXID is that species (a TaxID below
+#              species is already collapsed to its species by the normalization); an assembly whose NCBI_UPDATED_RANK is
+#              above species is not linked. NCBI_SPECIES_IN_BACDIVE tells whether the species of the assembly (or, above
+#              species, any species below its TaxID) has a row.
 #   GTDB    -> the GTDB lineage of the assembly (GTDB lists each genome under only one of its GenBank/RefSeq
 #              accessions, so the accession number without prefix is used)
 #   NCBI    -> every assembly of the NCBI table (GenBank by default) is checked against every filter, and the
@@ -36,7 +36,8 @@
 #     ISOLATION_SOURCE  extended regular expression (POSIX ERE; a plain text is one too) found in the isolation
 #                       source (case-insensitive)
 #     TAXID             NCBI TaxID of any rank: the assemblies whose current TaxID (<source>-taxid-status.tsv) is that
-#                       TaxID or one of its descendants in the NCBI taxonomy (nodes.dmp)
+#                       TaxID or one of its descendants in the NCBI taxonomy (nodes.dmp). A TaxID below species rank
+#                       (strain, subspecies...) is replaced by its species, with a warning
 #     TAXON_NAME        name of an NCBI taxon (any rank), converted to its TaxID with "taxonkit name2taxid" (Bacteria
 #                       and Archaea only); then the same as TAXID. A name without TaxID is an invalid value
 #     TAXON_NAME_LIST   the same, from a list file (its first line is a header when it is not a taxon)
@@ -45,21 +46,22 @@
 #                       ("g__Thermus", "s__Thermus aquaticus"), only that rank; without it ("Thermus"), any rank.
 #                       A name that is not in the GTDB tables is an invalid value
 #     GTDB_TAXON_LIST   the same, from a list file (its first line is a header when it is not a GTDB taxon)
-#     BACDIVE_CLASS     <trait>=<class>[,<class>...]: at least one of the classes was recorded for the TaxID
+#     BACDIVE_CLASS     <trait>=<class>[,<class>...]: at least one of the classes was recorded for the species (its
+#                       column <trait>_<class> is greater than 0)
 #   KEY (single value)
 #     GENOME_TYPE       isolate_genome or mag
 #     GC                <min>:<max> GC content (%) of the assembly (either side may be empty)
 #     GENOME_SIZE       <min>:<max> total sequence length of the assembly, in Mb (either side may be empty)
-#     BACDIVE_RANGE     <column>=<min>:<max>: the value of the TaxID (mean of its strains) is inside the range
+#     BACDIVE_RANGE     <column>=<min>:<max>: the value of the species (mean of its strains) is inside the range
 #
 # Usage:
 #   search-genomes-in-reference-db.sh -q <query_file> --validate-only [--gtdb-dir <dir>] [--taxdump-dir <dir>]
 #   search-genomes-in-reference-db.sh -q <query_file> -r <reference_db_dir> -o <selected_metadata.tsv>
 #
-# Output: <selected_metadata.tsv>, one row per selected assembly: NCBI columns, NCBI_TAXID_STATUS, NCBI_UPDATED_TAXID
-# and NCBI_SPECIES_TAXID (the normalized NCBI TaxID), one SELECTED_BY_* column (TRUE/FALSE)
-# per filter, the *_MATCH columns (values that matched each filter with several values, e.g.
-# ISOLATION_SOURCE_KEYWORD_MATCH) and the BACDIVE_* columns.
+# Output: <selected_metadata.tsv>, one row per selected assembly: NCBI columns, NCBI_TAXID_STATUS, NCBI_UPDATED_TAXID,
+# NCBI_UPDATED_RANK, NCBI_UPDATED_ORGANISM_NAME (the normalized NCBI TaxID) and NCBI_SPECIES_IN_BACDIVE (TRUE/FALSE),
+# one SELECTED_BY_* column (TRUE/FALSE) per filter, the *_MATCH columns (values that matched each filter with several
+# values, e.g. ISOLATION_SOURCE_KEYWORD_MATCH) and the BACDIVE_* columns.
 
 set -euo pipefail
 
@@ -149,35 +151,25 @@ if [[ "${VALIDATE_ONLY}" -eq 0 ]]; then
 fi
 
 # ---------- Traits of the BacDive table that are divided in classes ----------
-# Names are the BacDive table column names; classes are the values written by download-reference-db-bacdive.sh.
-# This is the only place to edit to add a trait or a class: the validation and the filtering read from it.
-TRAIT_ORDER=(
-    cell_shape oxygen_tolerance gram_stain motility flagellum_arrangement colony_color
-    pigmentation_production forms_multicellular_complex spore_formation
-    energy_source electron_donor carbon_source biosafety_level
-)
+# Names are the BacDive trait names; each class is the column <trait>_<class> of the BacDive table (the share of the
+# strains of the species that recorded it). The traits and classes are defined in lib/common.sh (pf_bacdive_classes),
+# where the BacDive module takes them from: the validation and the filtering read from there.
+TRAIT_ORDER=("${PF_BACDIVE_CLASS_TRAITS[@]}")
 
-declare -A TRAIT_CLASSES=(
-    [cell_shape]="ovoid spiral coccus curved rod pleomorphic filament other"
-    [oxygen_tolerance]="aerobe anaerobe facultative microaerophile"
-    [gram_stain]="positive negative"
-    [motility]="yes no"
-    [flagellum_arrangement]="polar peritrichous gliding"
-    [colony_color]="colorless cream yellow white brown pink orange red grey green blue"
-    [pigmentation_production]="yes no"
-    [forms_multicellular_complex]="yes no"
-    [spore_formation]="yes no"
-    [energy_source]="chemotroph phototroph"
-    [electron_donor]="organotroph lithotroph"
-    [carbon_source]="autotroph heterotroph"
-    [biosafety_level]="1 2 3 4"
-)
+declare -A TRAIT_CLASSES=()
+for TRAIT in "${TRAIT_ORDER[@]}"; do
+    TRAIT_CLASSES["${TRAIT}"]="$(pf_bacdive_classes "${TRAIT}")"
+done
 
-# BacDive columns copied to the selected genomes (as BACDIVE_<COLUMN>)
-BACDIVE_ANNOTATION_TRAITS=(
-    temperature_opt temperature_range ph_opt halophily_opt oxygen_tolerance cell_shape gram_stain
-    spore_formation energy_source carbon_source
-)
+# BacDive columns copied to the selected genomes (as BACDIVE_<COLUMN>): the numeric traits and, of the traits divided in
+# classes, one column per class
+BACDIVE_ANNOTATION_TRAITS=(temperature_opt temperature_range_min temperature_range_max ph_opt halophily_opt)
+for TRAIT in oxygen_tolerance cell_shape gram_stain spore_formation energy_source carbon_source; do
+    for CLASS in ${TRAIT_CLASSES[${TRAIT}]}; do
+        BACDIVE_ANNOTATION_TRAITS+=("${TRAIT}_${CLASS}")
+    done
+done
+unset TRAIT CLASS
 
 # Prints the class that a user-typed value stands for (case-insensitive, common synonyms accepted).
 # Returns 1 (prints nothing) if the value is not a class of the trait.
@@ -818,11 +810,7 @@ done
 [[ -f "${NCBI_NODES}" ]] || die "NCBI taxdump not found: ${NCBI_NODES}. Run: main-prokfinder.sh setup (or setup --update-taxdump-file)"
 NCBI_HEADER_FILE="${NCBI_TABLES[0]}"
 NCBI_STATUS_LIST="$(IFS=,; echo "${NCBI_STATUS_TABLES[*]}")"
-# BacDive: normalized TaxIDs and ranks
-BACDIVE_STATUS_TSV="$(pf_bacdive_taxid_status_table "${REF_DIR}/BACDIVE")"
-if [[ -f "${BACDIVE_TSV}" && ! -f "${BACDIVE_STATUS_TSV}" ]]; then
-    die "The normalized BacDive TaxIDs were not found: ${BACDIVE_STATUS_TSV}. Run: main-prokfinder.sh setup (or setup --update-taxdump-file)"
-fi
+# (the BacDive table has one row per current species: normalize-ncbi-taxids.sh writes it)
 
 # Common awk functions
 AWK_LIB='
@@ -842,10 +830,6 @@ function any_in_range(x, lo, hi,   parts, n, i) {
 # GCA_000005845.2 -> 000005845.2 (GenBank and RefSeq assemblies of the same genome share the number)
 function acc_number(acc,   a) { a = acc; sub(/^GC[AF]_/, "", a); return a }
 function acc_base(acc,   a) { a = acc_number(acc); sub(/[.][0-9]+$/, "", a); return a }
-# Ranks above species: BacDive TaxIDs of these ranks are not linked to genomes
-function above_species(r) {
-    return r ~ /^(superkingdom|domain|realm|kingdom|subkingdom|phylum|subphylum|superclass|class|subclass|infraclass|superorder|order|suborder|infraorder|parvorder|superfamily|family|subfamily|tribe|subtribe|genus|subgenus|section|subsection|series|species group|species subgroup)$/
-}
 '
 
 # Name of a BacDive trait in the SELECTED_BY columns (the option of main-prokfinder.sh)
@@ -934,86 +918,70 @@ log "message" "Searching the reference database (NCBI ${Q_ASSEMBLY_SOURCE} table
 log "message" "Selection expression: ${EXPRESSION}"
 
 ############ BACDIVE FILTERS ################
-#   One row per NCBI TaxID (the BacDive strains of the same TaxID merged). Range filters: the value of the TaxID
+#   One row per species (the BacDive strains of the same current species merged). Range filters: the value of the species
 #   (mean of its strains) is inside the range. Class filters: at least one of the requested classes was recorded for
-#   the TaxID. TaxIDs with no value for a filtered trait do not pass. Output: one line per TaxID that can be linked to
-#   genomes: <taxid> <species|exact> <rank> and, per BacDive filter, "1" (range) or the classes found ("" = no).
+#   the species (its column <trait>_<class> is greater than 0). Species with no value for a filtered trait do not pass.
+#   Output: one line per species: <taxid> and, per BacDive filter, "1" (range) or the classes found ("" = no).
 
 BD_LINKS_FILE=""
 if [[ "${#BD_FILTERS[@]}" -gt 0 ]]; then
     if [[ ! -f "${BACDIVE_TSV}" ]]; then
-        die "BacDive filters require the BacDive TaxID table, which was not found: ${BACDIVE_TSV}. Update the reference databases with: main-prokfinder.sh setup"
+        die "BacDive filters require the BacDive species table, which was not found: ${BACDIVE_TSV}. Update the reference databases with: main-prokfinder.sh setup"
     fi
-    BD_SPEC="${WORK_DIR}/bacdive.spec"   # <filter index> <kind> <column index> <arg1> <arg2> <label>
+    BD_SPEC="${WORK_DIR}/bacdive.spec"   # <filter index> <kind> <column index(es)> <arg1> <arg2> <label>
     : > "${BD_SPEC}"
     for IDX in "${BD_FILTERS[@]}"; do
         # (fields separated by \x1f: unlike TAB, it keeps the empty fields when read)
         IFS=$'\x1f' read -r KEY ARG1 ARG2 LABEL < <(awk -F'\t' -v OFS='\x1f' -v i="${IDX}" '$1 == i { print $2, $3, $4, $7 }' "${FILTERS_SPEC}")
-        COL="$(get_column_index "${BACDIVE_TSV}" "${ARG1}")"
-        [[ -n "${COL}" ]] || die "Column '${ARG1}' not found in ${BACDIVE_TSV}."
         if [[ "${KEY}" == "BACDIVE_RANGE" ]]; then
+            COL="$(get_column_index "${BACDIVE_TSV}" "${ARG1}")"
+            [[ -n "${COL}" ]] || die "Column '${ARG1}' not found in ${BACDIVE_TSV}."
             printf '%s\trange\t%s\t%s\t%s\t%s\n' "${IDX}" "${COL}" "${ARG2%%:*}" "${ARG2#*:}" "${LABEL}" >> "${BD_SPEC}"
         else
-            printf '%s\tclass\t%s\t%s\t\t%s\n' "${IDX}" "${COL}" "${ARG2}" "${LABEL}" >> "${BD_SPEC}"
+            # one column per class: <trait>_<class>
+            COLS=""
+            for CLASS in ${ARG2//,/ }; do
+                COL="$(get_column_index "${BACDIVE_TSV}" "${ARG1}_${CLASS}")"
+                [[ -n "${COL}" ]] || die "Column '${ARG1}_${CLASS}' not found in ${BACDIVE_TSV}."
+                COLS="${COLS:+${COLS},}${COL}"
+            done
+            printf '%s\tclass\t%s\t%s\t\t%s\n' "${IDX}" "${COLS}" "${ARG2}" "${LABEL}" >> "${BD_SPEC}"
         fi
     done
 
-    log "message" "BacDive filters (one row per NCBI TaxID, strains merged):"
+    log "message" "BacDive filters (one row per species, strains merged):"
     BD_LINKS_FILE="${WORK_DIR}/bacdive_links.tsv"
-    awk -F'\t' -v OFS='\t' -v c_taxid="$(require_column "${BACDIVE_TSV}" ncbi_tax_id)" \
-        -v status_file="${BACDIVE_STATUS_TSV}" -v spec="${BD_SPEC}" \
+    awk -F'\t' -v OFS='\t' -v c_taxid="$(require_column "${BACDIVE_TSV}" ncbi_tax_id)" -v spec="${BD_SPEC}" \
         -v stats="${WORK_DIR}/bacdive.stats" "${AWK_LIB}"'
     BEGIN {
         while ((getline line < spec) > 0) {
             split(line, f, "\t"); n++
-            kind[n] = f[2]; col[n] = f[3] + 0; a[n] = f[4]; b[n] = f[5]; label[n] = f[6]
-            if (kind[n] == "class") { m = split(f[4], cl, ","); for (k = 1; k <= m; k++) want[n, cl[k]] = 1 }
+            kind[n] = f[2]; label[n] = f[6]
+            if (kind[n] == "class") {
+                ncl[n] = split(f[3], cc, ","); split(f[4], cn, ",")
+                for (k = 1; k <= ncl[n]; k++) { ccol[n, k] = cc[k] + 0; cname[n, k] = cn[k] }
+            } else { col[n] = f[3] + 0; a[n] = f[4]; b[n] = f[5] }
         }
         close(spec)
-        # normalized TaxID and rank of each BacDive TaxID (bacdive-taxid-status.tsv: ncbi_tax_id, TAXID_STATUS,
-        # UPDATED_TAXID, SPECIES_TAXID, RANK, TAXDUMP_DATE); the rows are keyed by the current TaxID
-        while ((getline line < status_file) > 0) {
-            if (++nl == 1) continue
-            split(line, f, "\t")
-            if (!is_empty(f[3])) { upd[f[1]] = f[3]; rk[f[1]] = f[5] }
-        }
-        close(status_file)
-    }
-    # classes of the cell "coccus=0.25;rod=0.75" that were requested by filter i, joined with ";"
-    function classes_found(cell, i,   parts, m, j, tok, out) {
-        if (is_empty(cell)) return ""
-        m = split(tolower(cell), parts, ";"); out = ""
-        for (j = 1; j <= m; j++) {
-            tok = parts[j]; sub(/=.*/, "", tok); gsub(/^[ \t]+|[ \t]+$/, "", tok)
-            if ((i, tok) in want) out = out (out == "" ? "" : ";") tok
-        }
-        return out
     }
     NR == 1 { next }
     {
-        # (a TaxID that is not in the NCBI taxonomy any more has no current TaxID: it is not linked)
-        if (is_empty($c_taxid) || !($c_taxid in upd)) next
-        rank = (is_empty(rk[$c_taxid]) ? "NULL" : rk[$c_taxid])
-        high = above_species(rank)
-        out = upd[$c_taxid] OFS (rank == "species" ? "species" : "exact") OFS rank
+        if (is_empty($c_taxid)) next
+        out = $c_taxid
         for (i = 1; i <= n; i++) {
-            v = (kind[i] == "range" ? (any_in_range($(col[i]), a[i], b[i]) ? "1" : "") : classes_found($(col[i]), i))
-            if (v != "") { if (high) n_high[i, rank]++; else n_rank[i, rank]++; ranks[rank] = 1 }
+            if (kind[i] == "range") v = (any_in_range($(col[i]), a[i], b[i]) ? "1" : "")
+            else {
+                v = ""
+                for (k = 1; k <= ncl[i]; k++) if (is_number($(ccol[i, k])) && $(ccol[i, k]) + 0 > 0) v = v (v == "" ? "" : ";") cname[i, k]
+            }
+            if (v != "") n_match[i]++
             out = out OFS v
         }
-        if (!high) print out
+        print out
     }
     END {
-        # per filter, e.g. "BacDive temperature_opt 45:80: 231 NCBI TaxIDs match (200 species, 31 strain)"
-        for (i = 1; i <= n; i++) {
-            s = ""; t = 0; h = ""
-            for (r in ranks) {
-                if ((i, r) in n_rank) { s = s (s == "" ? "" : ", ") n_rank[i, r] " " r; t += n_rank[i, r] }
-                if ((i, r) in n_high) h = h (h == "" ? "" : ", ") n_high[i, r] " " r
-            }
-            printf "  %s -> %d NCBI TaxIDs match%s%s\n", label[i], t, (s == "" ? "" : " (" s ")"), \
-                (h == "" ? "" : "; above the species rank, not linked to genomes: " h) > stats
-        }
+        # per filter, e.g. "BacDive temperature_opt 45:80: 231 species match"
+        for (i = 1; i <= n; i++) printf "  %s -> %d species match\n", label[i], n_match[i] + 0 > stats
     }' "${BACDIVE_TSV}" > "${BD_LINKS_FILE}"
     while IFS= read -r LINE; do
         log "message" "${LINE}"
@@ -1104,16 +1072,34 @@ C_GC="$(require_column "${NCBI_HEADER_FILE}" ASSEMBLY_STATS_GC_PERCENT)"
 
 SELECTED_TMP="${WORK_DIR}/selected.tsv"
 ACC_NOT_FOUND="${WORK_DIR}/accessions-not-found.txt"
+TAXID_BELOW_SPECIES="${WORK_DIR}/taxids-below-species.tsv"
 : > "${ACC_NOT_FOUND}"
+: > "${TAXID_BELOW_SPECIES}"
+# species of the BacDive table (first column, current TaxIDs), for NCBI_SPECIES_IN_BACDIVE
+BD_SPECIES_FILE=""; BD_TAXID_COL=0
+if [[ -f "${BACDIVE_TSV}" ]]; then
+    BD_SPECIES_FILE="${BACDIVE_TSV}"
+    BD_TAXID_COL="$(require_column "${BACDIVE_TSV}" ncbi_tax_id)"
+fi
 
-awk -F'\t' -v OFS='\t' -v missing="${ACC_NOT_FOUND}" \
+awk -F'\t' -v OFS='\t' -v missing="${ACC_NOT_FOUND}" -v below_file="${TAXID_BELOW_SPECIES}" \
     -v c_acc="${C_ACC}" -v c_iso="${C_ISO}" -v c_level="${C_LEVEL}" -v c_size="${C_SIZE}" \
     -v c_gtype="${C_GTYPE}" -v c_gc="${C_GC}" -v status_list="${NCBI_STATUS_LIST}" -v nodes_file="${NCBI_NODES}" \
     -v spec="${FILTERS_SPEC}" -v values="${FILTER_VALUES}" -v bd_file="${BD_LINKS_FILE}" \
+    -v bd_species_file="${BD_SPECIES_FILE}" -v c_bd_taxid="${BD_TAXID_COL}" \
     -v gtdb_file="${GTDB_KEYS_FILE}" -v tname_file="${TAXON_NAME_FILE}" \
     -v rpn="${RPN[*]}" -v stats="${WORK_DIR}/selection.stats" "${AWK_LIB}"'
 function norm(s) { s = tolower(s); gsub(/[^a-z0-9]+/, " ", s); sub(/ +$/, "", s); return " " s }
 function add_unique(list, v) { return (index(";" list ";", ";" v ";") > 0 ? list : list (list == "" ? "" : ";") v) }
+# species the TaxID belongs to (the TaxID itself when it is a species; "" when it is above species rank)
+function species_of(t,   n) {
+    for (n = 0; n < 64 && (t in parent); n++) {
+        if (t in is_species) return t
+        if (parent[t] == t) return ""
+        t = parent[t]
+    }
+    return ""
+}
 # values of filter i for the TaxID t and every ancestor of it (the same TaxID is looked up once per filter)
 function lineage_match(i, t,   cur, n, m) {
     if ((i, t) in memo) return memo[i, t]
@@ -1143,32 +1129,58 @@ BEGIN {
     close(values)
     if (tname_file != "") { while ((getline line < tname_file) > 0) { split(line, f, "\t"); set[f[1], f[2]] = (((f[1], f[2]) in set) ? set[f[1], f[2]] ";" : "") f[3] } close(tname_file) }
     if (gtdb_file != "")  { while ((getline line < gtdb_file) > 0)  { split(line, f, "\t"); gtdb[f[2], f[1]] = f[3] } close(gtdb_file) }
-    # BacDive: column of each BacDive filter in the links file (4 = first filter)
+    # BacDive: column of each BacDive filter in the links file (2 = first filter; 1 = the TaxID of the species)
     nb = 0
-    for (i = 1; i <= n; i++) if (key[i] ~ /^BACDIVE_/) bd_col[i] = 3 + (++nb)
+    for (i = 1; i <= n; i++) if (key[i] ~ /^BACDIVE_/) bd_col[i] = 1 + (++nb)
     if (bd_file != "") {
-        while ((getline line < bd_file) > 0) {
-            split(line, f, "\t")
-            if (f[2] == "species") bd_species[f[1]] = line; else bd_exact[f[1]] = line
-        }
+        while ((getline line < bd_file) > 0) { split(line, f, "\t"); bd_row[f[1]] = line }
         close(bd_file)
     }
     nr = split(rpn, op, " ")
-    # taxonomy for the TaxID filters: nodes.dmp "<taxid> | <parent> | ..."
-    for (i = 1; i <= n; i++) if (key[i] == "TAXID" || key[i] == "TAXON_NAME" || key[i] == "TAXON_NAME_LIST") need_nodes = 1
-    if (need_nodes) {
-        while ((getline line < nodes_file) > 0) { split(line, f, /\t\|\t?/); parent[f[1]] = f[2] }
-        close(nodes_file)
+    # taxonomy: nodes.dmp "<taxid> | <parent> | <rank> | ..." (TaxID filters, species of the TaxIDs asked, ancestors of
+    # the species of BacDive)
+    while ((getline line < nodes_file) > 0) { split(line, f, /\t\|\t?/); parent[f[1]] = f[2]; if (f[3] == "species") is_species[f[1]] = 1 }
+    close(nodes_file)
+    # species of BacDive and their ancestors (NCBI_SPECIES_IN_BACDIVE)
+    if (bd_species_file != "") {
+        nl = 0
+        while ((getline line < bd_species_file) > 0) {
+            if (++nl == 1) continue
+            split(line, f, "\t")
+            t = f[c_bd_taxid]
+            if (is_empty(t)) continue
+            bd_species[t] = 1
+            cur = t
+            for (q = 0; q < 64 && (cur in parent) && parent[cur] != cur; q++) { cur = parent[cur]; bd_ancestor[cur] = 1 }
+        }
+        close(bd_species_file)
     }
+    # a TaxID asked (-t, -N) below species rank is replaced by its species
+    for (ik in set) {
+        split(ik, pk, SUBSEP)
+        if (key[pk[1]] != "TAXID" && key[pk[1]] != "TAXON_NAME" && key[pk[1]] != "TAXON_NAME_LIST") continue
+        sp_of = species_of(pk[2])
+        if (sp_of != "" && sp_of != pk[2]) { moved[pk[1], sp_of] = (((pk[1], sp_of) in moved) ? moved[pk[1], sp_of] ";" : "") set[ik]; below[pk[2]] = sp_of }
+    }
+    for (ik in moved) { split(ik, pk, SUBSEP); set[ik] = (ik in set ? add_unique(set[ik], moved[ik]) : moved[ik]) }
+    for (v in below) print v, below[v] > below_file
+    close(below_file)
     # normalized TaxID of each assembly (<source>-taxid-status.tsv: ASSEMBLY_ACCESSION, TAXID, TAXID_STATUS,
-    # UPDATED_TAXID, SPECIES_TAXID, RANK, TAXDUMP_DATE)
+    # UPDATED_TAXID, RANK, UPDATED_RANK, UPDATED_ORGANISM_NAME, TAXDUMP_DATE)
     ns = split(status_list, status_file, ",")
     for (k = 1; k <= ns; k++) {
         nl = 0
         while ((getline line < status_file[k]) > 0) {
-            if (++nl == 1) continue
             split(line, f, "\t")
-            tstatus[f[1]] = f[3]; tupdated[f[1]] = (is_empty(f[4]) ? "" : f[4]); tspecies[f[1]] = (is_empty(f[5]) ? "" : f[5])
+            if (++nl == 1) {
+                if (f[6] != "UPDATED_RANK" || f[7] != "UPDATED_ORGANISM_NAME") {
+                    print "ERROR: " status_file[k] " is not in the current format (no UPDATED_RANK/UPDATED_ORGANISM_NAME): run main-prokfinder.sh setup" > "/dev/stderr"
+                    exit 1
+                }
+                continue
+            }
+            tstatus[f[1]] = f[3]; tupdated[f[1]] = (is_empty(f[4]) ? "" : f[4]); trank[f[1]] = (is_empty(f[6]) ? "" : f[6])
+            tname[f[1]] = (is_empty(f[7]) ? "" : f[7])
         }
         close(status_file[k])
     }
@@ -1176,7 +1188,7 @@ BEGIN {
 FNR == 1 {
     if (NR == 1) {
         # each SELECTED_BY column is followed by its column of matched values (filters with several values)
-        out = $0 OFS "NCBI_TAXID_STATUS" OFS "NCBI_UPDATED_TAXID" OFS "NCBI_SPECIES_TAXID"
+        out = $0 OFS "NCBI_TAXID_STATUS" OFS "NCBI_UPDATED_TAXID" OFS "NCBI_UPDATED_RANK" OFS "NCBI_UPDATED_ORGANISM_NAME" OFS "NCBI_SPECIES_IN_BACDIVE"
         for (i = 1; i <= n; i++) out = out OFS sel[i] (mname[i] != "" ? OFS mname[i] : "")
         print out
     }
@@ -1185,16 +1197,14 @@ FNR == 1 {
 {
     n_in++
     key_gtdb = acc_base($c_acc)
-    # current TaxID and species of the assembly (empty when the TaxID could not be resolved)
+    # current TaxID, rank and name of the assembly (empty when the TaxID could not be resolved)
     upd_taxid = ($c_acc in tupdated ? tupdated[$c_acc] : "")
-    sp_taxid = ($c_acc in tspecies ? tspecies[$c_acc] : "")
-    # BacDive row of the assembly: its TaxID (below species) first, then the species TaxID
+    upd_rank = ($c_acc in trank ? trank[$c_acc] : "")
+    # BacDive row of the assembly: the row of its species (an assembly above species rank is not linked)
     bd = ""
-    if (nb > 0) {
-        if (upd_taxid in bd_exact) bd = bd_exact[upd_taxid]
-        else if (sp_taxid in bd_species) bd = bd_species[sp_taxid]
-        if (bd != "") split(bd, bdf, "\t")
-    }
+    if (nb > 0 && upd_rank == "species" && (upd_taxid in bd_row)) { bd = bd_row[upd_taxid]; split(bd, bdf, "\t") }
+    # the species of the assembly (or, above species, a species below it) has a row in BacDive
+    in_bacdive = (upd_taxid != "" && ((upd_taxid in bd_species) || (upd_taxid in bd_ancestor)) ? "TRUE" : "FALSE")
 
     for (i = 1; i <= n; i++) {
         m = ""
@@ -1246,7 +1256,8 @@ FNR == 1 {
     if (!st[1]) next
     n_sel++
 
-    out = $0 OFS ($c_acc in tstatus ? tstatus[$c_acc] : "NULL") OFS (upd_taxid == "" ? "NULL" : upd_taxid) OFS (sp_taxid == "" ? "NULL" : sp_taxid)
+    out = $0 OFS ($c_acc in tstatus ? tstatus[$c_acc] : "NULL") OFS (upd_taxid == "" ? "NULL" : upd_taxid) OFS (upd_rank == "" ? "NULL" : upd_rank) \
+        OFS (($c_acc in tname) && tname[$c_acc] != "" ? tname[$c_acc] : "NULL") OFS in_bacdive
     for (i = 1; i <= n; i++) out = out OFS (pass[i] ? "TRUE" : "FALSE") (mname[i] != "" ? OFS (mval[i] == "" ? "NULL" : mval[i]) : "")
     print out
 }
@@ -1261,6 +1272,11 @@ while IFS=$'\t' read -r LABEL VALUE; do
     log "message" "${LABEL}: ${VALUE}"
 done < "${WORK_DIR}/selection.stats"
 
+# TaxIDs asked below the species rank (strain, subspecies...): the mapping stops at the species
+while IFS=$'\t' read -r ASKED SPECIES_ASKED; do
+    log "warning" "NCBI TaxID ${ASKED} is below the species rank: the search uses its species, TaxID ${SPECIES_ASKED}."
+done < <(sort -n "${TAXID_BELOW_SPECIES}")
+
 # Accessions of the accession filters that are not in the searched table (e.g., GCF_ with the GenBank table)
 if [[ -s "${ACC_NOT_FOUND}" ]]; then
     sort -o "${ACC_NOT_FOUND}" "${ACC_NOT_FOUND}"
@@ -1270,9 +1286,10 @@ fi
 TOTAL_SELECTED="$(count_records "${SELECTED_TMP}")"
 
 ############ BACDIVE ANNOTATION ################
-#   The BacDive traits of each selected assembly are added as BACDIVE_* columns, from the TaxID table (strains of the
-#   same TaxID merged). An assembly uses the row of its organism or strain TaxID when it is below the species rank,
-#   otherwise the row of its species TaxID. BACDIVE_TAXID and BACDIVE_LINK_LEVEL (rank) tell which row was used.
+#   The BacDive traits of each selected assembly are added as BACDIVE_* columns, from the species table (strains of the
+#   same species merged). An assembly uses the row of its species (NCBI_UPDATED_TAXID) when its NCBI_UPDATED_RANK is
+#   species; an assembly above species rank, or whose species is not in BacDive, has NULL. The traits divided in classes
+#   have one column per class (BACDIVE_<TRAIT>_<CLASS>: the share of the strains that recorded it).
 
 if [[ -f "${BACDIVE_TSV}" && "${TOTAL_SELECTED}" -gt 0 ]]; then
     log "message" "Adding the BacDive traits of the selected genomes..."
@@ -1284,34 +1301,24 @@ if [[ -f "${BACDIVE_TSV}" && "${TOTAL_SELECTED}" -gt 0 ]]; then
         fi
     done
 
-    # (the NCBI TaxID columns of the selected table: NCBI_UPDATED_TAXID and NCBI_SPECIES_TAXID, written above)
+    # (the NCBI TaxID columns of the selected table: NCBI_UPDATED_TAXID and NCBI_UPDATED_RANK, written above)
     awk -F'\t' -v OFS='\t' -v bd_file="${BACDIVE_TSV}" \
-        -v bd_taxid_col="$(require_column "${BACDIVE_TSV}" ncbi_tax_id)" -v status_file="${BACDIVE_STATUS_TSV}" \
+        -v bd_taxid_col="$(require_column "${BACDIVE_TSV}" ncbi_tax_id)" \
         -v spec="${BD_SPEC}" -v c_acc="${C_ACC}" -v c_updated_taxid="$(require_column "${SELECTED_TMP}" NCBI_UPDATED_TAXID)" \
-        -v c_species_taxid="$(require_column "${SELECTED_TMP}" NCBI_SPECIES_TAXID)" "${AWK_LIB}"'
+        -v c_updated_rank="$(require_column "${SELECTED_TMP}" NCBI_UPDATED_RANK)" "${AWK_LIB}"'
     BEGIN {
         ns = split(spec, sp, ",")
         for (k = 1; k <= ns; k++) { split(sp[k], p, "="); col[k] = p[1] + 0; name[k] = (p[2] == "bacdive_strains" ? "BACDIVE_STRAINS" : "BACDIVE_" toupper(p[2])) }
-        # current TaxID and rank of each BacDive TaxID (bacdive-taxid-status.tsv)
-        while ((getline line < status_file) > 0) {
-            if (++ls == 1) continue
-            split(line, f, "\t")
-            if (!is_empty(f[3])) { upd[f[1]] = f[3]; rk[f[1]] = f[5] }
-        }
-        close(status_file)
         while ((getline line < bd_file) > 0) {
             if (++rows == 1) continue
             split(line, f, "\t")
-            if (is_empty(f[bd_taxid_col]) || !(f[bd_taxid_col] in upd)) continue
-            t = upd[f[bd_taxid_col]]; r = rk[f[bd_taxid_col]]
-            if (above_species(r)) continue
+            if (is_empty(f[bd_taxid_col])) continue
             v = ""
             for (k = 1; k <= ns; k++) v = v OFS (f[col[k]] == "" ? "NULL" : f[col[k]])
-            if (r == "species") species_row[t] = v; else exact_row[t] = v
-            rank[t] = r
+            species_row[f[bd_taxid_col]] = v
         }
         close(bd_file)
-        out = "ASSEMBLY_ACCESSION" OFS "BACDIVE_TAXID" OFS "BACDIVE_LINK_LEVEL"
+        out = "ASSEMBLY_ACCESSION" OFS "BACDIVE_TAXID"
         for (k = 1; k <= ns; k++) out = out OFS name[k]
         print out
         empty = ""
@@ -1319,15 +1326,13 @@ if [[ -f "${BACDIVE_TSV}" && "${TOTAL_SELECTED}" -gt 0 ]]; then
     }
     NR == 1 { next }
     {
-        if ($c_updated_taxid in exact_row)        t = $c_updated_taxid
-        else if ($c_species_taxid in species_row) t = $c_species_taxid
-        else                                      t = ""
-        if (t == "") print $c_acc, "NULL", "NULL" empty
-        else print $c_acc, t, rank[t] ((t in exact_row) ? exact_row[t] : species_row[t])
+        t = (($c_updated_rank == "species") && ($c_updated_taxid in species_row)) ? $c_updated_taxid : ""
+        if (t == "") print $c_acc, "NULL" empty
+        else print $c_acc, t species_row[t]
     }' "${SELECTED_TMP}" > "${WORK_DIR}/bacdive_annotation.tsv"
 
     add_metadata_columns "${SELECTED_TMP}" "${WORK_DIR}/bacdive_annotation.tsv"
-    log "message" "  Selected genomes linked to BacDive: $(awk -F'\t' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "BACDIVE_LINK_LEVEL") c = i; next } $c != "NULL" { n[$c]++; t++ } END { printf "%d", t; s = ""; for (r in n) s = s (s == "" ? "" : ", ") n[r] " " r; if (s != "") printf " (%s)", s }' "${SELECTED_TMP}")"
+    log "message" "  Selected genomes linked to BacDive (the species has a row): $(awk -F'\t' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "BACDIVE_TAXID") c = i; next } $c != "NULL" { t++ } END { printf "%d", t }' "${SELECTED_TMP}")"
 fi
 
 # Nothing else is read from the taxdump or the status tables

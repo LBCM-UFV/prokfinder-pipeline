@@ -166,9 +166,15 @@ As opções são alternativas (uma só por vez). Cada uma faz uma parte:
   O `TAXID_STATUS` é `CURRENT`, `MERGED` (o TaxID foi unido a outro: `UPDATED_TAXID`), `DELETED` ou `INVALID`; os dois
   últimos (só no NCBI, que tem o nome do organismo) são resgatados pelo nome científico no `names.dmp`: um TaxID de
   Bacteria/Archaea = `RESCUED`; vários = `AMBIGUOUS` (usa o primeiro); nenhum = `UNRESOLVED` (o genoma fica na tabela,
-  mas nenhum filtro de TaxID o encontra). `SPECIES_TAXID` é a espécie do TaxID atual e `RANK` o seu rank. Os casos que
+  mas nenhum filtro de TaxID o encontra). No BacDive o nome usado no resgate é o da coluna `species`. Os casos que
   não são `CURRENT` nem `MERGED` vão para `NCBI/taxid-unresolved.tsv`. O marcador
   `NCBI/TAXID-NORMALIZATION-COMPLETED.txt` (com a data do taxdump) é gravado por último.
+  **A espécie é o menor nível do mapeamento** (o NCBI parou de criar TaxIDs de cepa em 2014): um TaxID abaixo de espécie
+  (cepa, subespécie, `no rank`) vira o TaxID da sua espécie. Colunas dos arquivos de status: `TAXID` (sempre o original),
+  `RANK` (rank do TaxID original; o do destino quando `MERGED`; `NULL` quando o TaxID não está mais no `nodes.dmp`),
+  `UPDATED_TAXID` (o TaxID atual, a espécie para os abaixo dela), `UPDATED_RANK` e `UPDATED_ORGANISM_NAME` (nome
+  científico do `UPDATED_TAXID`). `RANK` diferente de `UPDATED_RANK` marca as cepas recolhidas para a espécie; o log e o
+  marcador contam quantas, por rank.
 - `search-genomes` e `download-wf` **exigem a normalização**: banco instalado sem o marcador (ou com uma
   normalização interrompida) é um erro que pede `setup` ou `setup --update-taxdump-file`; um marcador de um dia
   anterior gera só um aviso (o taxdump muda todo dia). A data do taxdump vai para `versions.tsv`. Uma busca em andamento
@@ -203,12 +209,20 @@ As opções são alternativas (uma só por vez). Cada uma faz uma parte:
 
 **Tabelas do BacDive (estilo BactoTraits).** Uma cepa pode ter vários valores para o mesmo traço, vindos de
 referências diferentes (em `BACDIVE_DATA_FORMATTED.tsv`, `;` separa referências e `:` separa valores da mesma
-referência). Cada referência e depois cada cepa tem o mesmo peso:
+referência). Cada referência e depois cada cepa tem o mesmo peso; um registro sem `@ref` conta como uma referência
+própria. Todas as tabelas têm a coluna `species` (nome da espécie no BacDive). Uma célula guarda um número só: cada
+`*_range` vira `*_range_min` e `*_range_max`, e cada traço nominal vira uma coluna por classe,
+`<traço>_<classe>` (46 colunas, ex.: `gram_stain_negative`, `cell_shape_rod`), com valores de 0 a 1 que somam 1 por traço
+(`NULL` em todas as classes quando não há dado). A salinidade em g/L e em molar é convertida para % (NaCl: 1 M = 5,844 %).
 
-| Tabela | Uma linha por | Números | `*_range` | Classes |
+| Tabela | Uma linha por | Números | `*_range_min` / `*_range_max` | Classes |
 |---|---|---|---|---|
-| `BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv` | cepa (`bacdive_id`) | média das referências | menor:maior valor | fração das referências que registraram cada classe (ex.: `coccus=0.25;rod=0.75`) |
-| `BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv` | TaxID do NCBI (`ncbi_tax_id`, `bacdive_strains`; o rank e o TaxID atual estão em `bacdive-taxid-status.tsv`) | média das cepas | menor:maior valor | média das frações das cepas |
+| `BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv` | cepa (`bacdive_id`) | média das referências | menor e maior valor | fração das referências que registraram a classe |
+| `BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv` | **espécie atual** (`ncbi_tax_id`, `species`, `bacdive_strains`) | média das cepas | menor dos mínimos e maior dos máximos | média das frações das cepas que têm dado |
+
+A tabela por espécie é gravada pela normalização (`setup`), não pelo módulo do BacDive: a espécie de uma cepa depende
+do TaxID atual (`bacdive-taxid-status.tsv`). Uma cepa conta uma vez por espécie, mesmo que dois dos seus TaxIDs virem a
+mesma espécie; cepas ligadas acima de espécie ficam de fora.
 
 ---
 
@@ -294,11 +308,11 @@ inexistente do BacDive, arquivo de lista que não existe ou vazio. O arquivo é 
 
 Erros de sintaxe da linha de comando (falta de `AND`/`OR`, parênteses, opção desconhecida) sempre param o Prokfinder.
 
-**Filtros do BacDive:** a busca usa a tabela por TaxID. Um filtro numérico passa quando a **média** está no
-intervalo; um filtro de classe, quando a classe foi registrada para o TaxID. A ligação com os genomas depende do
-**rank** do TaxID: de **espécie** seleciona os genomas da espécie; **abaixo da espécie** (cepa, subespécie...)
-seleciona os genomas daquele organismo/cepa; **acima da espécie** (gênero...) não é usado. O log mostra, por filtro,
-quantos TaxIDs passaram por rank (ex.: `BacDive temperature_opt 45:80 -> 231 NCBI TaxIDs match (200 species, 31 strain)`).
+**Filtros do BacDive:** a busca usa a tabela por **espécie**. Um filtro numérico passa quando a **média** está no
+intervalo; um filtro de classe, quando a coluna da classe é maior que 0. A ligação com os genomas é sempre pela espécie:
+o `NCBI_UPDATED_TAXID` do genoma (um TaxID de cepa já foi recolhido para a espécie) é a linha do BacDive; um genoma
+cujo `NCBI_UPDATED_RANK` é **acima de espécie** (gênero...) não é ligado. Um `-t`/`-N` abaixo de espécie é trocado pela
+espécie, com um aviso. O log mostra, por filtro, quantas espécies passaram (ex.: `BacDive temperature_opt 45:80 -> 231 species match`).
 Atenção: no BacDive a maioria das cepas registra só temperaturas de **cultivo**; poucas registram a temperatura
 **ótima**, por isso `-T` encontra bem menos espécies que `--temp-growth`.
 
@@ -313,8 +327,12 @@ Atenção: no BacDive a maioria das cepas registra só temperaturas de **cultivo
 | numérica | `SELECTED_BY_<FLAG>-<FAIXA>` | `SELECTED_BY_OPT_TEMP-45:80`, `SELECTED_BY_GC-40:65` |
 | vários valores | `SELECTED_BY_<FLAG>` + coluna com os valores que deram match (separados por `;`) | `SELECTED_BY_ISOLATION_SOURCE` + `ISOLATION_SOURCE_KEYWORD_MATCH` |
 
-Se a mesma flag aparecer duas vezes, a segunda coluna ganha `_2`. As colunas do BacDive são `BACDIVE_TAXID`,
-`BACDIVE_LINK_LEVEL` (rank), `BACDIVE_STRAINS` e os traços.
+Se a mesma flag aparecer duas vezes, a segunda coluna ganha `_2`. Do TaxID do NCBI vêm `NCBI_TAXID_STATUS`,
+`NCBI_UPDATED_TAXID`, `NCBI_UPDATED_RANK`, `NCBI_UPDATED_ORGANISM_NAME` e `NCBI_SPECIES_IN_BACDIVE` (`TRUE` se a espécie do
+genoma tem linha no BacDive; acima de espécie, `TRUE` se alguma espécie abaixo dele tem; nunca `NULL`). As colunas do
+BacDive são `BACDIVE_TAXID`, `BACDIVE_STRAINS` e os traços (`BACDIVE_TEMPERATURE_OPT`,
+`BACDIVE_TEMPERATURE_RANGE_MIN`/`_MAX`...; os nominais, uma coluna por classe, ex.: `BACDIVE_OXYGEN_TOLERANCE_AEROBE`).
+`ASSEMBLY_BIOPROJECT_LINEAGE_ACCESSION` e `ASSEMBLY_BIOSAMPLE_BIOPROJECT_ACCESSION` identificam o projeto da cepa.
 
 Ao terminar, a busca grava o checkpoint **`SEARCH-GENOMES-COMPLETED.txt`** na pasta de resultados (data, expressão,
 tabela do NCBI usada e número de genomas). O `download-wf` só roda se esse arquivo existir. A busca é reaproveitada
@@ -548,7 +566,7 @@ Bancos de referência (compartilhados, `--refdb-dir`):
 │   └── BACDIVE-FORMATTED-TSV/
 │       ├── BACDIVE_DATA_FORMATTED.tsv                 # uma linha por cepa, todas as referências
 │       ├── BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv   # referências de cada cepa unidas
-│       └── BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv     # cepas de cada TaxID unidas (usada na busca)
+│       └── BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv     # cepas de cada espécie unidas (feita na normalização; usada na busca)
 └── GTDB/
     ├── {ARCHAEA,BACTERIA}-GTDB-TAXONOMY/              # ar53/bac120_taxonomy (bruto + formatado)
     └── {ARCHAEA,BACTERIA}-GTDB-METADATA/              # ar53/bac120_metadata (bruto + formatado)

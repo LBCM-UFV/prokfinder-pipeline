@@ -317,3 +317,20 @@ EOF'
     [[ "$(printf '%s
 ' "${output}" | awk 'END { print }')" == "╰"* ]]
 }
+
+############ BACDIVE CLASSES ############
+
+@test "BacDive traits divided in classes: 13 traits and 46 classes" {
+    run pf_eval 'n=0; for t in "${PF_BACDIVE_CLASS_TRAITS[@]}"; do for c in $(pf_bacdive_classes "${t}"); do n=$((n + 1)); done; done; echo "${#PF_BACDIVE_CLASS_TRAITS[@]} ${n}"'
+    assert_success
+    assert_output_equals "13 46"
+}
+
+@test "pf_bacdive_class_spec: trait:class,class for every trait; a trait that is not divided in classes has none" {
+    run pf_eval 'pf_bacdive_class_spec'
+    assert_success
+    assert_output_contains "gram_stain:positive,negative "
+    assert_output_contains "biosafety_level:1,2,3,4 "
+    run pf_eval 'pf_bacdive_classes temperature_opt'
+    assert_output_equals ""
+}

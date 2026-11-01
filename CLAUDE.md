@@ -31,7 +31,8 @@ lib/common.sh               sourced by every script: log/die, temporary folders,
                             reference databases (pf_*), table formats (PF_REFDB_FORMAT_*), run_in_own_env
 modules/                    one script per step; each one runs alone too (-h shows its usage)
   download-reference-db-{ncbi,bacdive,gtdb}.sh   setup (0.1-0.3)
-  normalize-ncbi-taxids.sh                       setup 0.4: taxdump + TaxID status tables (CURRENT/MERGED/...)
+  normalize-ncbi-taxids.sh                       setup 0.4: taxdump + TaxID status tables (CURRENT/MERGED/...), TaxIDs
+                                                    below species collapsed to the species, BacDive species table
   search-genomes-in-reference-db.sh              1  selection (reads genome-selection-query.txt)
   download-selected-genomes-from-db.sh           2  datasets rehydrate
   filter-low-quality-contigs-from-genomes.sh     3  seqkit
@@ -91,7 +92,9 @@ under an exclusive `flock` on `<refdb>/.taxdump.lock`; `search-genomes` reads th
   BacDive, and always **normalized** first: `setup` downloads the NCBI taxdump (`<refdb>/NCBI/TAXDUMP`) and
   `modules/normalize-ncbi-taxids.sh` writes the current TaxID of each genome next to the reference tables
   (`<source>-taxid-status.tsv`, `bacdive-taxid-status.tsv`). Never read `~/.taxonkit`, never use a raw TaxID of the
-  reference tables in a filter.
+  reference tables in a filter. **The species is the lowest level of the mapping**: a TaxID below species becomes its
+  species (`UPDATED_TAXID`, `UPDATED_RANK`); BacDive is linked to the genomes only by species, and its species table
+  (`BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv`) is written by the normalization, not by the BacDive module.
 - **GenBank and RefSeq (GCA_/GCF_) are different genomes** (their FASTA can differ): never mix them; the NCBI tables
   carry the paired accession of the other database (and NULL when there is none or NCBI says they differ).
 - Module headers: line 3 is `# <file> - Prokfinder module <step>: <description>` and a `# Usage:` block

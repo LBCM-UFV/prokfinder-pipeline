@@ -540,6 +540,169 @@ pf_bacdive_strain_table()  { echo "$1/BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED
 pf_bacdive_species_table() { echo "$1/BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv"; }
 pf_bacdive_taxid_status_table() { echo "$1/BACDIVE-FORMATTED-TSV/bacdive-taxid-status.tsv"; }
 
+# Traits of the BacDive tables divided in classes. The strain and species tables have one column per class,
+# <trait>_<class>, with the share (0 to 1) of the references/strains that recorded the class (NULL when the trait has
+# no data). This is the only list of traits and classes: the jq program of the BacDive module writes only these
+# classes, and the search reads the columns from it.
+# shellcheck disable=SC2034  # used by the modules
+PF_BACDIVE_CLASS_TRAITS=(
+    gram_stain cell_shape motility flagellum_arrangement pigmentation_production colony_color
+    forms_multicellular_complex spore_formation oxygen_tolerance energy_source electron_donor carbon_source
+    biosafety_level
+)
+
+# Prints the classes of a trait divided in classes (nothing if the trait is not one of them)
+# Usage: pf_bacdive_classes <trait>
+pf_bacdive_classes() {
+    case "$1" in
+        gram_stain)                  echo "positive negative" ;;
+        cell_shape)                  echo "ovoid spiral coccus curved rod pleomorphic filament other" ;;
+        motility|pigmentation_production|forms_multicellular_complex|spore_formation) echo "yes no" ;;
+        flagellum_arrangement)       echo "polar peritrichous gliding" ;;
+        colony_color)                echo "colorless cream yellow white brown pink orange red grey green blue" ;;
+        oxygen_tolerance)            echo "aerobe anaerobe facultative microaerophile" ;;
+        energy_source)               echo "chemotroph phototroph" ;;
+        electron_donor)              echo "organotroph lithotroph" ;;
+        carbon_source)               echo "autotroph heterotroph" ;;
+        biosafety_level)             echo "1 2 3 4" ;;
+        *) return 0 ;;
+    esac
+}
+
+# Prints "<trait>:<class>,<class>" for every trait divided in classes, separated by spaces (for the awk programs)
+pf_bacdive_class_spec() {
+    local trait
+    for trait in "${PF_BACDIVE_CLASS_TRAITS[@]}"; do
+        printf '%s:%s ' "${trait}" "$(pf_bacdive_classes "${trait}" | tr ' ' ',')"
+    done
+}
+
+# awk functions shared by the programs that merge BacDive rows (strains of a species, references of a strain)
+# shellcheck disable=SC2016  # awk program
+PF_AWK_BACDIVE_LIB='
+function is_null(x) { return x == "" || x == "NULL" }
+function is_num(x)   { return x ~ /^-?[0-9]+([.][0-9]+)?([eE][-+]?[0-9]+)?$/ }
+# number with at most 3 decimals, without trailing zeros
+function fmt(x,   s) { s = sprintf("%.3f", x); sub(/0+$/, "", s); sub(/[.]$/, "", s); if (s == "-0") s = "0"; return s }
+# reads "<trait>:<class>,<class> ..." (pf_bacdive_class_spec): is_class[trait], cls_n[trait], cls_name[trait, k] and
+# the traits in order in trait_order[1..n_traits]
+function class_spec(spec,   n, a, i, p, m, c, j) {
+    n = split(spec, a, " ")
+    for (i = 1; i <= n; i++) {
+        split(a[i], p, ":"); m = split(p[2], c, ",")
+        is_class[p[1]] = 1; cls_n[p[1]] = m; trait_order[++n_traits] = p[1]
+        for (j = 1; j <= m; j++) cls_name[p[1], j] = c[j]
+    }
+}
+'
+
+# Merges the strains of a BacDive strain table by the CURRENT NCBI TaxID of the species: the table of the species used by
+# the genome search. A strain counts once in each species it is linked to (its ncbi_tax_id holds several TaxIDs joined
+# with ";"). Only TaxIDs whose UPDATED_RANK is species are kept (strains linked above species say nothing about a
+# species and are ignored). Numeric traits and *_delta: mean of the strains that have a value; *_range_min and
+# *_range_max: lowest and highest; class columns: mean of the shares of the strains that have data for the trait.
+# <status_table> is bacdive-taxid-status.tsv (first column = the TaxID of the strain table; columns UPDATED_TAXID,
+# UPDATED_RANK and UPDATED_ORGANISM_NAME, found by name). Output columns: ncbi_tax_id, species (the scientific name of
+# the current TaxID), bacdive_strains and the columns of the strain table except bacdive_id, ncbi_tax_id and species.
+# Usage: pf_bacdive_aggregate_species <strain_table> <status_table> <output_table>
+pf_bacdive_aggregate_species() {
+    local strain_table="$1" status_table="$2" output="$3"
+    local header stats_file
+    [[ -s "${status_table}" ]] || { log "error" "BacDive TaxID status table not found or empty: ${status_table}"; return 1; }
+    stats_file="$(mktemp)"
+    header="$(gawk -F'\t' -v OFS='\t' 'NR == 1 {
+        out = "ncbi_tax_id" OFS "species" OFS "bacdive_strains"
+        for (i = 1; i <= NF; i++) if ($i != "bacdive_id" && $i != "ncbi_tax_id" && $i != "species") out = out OFS $i
+        print out; exit }' "${strain_table}")" || { rm -f "${stats_file}"; return 1; }
+
+    {
+        printf '%s\n' "${header}"
+        gawk -F'\t' -v OFS='\t' -v spec="$(pf_bacdive_class_spec)" -v status_file="${status_table}" \
+            -v stats_file="${stats_file}" "${PF_AWK_BACDIVE_LIB}"'
+        BEGIN {
+            class_spec(spec)
+            # TaxID of the strain table -> current TaxID, if it is a species
+            while ((getline line < status_file) > 0) {
+                m = split(line, f, "\t")
+                if (++ns == 1) {
+                    for (i = 1; i <= m; i++) { if (f[i] == "UPDATED_TAXID") s_upd = i; if (f[i] == "UPDATED_RANK") s_rank = i; if (f[i] == "UPDATED_ORGANISM_NAME") s_name = i }
+                    if (!s_upd || !s_rank) { print "status table without UPDATED_TAXID and UPDATED_RANK" > "/dev/stderr"; fail = 1; exit 1 }
+                    continue
+                }
+                if (is_null(f[s_upd]) || f[s_rank] != "species") continue
+                upd[f[1]] = f[s_upd]; uname[f[1]] = (s_name ? f[s_name] : "NULL")
+            }
+        }
+        NR == 1 {
+            ncol = NF
+            for (i = 1; i <= NF; i++) { name[i] = $i; col_of[$i] = i; if ($i == "ncbi_tax_id") c_tax = i }
+            for (i = 1; i <= NF; i++) {
+                if ($i == "bacdive_id" || $i == "ncbi_tax_id" || $i == "species") kind[i] = "id"
+                else if ($i ~ /_range_min$/) kind[i] = "min"
+                else if ($i ~ /_range_max$/) kind[i] = "max"
+                else kind[i] = "mean"
+            }
+            for (t = 1; t <= n_traits; t++) {
+                tr = trait_order[t]
+                for (k = 1; k <= cls_n[tr]; k++) {
+                    cn = tr "_" cls_name[tr, k]
+                    if (!(cn in col_of)) { print "column " cn " not found in the strain table" > "/dev/stderr"; fail = 1; exit 1 }
+                    ccol[tr, k] = col_of[cn]; kind[col_of[cn]] = "class"; ctrait[col_of[cn]] = tr; cidx[col_of[cn]] = k
+                }
+            }
+            next
+        }
+        {
+            nstrain++
+            if (is_null($c_tax)) next
+            n = split($c_tax, ids, ";")
+            delete done
+            for (j = 1; j <= n; j++) {
+                id = ids[j]
+                if (!(id in upd)) { skipped[id] = 1; continue }
+                u = upd[id]
+                if (u in done) continue
+                done[u] = 1
+                if (!(u in strains)) { order[++nu] = u; sname[u] = uname[id] }
+                strains[u]++
+                for (i = 1; i <= ncol; i++) {
+                    if (kind[i] == "id" || kind[i] == "class" || !is_num($i)) continue
+                    if (kind[i] == "mean") { sum[u, i] += $i; cnt[u, i]++ }
+                    else if (kind[i] == "min") { if (!((u, i) in ext) || $i + 0 < ext[u, i]) ext[u, i] = $i + 0 }
+                    else if (kind[i] == "max") { if (!((u, i) in ext) || $i + 0 > ext[u, i]) ext[u, i] = $i + 0 }
+                }
+                for (t = 1; t <= n_traits; t++) {
+                    tr = trait_order[t]; has = 0
+                    for (k = 1; k <= cls_n[tr]; k++) if (!is_null($(ccol[tr, k]))) has = 1
+                    if (!has) continue
+                    ctr[u, tr]++
+                    for (k = 1; k <= cls_n[tr]; k++) if (is_num($(ccol[tr, k]))) csum[u, tr, k] += $(ccol[tr, k])
+                }
+            }
+        }
+        END {
+            if (fail) exit 1
+            for (x in skipped) nskipped++
+            printf "%d strains, %d species, %d TaxIDs of the strains are not species and were ignored\n", nstrain, nu, nskipped + 0 > stats_file
+            for (q = 1; q <= nu; q++) {
+                u = order[q]
+                out = u OFS (is_null(sname[u]) ? "NULL" : sname[u]) OFS strains[u]
+                for (i = 1; i <= ncol; i++) {
+                    if (kind[i] == "id") continue
+                    if (kind[i] == "mean") cv = (cnt[u, i] > 0 ? fmt(sum[u, i] / cnt[u, i]) : "NULL")
+                    else if (kind[i] == "class") cv = (ctr[u, ctrait[i]] > 0 ? fmt(csum[u, ctrait[i], cidx[i]] / ctr[u, ctrait[i]]) : "NULL")
+                    else cv = ((u, i) in ext ? fmt(ext[u, i]) : "NULL")
+                    out = out OFS cv
+                }
+                print out
+            }
+        }' "${strain_table}" | sort -t$'\t' -k1,1n
+    } > "${output}.tmp" || { rm -f "${output}.tmp" "${stats_file}"; return 1; }
+    mv "${output}.tmp" "${output}"
+    log "message" "BacDive species table: $(cat "${stats_file}") -> ${output}"
+    rm -f "${stats_file}"
+}
+
 # GTDB (<gtdb_dir> = .../REFERENCE-METADATA/GTDB)
 pf_gtdb_prefix() {
     case "$1" in
@@ -564,8 +727,12 @@ PF_REFDB_FORMAT_NCBI=5      # 3: NULL-VALUES-NCBI.tsv (values converted to NULL)
 #                                <source>-taxid-status.tsv); paired GenBank/RefSeq accession and NCBI_<GENBANK|REFSEQ>_ASSEMBLY_ACCESSION
 #                             5: BioProject columns (ASSEMBLY_BIOPROJECT_LINEAGE_ACCESSION, ASSEMBLY_BIOSAMPLE_BIOPROJECT_ACCESSION)
 # shellcheck disable=SC2034
-PF_REFDB_FORMAT_BACDIVE=4   # 3: NULL-VALUES-BACDIVE.tsv
+PF_REFDB_FORMAT_BACDIVE=5   # 3: NULL-VALUES-BACDIVE.tsv
 #                             4: no ncbi_tax_id_rank column (the rank is in bacdive-taxid-status.tsv)
+#                             5: species column; one column per class of each nominal trait (<trait>_<class>, shares);
+#                                *_range split in *_range_min and *_range_max; every record without @ref is a reference of
+#                                its own; salinity in g/L and molar converted to %; the table of the species is written by
+#                                normalize-ncbi-taxids.sh (grouped by the current TaxID), no longer by the BacDive module
 # shellcheck disable=SC2034
 PF_REFDB_FORMAT_GTDB=4      # 3: status of each genome in GTDB (species representative, type material) in the taxonomy;
 #                             4: the same NULL rule for these columns ("not used as type" -> NULL), NULL-VALUES-GTDB.tsv

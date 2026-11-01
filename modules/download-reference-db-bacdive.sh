@@ -7,15 +7,17 @@
 #
 #   1. downloads the list of BacDive IDs (advanced search CSV -> TSV with header)
 #   2. downloads the JSON records of every strain through the API, in batches (interrupted runs are resumed)
-#   3. extracts the NCBI TaxIDs and 29 traits of each strain into one TSV (header without spaces, empty -> NULL)
-#   4. merges the references of each strain (one value per trait), then the strains of each NCBI TaxID, following
-#      BactoTraits (each reference, and then each strain, has the same weight):
-#        numeric traits   mean of the references of the strain (the mean of each reference first); per TaxID, mean of
-#                         the strains
-#        *_range          lowest:highest value recorded (a single number when they are equal)
-#        *_delta          per TaxID, mean of the strains
-#        class traits     share of the references that recorded each class, e.g. "coccus=0.25;rod=0.75" (a reference
-#                         that recorded two classes gives 0.5 to each); per TaxID, mean of the strain shares
+#   3. extracts the NCBI TaxIDs, the species name and 29 traits of each strain into one TSV (header without spaces,
+#      empty -> NULL)
+#   4. merges the references of each strain (one value per trait), following BactoTraits (each reference has the same
+#      weight; a record without @ref is a reference of its own):
+#        numeric traits   mean of the references of the strain (the mean of each reference first)
+#        *_range          two columns, *_range_min and *_range_max: the lowest and the highest value recorded
+#        class traits     one column per class, <trait>_<class> (the classes are in pf_bacdive_classes): the share of
+#                         the references that recorded the class (a reference that recorded two classes gives 0.5 to
+#                         each); NULL in every class column when the trait has no data
+#      The strains of each species are merged by normalize-ncbi-taxids.sh (pf_bacdive_aggregate_species), because the
+#      species of a strain depends on the current NCBI TaxID: the table used by the genome search is written there.
 #
 # Usage:
 #    download-reference-db-bacdive.sh -o <bacdive_dir>
@@ -26,15 +28,12 @@
 #    BACDIVE-DOWNLOAD-BRUTE/advsearch_bacdive.tsv       (list of BacDive IDs, TSV with header)
 #    BACDIVE-DOWNLOAD-BRUTE/batch_*.jsonl               (raw API results in JSON, one strain per line)
 #    BACDIVE-DOWNLOAD-BRUTE/list_download_errors.tsv    (IDs that failed after all retry attempts)
-#    BACDIVE-FORMATTED-TSV/BACDIVE_DATA_FORMATTED.tsv   (one row per strain: bacdive_id, ncbi_tax_id and one
+#    BACDIVE-FORMATTED-TSV/BACDIVE_DATA_FORMATTED.tsv   (one row per strain: bacdive_id, ncbi_tax_id, species and one
 #                                                       column per trait, every reference)
 #    BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv
 #                                                       (one row per strain, references merged)
-#    BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv
-#                                                       (one row per NCBI TaxID: ncbi_tax_id, bacdive_strains and the
-#                                                       traits, strains merged; this is the table used by the genome
-#                                                       search. The rank and the current TaxID of each ncbi_tax_id are
-#                                                       in bacdive-taxid-status.tsv, see normalize-ncbi-taxids.sh)
+#    The table of the species (BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv, used by the genome search) and
+#    bacdive-taxid-status.tsv are written by normalize-ncbi-taxids.sh.
 #    BACDIVE-FORMATTED-TSV/BACDIVE_DATA_UNFORMATTED.tsv (OPTIONAL, --unformatted: long dump
 #                                                       bacdive_id, L2, L3, L4, L5, value)
 #    COMPLETED-DOWNLOAD.txt                             (checkpoint: written only when every batch was downloaded)
@@ -43,6 +42,7 @@
 #    ";" separates references (each reference is a different publication or culture collection record)
 #    ":" separates values of the same reference (a range "20-40" is kept as its two endpoints, 20:40)
 #    ncbi_tax_id holds every distinct NCBI TaxID of the strain (e.g. species and strain level), joined with ";"
+#    species is the species name of the strain in BacDive (used to rescue deleted TaxIDs)
 #  *_opt        values recorded as "optimum"
 #  *_preference every growth-positive value, whatever its label (growth, optimum, minimum or maximum)
 #  *_range      only values recorded as minimum or maximum (so "10:40" means minimum 10 and maximum 40)
@@ -79,13 +79,6 @@ TRAITS=(
     oxygen_tolerance antibiotic_resistance_frequency
     energy_source electron_donor carbon_source
     biosafety_level gc_content
-)
-
-# Traits divided in classes (merged as the share of each class); the other traits are numeric
-CLASS_TRAITS=(
-    gram_stain cell_shape motility flagellum_arrangement pigmentation_production colony_color
-    forms_multicellular_complex spore_formation oxygen_tolerance energy_source electron_donor carbon_source
-    biosafety_level
 )
 
 usage() {
@@ -132,7 +125,6 @@ fi
 DOWNLOAD_DIR="$(pf_bacdive_brute_dir "$OUT_DIR")"
 FORMATTED="$(pf_bacdive_table "$OUT_DIR")"
 STRAIN_TABLE="$(pf_bacdive_strain_table "$OUT_DIR")"
-SPECIES_TABLE="$(pf_bacdive_species_table "$OUT_DIR")"
 FORMATTED_DIR="$(dirname "$FORMATTED")"
 COMPLETED_MARKER="$(pf_completed_marker "$OUT_DIR")"
 IDS_FILE="${IDS_FILE:-$DOWNLOAD_DIR/advsearch_bacdive.tsv}"
@@ -155,7 +147,7 @@ mkdir -p "$DOWNLOAD_DIR" "$FORMATTED_DIR"
 #
 # Input : one JSON object per line, {"id": "<bacdive_id>", "data": {...}}
 # Arg   : $cols = JSON array with the trait names, in output order
-# Output: bacdive_id <TAB> ncbi_tax_id <TAB> trait1 <TAB> trait2 ...
+# Output: bacdive_id <TAB> ncbi_tax_id <TAB> species <TAB> trait1 <TAB> trait2 ...
 #
 # Cell format (same idea as the original R script):
 #   - values that come from the SAME reference (@ref)   are joined with ":"
@@ -177,9 +169,15 @@ def pick(fs): [fs] | map(select(. != null and . != "")) | first // null;
 def ref: (.["@ref"] // "NA") | tostring;
 
 # records of a subsection (BacDive gives either one object or a list of objects)
-def recs(sec; sub):
+def recs_raw(sec; sub):
     ((.[sec] // {}) | if type == "object" then .[sub] else null end)
     | arr | map(select(type == "object"));
+
+# same records, but a record without @ref is a reference of its own: it gets "noref-<position in the subsection>"
+def recs(sec; sub):
+    recs_raw(sec; sub) | to_entries
+    | map(.key as $i | .value
+          | if ((.["@ref"] // "") | tostring) == "" then . + {"@ref": ("noref-" + ($i | tostring))} else . end);
 
 # numbers inside a string: "37" -> [37]; "5-30" -> [5,30]; "1.5-3 µm" -> [1.5,3]
 def nums:
@@ -222,6 +220,11 @@ def ncbi_taxids:
     | unique
     | sort_by(tonumber? // 0)
     | join(";");
+
+# Species name of the strain in BacDive (null when there is none)
+def species_name:
+    ((.["Name and taxonomic classification"] // {}) | if type == "object" then .species else null end)
+    | if type == "string" then gsub("^\\s+|\\s+$"; "") else null end;
 
 # ---------- value harmonisation (modalities described in the BactoTraits paper)
 def yesno:
@@ -290,16 +293,24 @@ def env_delta(rs):
     | if ($a | length) < 2 then ""
       else (($a | last) - ($a | first)) | ((. * 1000 | round) / 1000 | tostring) end;
 
-# NaCl concentration in %, skipping molar / g per litre values
+# NaCl concentration in %, written as text that "nums" reads ("1.5-7"). g/L is divided by 10 and molar is multiplied by
+# 5.844 (1 M NaCl = 5.844 %); a value with no unit is already a percentage.
 def salt_pct:
     select(((.salt // "NaCl") | tostring | ascii_downcase) == "nacl")
     | (.concentration // .["salt concentration"] // .["Salt conc."])
-    | select(. != null) | tostring
-    | select(test("/\\s*[lL]\\b|mol|\\bm?M\\b") | not);
+    | select(. != null) | tostring as $s
+    | (if   ($s | test("[gG]\\s*/\\s*[lL]"))          then 0.1
+       elif ($s | test("mmol|\\bmM\\b|millimol"))       then 0.005844
+       elif ($s | test("mol|\\bM\\b"))                  then 5.844
+       else 1 end) as $f
+    | ($s | nums) as $n
+    | select($n | length > 0)
+    | ($n | map(. * $f | (. * 1000 | round) / 1000 | tostring) | join("-"));
 
-# ratio of resistances found / molecules tested, computed per reference
+# ratio of resistances found / molecules tested, computed per reference (the records without @ref are one reference,
+# as the molecules tested together)
 def antibiotic_ratio:
-    [ recs("Physiology and metabolism"; "antibiotic resistance")[]
+    [ recs_raw("Physiology and metabolism"; "antibiotic resistance")[]
       | {ref: ref,
          res:  ((.["is resistant"]    // "") | tostring | ascii_downcase),
          sens: ((.["is sensitive"]    // "") | tostring | ascii_downcase),
@@ -313,6 +324,7 @@ def antibiotic_ratio:
 .id as $id
 # The NCBI tax id is computed outside the traits "try": a problem in a trait must not lose the ID that links the strain to NCBI
 | (try ((.data // {}) | ncbi_taxids) catch "") as $tax
+| (try ((.data // {}) | species_name // "") catch "") as $sp
 | (try (
     (.data // {}) as $d
     | ($d | envrecs("Culture and growth conditions"; "culture temp"; .temperature)) as $T
@@ -334,7 +346,7 @@ def antibiotic_ratio:
         energy_source:    (nominal("Physiology and metabolism"; "nutrition type"; strvals; energy) | cell),
         electron_donor:  (nominal("Physiology and metabolism"; "nutrition type"; strvals; donor)  | cell),
         carbon_source:    (nominal("Physiology and metabolism"; "nutrition type"; strvals; carbon) | cell),
-        biosafety_level:  (nominal("Interaction and safety"; "risk assessment"; .["biosafety level"]; select(test("^[0-9]+$"))) | cell),
+        biosafety_level:  (nominal("Interaction and safety"; "risk assessment"; .["biosafety level"]; select(test("^[1-4]$"))) | cell),
         gc_content:       (numeric("Sequence information"; "GC content"; pick(.["GC-content"], .["GC content"])) | cell),
         antibiotic_resistance_frequency: antibiotic_ratio
       }
@@ -353,7 +365,7 @@ def antibiotic_ratio:
         halophily_delta:        env_delta($H)
       })
     ) catch ("strain \($id): \(.)" | debug | {})) as $t
-| [$id, $tax] + [ $cols[] as $c | ($t[$c] // "") ]
+| [$id, $tax, $sp] + [ $cols[] as $c | ($t[$c] // "") ]
 | @tsv
 JQ_EOF
 )
@@ -569,8 +581,8 @@ format_bacdive() {
     cols_json="$(printf '%s\n' "${TRAITS[@]}" | jq -R . | jq -sc .)"
     tmp="${FORMATTED}.tmp"
 
-    # header: identifiers first (bacdive_id, ncbi_tax_id), then the traits
-    { printf 'bacdive_id\tncbi_tax_id'; printf '\t%s' "${TRAITS[@]}"; printf '\n'; } > "$tmp"
+    # header: identifiers first (bacdive_id, ncbi_tax_id, species), then the traits
+    { printf 'bacdive_id\tncbi_tax_id\tspecies'; printf '\t%s' "${TRAITS[@]}"; printf '\n'; } > "$tmp"
 
     local f
     for f in "${BATCH_FILES[@]}"; do
@@ -601,6 +613,16 @@ format_bacdive() {
         }
     ' "$tmp" >&2
 
+    # Records of the sections read that have no @ref: each one is a reference of its own
+    local noref
+    noref="$(jq -n '[inputs | (.data // {})
+        | (.["Morphology"], .["Culture and growth conditions"], .["Physiology and metabolism"],
+           .["Interaction and safety"], .["Sequence information"])
+        | select(type == "object") | to_entries[] | .value
+        | (if type == "array" then .[] else . end)
+        | select(type == "object" and has("@ref") == false)] | length' "${BATCH_FILES[@]}")" || noref="?"
+    log "message" "Records without @ref (each one counted as a reference of its own): ${noref}"
+
     # Header without spaces and blank cells -> NULL. Done AFTER the fill summary above (which counts empty cells).
     # The values converted to NULL are listed in NULL-VALUES-BACDIVE.tsv
     local null_rows="${tmp}.null"
@@ -611,33 +633,14 @@ format_bacdive() {
     log "message" "Traits saved to $FORMATTED ($nstrains strains; blank cells replaced with NULL; converted values: $OUT_DIR/NULL-VALUES-BACDIVE.tsv)."
 }
 
-# awk functions shared by the two merges below
-AWK_MERGE_LIB='
-function is_null(x) { return x == "" || x == "NULL" }
-function is_num(x)   { return x ~ /^-?[0-9]+([.][0-9]+)?([eE][-+]?[0-9]+)?$/ }
-# number with at most 3 decimals, without trailing zeros
-function fmt(x,   s) { s = sprintf("%.3f", x); sub(/0+$/, "", s); sub(/[.]$/, "", s); if (s == "-0") s = "0"; return s }
-# kind of each column: id (identifiers), class, range, delta or numeric
-function column_kinds(classes,   n, a, i) {
-    n = split(classes, a, " ")
-    for (i = 1; i <= n; i++) is_class[a[i]] = 1
-    for (i = 1; i <= NF; i++) {
-        name[i] = $i
-        if ($i == "bacdive_id" || $i == "ncbi_tax_id" || $i == "bacdive_strains") kind[i] = "id"
-        else if ($i in is_class)  kind[i] = "class"
-        else if ($i ~ /_range$/)  kind[i] = "range"
-        else if ($i ~ /_delta$/)  kind[i] = "delta"
-        else                      kind[i] = "numeric"
-    }
-}
-'
-
 # ---------------------------------------------------------------------------
-# 4/5 — REFERENCES OF EACH STRAIN MERGED -> BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv
+# 4/4 — REFERENCES OF EACH STRAIN MERGED -> BACDIVE_CONCATENATED_REFERENCES_FOR_STRAIN.tsv
+#   One column per class of the traits divided in classes (<trait>_<class>) and two columns, *_range_min and
+#   *_range_max, in place of each *_range. The strains of each species are merged by normalize-ncbi-taxids.sh.
 # ---------------------------------------------------------------------------
 build_strain_table() {
     log "message" "Merging the references of each strain..."
-    gawk -F'\t' -v OFS='\t' -v classes="${CLASS_TRAITS[*]}" "$AWK_MERGE_LIB"'
+    gawk -F'\t' -v OFS='\t' -v spec="$(pf_bacdive_class_spec)" "$PF_AWK_BACDIVE_LIB"'
     # mean of the references; the value of a reference is the mean of its values ("20:40;37" -> mean(30, 37))
     function merge_numeric(cell,   nr, refs, r, nv, v, j, sum, m, total, n) {
         if (is_null(cell)) return "NULL"
@@ -649,9 +652,9 @@ build_strain_table() {
         }
         return (n > 0 ? fmt(total / n) : "NULL")
     }
-    # lowest:highest value of every reference
+    # lowest and highest value of every reference: "<min><TAB><max>"
     function merge_range(cell,   nv, v, j, lo, hi, found) {
-        if (is_null(cell)) return "NULL"
+        if (is_null(cell)) return "NULL" OFS "NULL"
         nv = split(cell, v, /[;:]/)
         for (j = 1; j <= nv; j++) {
             if (!is_num(v[j])) continue
@@ -659,33 +662,48 @@ build_strain_table() {
             if (!found || v[j] + 0 > hi) hi = v[j] + 0
             found = 1
         }
-        if (!found) return "NULL"
-        return (lo == hi ? fmt(lo) : fmt(lo) ":" fmt(hi))
+        if (!found) return "NULL" OFS "NULL"
+        return fmt(lo) OFS fmt(hi)
     }
-    # share of the references that recorded each class ("rod;rod:coccus" -> coccus=0.25;rod=0.75)
-    function merge_class(cell,   nr, refs, r, nv, v, j, k, share, nref, out, c) {
-        if (is_null(cell)) return "NULL"
-        nr = split(cell, refs, ";")
-        for (r = 1; r <= nr; r++) {
-            nv = split(refs[r], v, ":"); k = 0
-            for (j = 1; j <= nv; j++) if (v[j] != "") k++
-            if (k == 0) continue
-            for (j = 1; j <= nv; j++) if (v[j] != "") share[v[j]] += 1 / k
-            nref++
+    # share of the references that recorded each class ("rod;rod:coccus" -> coccus 0.25, rod 0.75; a reference that
+    # recorded two classes gives 0.5 to each), one value per class of the trait: "<class 1><TAB><class 2>..."
+    function merge_class(cell, trait,   nr, refs, r, nv, v, j, k, share, nref, out, c) {
+        if (!is_null(cell)) {
+            nr = split(cell, refs, ";")
+            for (r = 1; r <= nr; r++) {
+                nv = split(refs[r], v, ":"); k = 0
+                for (j = 1; j <= nv; j++) if (v[j] != "") k++
+                if (k == 0) continue
+                for (j = 1; j <= nv; j++) if (v[j] != "") share[v[j]] += 1 / k
+                nref++
+            }
         }
-        if (nref == 0) return "NULL"
-        PROCINFO["sorted_in"] = "@ind_str_asc"
         out = ""
-        for (c in share) out = out (out == "" ? "" : ";") c "=" fmt(share[c] / nref)
-        delete PROCINFO["sorted_in"]
+        for (c = 1; c <= cls_n[trait]; c++)
+            out = out (c > 1 ? OFS : "") (nref > 0 ? fmt(share[cls_name[trait, c]] / nref) : "NULL")
         return out
     }
-    NR == 1 { column_kinds(classes); print; next }
+    NR == 1 {
+        class_spec(spec)
+        out = $1
+        for (i = 2; i <= NF; i++) {
+            name[i] = $i
+            if ($i == "ncbi_tax_id" || $i == "species") kind[i] = "id"
+            else if ($i in is_class) kind[i] = "class"
+            else if ($i ~ /_range$/)  kind[i] = "range"
+            else                      kind[i] = "numeric"
+            if (kind[i] == "class") { for (c = 1; c <= cls_n[$i]; c++) out = out OFS $i "_" cls_name[$i, c] }
+            else if (kind[i] == "range") out = out OFS $i "_min" OFS $i "_max"
+            else out = out OFS $i
+        }
+        print out
+        next
+    }
     {
         out = $1
         for (i = 2; i <= NF; i++) {
-            if      (kind[i] == "class") v = merge_class($i)
-            else if (kind[i] == "range") v = merge_range($i)
+            if      (kind[i] == "class")   v = merge_class($i, name[i])
+            else if (kind[i] == "range")   v = merge_range($i)
             else if (kind[i] == "numeric") v = merge_numeric($i)
             else v = $i
             out = out OFS v
@@ -694,89 +712,6 @@ build_strain_table() {
     }' "$FORMATTED" > "${STRAIN_TABLE}.tmp" || return 1
     mv "${STRAIN_TABLE}.tmp" "$STRAIN_TABLE"
     log "message" "Strain table (references merged) saved to $STRAIN_TABLE ($(count_records "$STRAIN_TABLE") strains)."
-}
-
-# ---------------------------------------------------------------------------
-# 5/5 — STRAINS OF EACH NCBI TAXID MERGED -> BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv
-#   A strain with several TaxIDs (e.g. species and strain level) is counted in each of them.
-# ---------------------------------------------------------------------------
-build_species_table() {
-    log "message" "Merging the strains of each NCBI TaxID..."
-    local header
-    header="$(gawk -F'\t' -v OFS='\t' 'NR == 1 {
-        out = "ncbi_tax_id" OFS "bacdive_strains"
-        for (i = 1; i <= NF; i++) if ($i != "bacdive_id" && $i != "ncbi_tax_id") out = out OFS $i
-        print out; exit }' "$STRAIN_TABLE")"
-
-    {
-        printf '%s\n' "$header"
-        gawk -F'\t' -v OFS='\t' -v classes="${CLASS_TRAITS[*]}" "$AWK_MERGE_LIB"'
-        NR == 1 {
-            column_kinds(classes)
-            for (i = 1; i <= NF; i++) if ($i == "ncbi_tax_id") c_tax = i
-            next
-        }
-        {
-            if (is_null($c_tax)) next
-            n = split($c_tax, ids, ";")
-            delete done
-            for (t = 1; t <= n; t++) {
-                id = ids[t]
-                if (id !~ /^[0-9]+$/ || (id in done)) continue
-                done[id] = 1
-                if (!(id in strains)) order[++nid] = id
-                strains[id]++
-                for (i = 1; i <= NF; i++) {
-                    if (kind[i] == "id" || is_null($i)) continue
-                    if (kind[i] == "numeric" || kind[i] == "delta") {
-                        if (is_num($i)) { sum[id, i] += $i; cnt[id, i]++ }
-                    } else if (kind[i] == "range") {
-                        m = split($i, v, ":")
-                        for (j = 1; j <= m; j++) {
-                            if (!is_num(v[j])) continue
-                            if (!((id, i) in lo) || v[j] + 0 < lo[id, i]) lo[id, i] = v[j] + 0
-                            if (!((id, i) in hi) || v[j] + 0 > hi[id, i]) hi[id, i] = v[j] + 0
-                        }
-                    } else {
-                        m = split($i, v, ";")
-                        for (j = 1; j <= m; j++) {
-                            split(v[j], p, "=")
-                            if (!((id, i, p[1]) in share)) classes_of[id, i] = classes_of[id, i] " " p[1]
-                            share[id, i, p[1]] += p[2]
-                        }
-                        cnt[id, i]++
-                    }
-                }
-            }
-        }
-        END {
-            for (k = 1; k <= nid; k++) {
-                id = order[k]
-                out = id OFS strains[id]
-                for (i = 1; i <= NF; i++) {
-                    if (kind[i] == "id") continue
-                    if (kind[i] == "numeric" || kind[i] == "delta") {
-                        cv = (cnt[id, i] > 0 ? fmt(sum[id, i] / cnt[id, i]) : "NULL")
-                    } else if (kind[i] == "range") {
-                        if (!((id, i) in lo)) cv = "NULL"
-                        else cv = (lo[id, i] == hi[id, i] ? fmt(lo[id, i]) : fmt(lo[id, i]) ":" fmt(hi[id, i]))
-                    } else if (cnt[id, i] > 0) {
-                        m = split(substr(classes_of[id, i], 2), cl, " ")
-                        asort(cl)
-                        cv = ""
-                        for (j = 1; j <= m; j++) cv = cv (j > 1 ? ";" : "") cl[j] "=" fmt(share[id, i, cl[j]] / cnt[id, i])
-                    } else {
-                        cv = "NULL"
-                    }
-                    out = out OFS cv
-                }
-                print out
-            }
-        }' "$STRAIN_TABLE" | sort -t$'\t' -k1,1n
-    } > "${SPECIES_TABLE}.tmp" || return 1
-    mv "${SPECIES_TABLE}.tmp" "$SPECIES_TABLE"
-
-    log "message" "TaxID table (strains merged) saved to $SPECIES_TABLE ($(count_records "$SPECIES_TABLE") NCBI TaxIDs)."
 }
 
 # ---------------------------------------------------------------------------
@@ -795,7 +730,6 @@ main() {
     fi
     format_bacdive || exit 1
     build_strain_table || exit 1
-    build_species_table || exit 1
 
     # The checkpoint is only written when every batch was downloaded: otherwise Prokfinder calls this module
     # again in its next run, which downloads only the missing batches

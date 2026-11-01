@@ -66,9 +66,12 @@ A `refdb` também já está **normalizada** (como depois de um `setup`): tem o `
 `date=2099-12-31` para os testes nunca receberem o aviso de normalização de um dia anterior. Os pacotes do Zenodo dos
 testes (`setup-zenodo.bats`) não levam nada disso: o `setup` baixa o taxdump (o `curl` falso serve o de `refdb-raw`) e
 normaliza. Na regeneração de 30/10/2026 (formatos NCBI 4 e BacDive 4) a `refdb` foi refeita **sem o cluster**, rodando o
-`setup` sobre uma cópia de `refdb-raw` com os marcadores em `format=1` e montando a `refdb` com as tabelas resultantes
-(a tabela por espécie do BacDive filtrada aos TaxIDs antigos); o `make-fixture.sh` produz o mesmo resultado a partir de
-um banco completo e normalizado.
+`setup` sobre uma cópia de `refdb-raw` com os marcadores em `format=1` e montando a `refdb` com as tabelas resultantes;
+o `make-fixture.sh` produz o mesmo resultado a partir de um banco completo e normalizado. Na de 01/11/2026 (formatos
+NCBI 5 e BacDive 5) foi igual: os módulos do NCBI e do BacDive sobre o `refdb-raw`, depois a normalização. A tabela por
+espécie do BacDive (`BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv`) **não é copiada do banco completo**: a normalização a
+gera a partir da tabela por cepa e do `bacdive-taxid-status.tsv` (o `make-fixture.sh` só escolhe as cepas das espécies dos
+genomas).
 
 ## O download-wf nos testes (tests/module/download-wf.bats)
 

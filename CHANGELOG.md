@@ -15,8 +15,10 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - Module `normalize-ncbi-taxids.sh`: downloads the NCBI taxdump into `<refdb>/NCBI/TAXDUMP` (replaced as a whole, under
   a lock) and checks the NCBI TaxIDs of the NCBI and BacDive tables against it. The result is written next to the
   tables (`<source>-taxid-status.tsv`, `bacdive-taxid-status.tsv`, with `TAXID_STATUS` CURRENT/MERGED/DELETED/INVALID,
-  the current TaxID, its species and rank); a DELETED or INVALID TaxID of an assembly is rescued by the organism name
-  (RESCUED/AMBIGUOUS/UNRESOLVED) and listed in `NCBI/taxid-unresolved.tsv`. The checkpoint
+  the current TaxID, `RANK`, `UPDATED_RANK` and `UPDATED_ORGANISM_NAME`); the species is the lowest level of the
+  mapping: a TaxID below species (strain, subspecies, no rank) becomes the TaxID of its species (`TAXID` is always the
+  original, `RANK` the original rank). A DELETED or INVALID TaxID is rescued by the organism name, or by the species name
+  of BacDive (RESCUED/AMBIGUOUS/UNRESOLVED), and listed in `NCBI/taxid-unresolved.tsv`. The checkpoint
   `TAXID-NORMALIZATION-COMPLETED.txt` is written last. `search-genomes` holds a shared lock on
   `<refdb>/.taxdump.lock` while it reads the taxdump and the status tables, so it waits for a normalization in progress
   (and checks the checkpoint again after getting the lock).
@@ -26,12 +28,28 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - The NCBI tables have the BioProjects of the assembly (`ASSEMBLY_BIOPROJECT_LINEAGE_ACCESSION`) and of its BioSample
   (`ASSEMBLY_BIOSAMPLE_BIOPROJECT_ACCESSION`), several accessions joined with `;`; they reach `genome-metadata.tsv`
   and `GENOME-DATABASE/` (NCBI format 4 → 5).
-- `search-genomes` writes `NCBI_TAXID_STATUS`, `NCBI_UPDATED_TAXID` and `NCBI_SPECIES_TAXID` (the normalized NCBI
-  TaxID) in the genome metadata. The NCBI taxdump date is recorded in `versions.tsv` (`ncbi-taxdump`, with its citation).
+- `search-genomes` writes `NCBI_TAXID_STATUS`, `NCBI_UPDATED_TAXID`, `NCBI_UPDATED_RANK` and
+  `NCBI_UPDATED_ORGANISM_NAME` (the normalized NCBI TaxID) in the genome metadata, and `NCBI_SPECIES_IN_BACDIVE` (TRUE
+  when the species of the genome has a row in BacDive; above species, when a species below its TaxID has one). The NCBI
+  taxdump date is recorded in `versions.tsv` (`ncbi-taxdump`, with its citation).
+- BacDive tables: `species` column (the species name; it also rescues the DELETED TaxIDs of BacDive); the traits divided
+  in classes have one column per class, `<trait>_<class>` (46 columns, shares from 0 to 1); `*_range` is split in
+  `*_range_min` and `*_range_max`; each record without `@ref` is a reference of its own (before, all of them were one
+  reference); salinity in g/L and molar is converted to % (before, it was dropped); biosafety levels 1 to 4 only (BacDive
+  format 4 → 5). The strains are merged by the current species by the normalization, which writes
+  `BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv` (before, the BacDive module wrote it by raw TaxID: merged TaxIDs
+  overwrote one another).
 
 ### Changed
-- Reference table formats: NCBI 3 → 4 (no lineage columns `NCBI_<RANK>` and `NCBI_<RANK>_TAXID`; the paired assembly
-  columns above) and BacDive 3 → 4 (no `ncbi_tax_id_rank`: the rank is in `bacdive-taxid-status.tsv`). Tables of the
+- BacDive is linked to the genomes only by species (`NCBI_UPDATED_TAXID`); there is no link by strain TaxID and no
+  `BACDIVE_LINK_LEVEL`; a genome above species rank is not linked. The BacDive columns of `search-genomes` are
+  `BACDIVE_TAXID`, `BACDIVE_STRAINS` and the traits; the nominal traits are 20 class columns
+  (`BACDIVE_OXYGEN_TOLERANCE_AEROBE`...) and `BACDIVE_TEMPERATURE_RANGE` is `..._MIN` and `..._MAX`. Class filters
+  select the species whose column of the class is greater than 0.
+- `search-genomes -t/-N` with a TaxID below species rank searches its species and warns.
+- Reference table formats: NCBI 3 → 5 (no lineage columns `NCBI_<RANK>` and `NCBI_<RANK>_TAXID`; the paired assembly
+  columns and the BioProjects above) and BacDive 3 → 5 (no `ncbi_tax_id_rank`: the rank is in
+  `bacdive-taxid-status.tsv`; the columns above). Tables of the
   older format are rebuilt from the raw files already downloaded (`setup`), or replaced by new Zenodo packages (**the
   Zenodo packages of format 3 are obsolete**).
 - `setup` without options does what is missing (installs the databases, downloads the taxdump and normalizes) and only

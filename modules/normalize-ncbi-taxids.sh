@@ -3,15 +3,21 @@
 # normalize-ncbi-taxids.sh - Prokfinder module 0.4: NCBI taxdump and normalization of the NCBI TaxIDs
 #
 # Downloads the NCBI taxonomy (taxdump) into <refdb_dir>/NCBI/TAXDUMP and checks the NCBI TaxID of every genome of the
-# NCBI tables, and of every NCBI TaxID of the BacDive table, against it. The result is written to derived tables next
+# NCBI tables, and of every NCBI TaxID of the BacDive strains, against it. The result is written to derived tables next
 # to the reference tables (the reference tables themselves are not changed):
 #   1. TAXID_STATUS: CURRENT (in nodes.dmp), MERGED (merged.dmp: UPDATED_TAXID is the TaxID it was merged into),
 #      DELETED (delnodes.dmp) or INVALID (in no file)
 #   2. DELETED and INVALID NCBI TaxIDs are rescued by the organism name (names.dmp, any name class, ends trimmed, case
-#      ignored), keeping only Bacteria and Archaea: one TaxID = RESCUED; several = AMBIGUOUS (UPDATED_TAXID is the
-#      first one); none = UNRESOLVED (UPDATED_TAXID is NULL: the genome stays in the table but no TaxID filter finds
-#      it). The BacDive table has no organism names: its DELETED and INVALID TaxIDs are not rescued
-#   3. SPECIES_TAXID (the species the UPDATED_TAXID belongs to) and RANK (rank of the UPDATED_TAXID)
+#      ignored; the species name of BacDive for the BacDive strains), keeping only Bacteria and Archaea: one TaxID =
+#      RESCUED; several = AMBIGUOUS (UPDATED_TAXID is the first one); none = UNRESOLVED (UPDATED_TAXID is NULL: the
+#      genome stays in the table but no TaxID filter finds it)
+#   3. The species is the lowest level of the mapping: a TaxID below species (strain, subspecies, no rank...) becomes
+#      the TaxID of its species. TAXID is always the original; RANK is the rank of the original TaxID (the rank of the
+#      TaxID it was merged into when MERGED; NULL when the TaxID is not in nodes.dmp any more); UPDATED_TAXID is the
+#      current TaxID (the species for the TaxIDs below species) and UPDATED_RANK its rank. UPDATED_ORGANISM_NAME is the
+#      scientific name of the UPDATED_TAXID
+#   4. The strains of BacDive are merged by UPDATED_TAXID into the table of the species used by the genome search
+#      (only the species; pf_bacdive_aggregate_species in lib/common.sh)
 # Everything is written to temporary files and renamed at the end, under a lock; the checkpoint
 # (TAXID-NORMALIZATION-COMPLETED.txt) is written last, so an interrupted run leaves none.
 #
@@ -20,9 +26,13 @@
 # Output:
 #   <refdb_dir>/NCBI/TAXDUMP/                                              (names.dmp, nodes.dmp, merged.dmp, delnodes.dmp)
 #   <refdb_dir>/NCBI/<DOMAIN>-NCBI-METADATA/<source>-taxid-status.tsv      (ASSEMBLY_ACCESSION, TAXID, TAXID_STATUS,
-#                                                                          UPDATED_TAXID, SPECIES_TAXID, RANK, TAXDUMP_DATE)
+#                                                                          UPDATED_TAXID, RANK, UPDATED_RANK,
+#                                                                          UPDATED_ORGANISM_NAME, TAXDUMP_DATE)
 #   <refdb_dir>/BACDIVE/BACDIVE-FORMATTED-TSV/bacdive-taxid-status.tsv     (ncbi_tax_id, TAXID_STATUS, UPDATED_TAXID,
-#                                                                          SPECIES_TAXID, RANK, TAXDUMP_DATE)
+#                                                                          RANK, UPDATED_RANK, UPDATED_ORGANISM_NAME,
+#                                                                          TAXDUMP_DATE)
+#   <refdb_dir>/BACDIVE/BACDIVE-FORMATTED-TSV/BACDIVE_CONCATENATED_STRAINS_FOR_SPECIES.tsv
+#                                                                          (one row per species: the table of the search)
 #   <refdb_dir>/NCBI/taxid-unresolved.tsv                                  (genomes whose TaxID was not CURRENT/MERGED)
 #   <refdb_dir>/NCBI/TAXID-NORMALIZATION-COMPLETED.txt                     (checkpoint: written only at the end)
 
@@ -68,7 +78,7 @@ BACDIVE_DIR="${REF_DIR}/BACDIVE"
 [[ -d "${NCBI_DIR}" ]] || die "NCBI reference data not found in ${NCBI_DIR}. Run setup first."
 
 setup_module_log "${NCBI_DIR}/normalize-ncbi-taxids.log"
-require_programs awk curl tar
+require_programs awk gawk curl tar sort
 
 TAXDUMP_URL="https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz"
 TAXDUMP="$(pf_ncbi_taxdump_dir "${NCBI_DIR}")"
@@ -154,22 +164,52 @@ for DOMAIN in "${PF_DOMAINS[@]}"; do
             ASSEMBLY_ACCESSION ORGANISM_TAXONOMIC_ID ORGANISM_NAME
     done
 done
-BACDIVE_TABLE="$(pf_bacdive_species_table "${BACDIVE_DIR}")"
-if [[ -f "${BACDIVE_TABLE}" ]]; then
-    add_job "BACDIVE" "${BACDIVE_TABLE}" "$(pf_bacdive_taxid_status_table "${BACDIVE_DIR}")" ncbi_tax_id ncbi_tax_id -
+BACDIVE_STRAIN_TABLE="$(pf_bacdive_strain_table "${BACDIVE_DIR}")"
+BACDIVE_STATUS_TABLE="$(pf_bacdive_taxid_status_table "${BACDIVE_DIR}")"
+BACDIVE_SPECIES_TABLE="$(pf_bacdive_species_table "${BACDIVE_DIR}")"
+if [[ -f "${BACDIVE_STRAIN_TABLE}" ]]; then
+    # Every distinct NCBI TaxID of the strains with the species name that most strains give it (empty when none does:
+    # the name is used to rescue a deleted TaxID)
+    BACDIVE_TAXIDS="${WORK}/bacdive-taxids.tsv"
+    gawk -F'\t' -v OFS='\t' '
+        NR == 1 {
+            for (i = 1; i <= NF; i++) { if ($i == "ncbi_tax_id") c_tax = i; if ($i == "species") c_sp = i }
+            if (!c_tax || !c_sp) { print "ncbi_tax_id and species columns not found" > "/dev/stderr"; exit 1 }
+            next
+        }
+        $c_tax != "" && $c_tax != "NULL" {
+            n = split($c_tax, ids, ";")
+            for (i = 1; i <= n; i++) {
+                if (ids[i] !~ /^[0-9]+$/) continue
+                known[ids[i]] = 1
+                if ($c_sp != "" && $c_sp != "NULL") freq[ids[i], $c_sp]++
+            }
+        }
+        END {
+            for (k in freq) {
+                split(k, p, SUBSEP)
+                if (!(p[1] in best) || freq[k] > best_n[p[1]] || (freq[k] == best_n[p[1]] && p[2] < best[p[1]])) { best[p[1]] = p[2]; best_n[p[1]] = freq[k] }
+            }
+            print "ncbi_tax_id", "species"
+            for (id in known) print id, (id in best ? best[id] : "")
+        }' "${BACDIVE_STRAIN_TABLE}" > "${BACDIVE_TAXIDS}.unsorted" || die "Could not read the BacDive strain table ${BACDIVE_STRAIN_TABLE}."
+    { awk 'NR == 1' "${BACDIVE_TAXIDS}.unsorted"; awk 'NR > 1' "${BACDIVE_TAXIDS}.unsorted" | sort -t$'\t' -k1,1n; } > "${BACDIVE_TAXIDS}"
+    add_job "BACDIVE" "${BACDIVE_TAXIDS}" "${BACDIVE_STATUS_TABLE}" ncbi_tax_id ncbi_tax_id species
 else
-    log "warning" "BacDive table not found (${BACDIVE_TABLE}): its TaxIDs are not normalized."
+    log "warning" "BacDive strain table not found (${BACDIVE_STRAIN_TABLE}): its TaxIDs are not normalized."
 fi
 
 REPORT="$(pf_ncbi_taxid_report "${NCBI_DIR}")"
 COUNTS="${WORK}/counts.tsv"
+COLLAPSED="${WORK}/collapsed.tsv"
 : > "${COUNTS}"
+: > "${COLLAPSED}"
 
 log "message" "Normalizing the NCBI TaxIDs of $(awk 'END { print NR }' "${JOBS}") tables against the taxdump of ${TAXDUMP_DATE}..."
 
 # One awk process reads the taxdump once and then every table (twice: the first pass collects the names to rescue).
 awk -F'\t' -v OFS='\t' -v jobs="${JOBS}" -v taxdump="${TAXDUMP}" -v date="${TAXDUMP_DATE}" \
-    -v report="${REPORT}.tmp" -v counts="${COUNTS}" '
+    -v report="${REPORT}.tmp" -v counts="${COUNTS}" -v collapsed="${COLLAPSED}" '
 function trim(s) { gsub(/^[ \t\r]+|[ \t\r]+$/, "", s); return s }
 function value(v) { return (v == "" ? "NULL" : v) }
 
@@ -183,7 +223,7 @@ function in_prokaryotes(t,   n) {
     return 0
 }
 
-# species the TaxID belongs to ("" when it is above species rank)
+# species the TaxID belongs to (the TaxID itself when it is a species; "" when it is above species rank)
 function species_of(t,   n) {
     for (n = 0; n < 64 && (t in parent); n++) {
         if (rank[t] == "species") return t
@@ -192,6 +232,9 @@ function species_of(t,   n) {
     }
     return ""
 }
+
+# TaxID that stands for t after the normalization: its species when t is below species, t itself otherwise
+function target_of(t,   sp) { sp = species_of(t); return (sp != "" ? sp : t) }
 
 # Sets status and updated for a TaxID and (lowercase) name; the rescue by name only when the names were loaded
 function classify(t, lname, rescue,   u, n, m, i, c, list, first) {
@@ -218,8 +261,9 @@ function classify(t, lname, rescue,   u, n, m, i, c, list, first) {
     }
 }
 
-# Reads one table: phase 1 collects the names of the TaxIDs to rescue, phase 2 writes the derived table
-function read_table(j, phase,   line, f, nf, i, key_col, tax_col, name_col, t, lname, sp, out_line) {
+# Reads one table: phase 1 collects the names of the TaxIDs to rescue and the TaxIDs whose scientific name is needed,
+# phase 2 writes the derived table
+function read_table(j, phase,   line, f, nf, i, key_col, tax_col, name_col, t, lname, out_line, target, orig_rank, uname) {
     if ((getline line < in_file[j]) <= 0) { print "cannot read " in_file[j] > "/dev/stderr"; exit 1 }
     nf = split(line, f, "\t")
     key_col = 0; tax_col = 0; name_col = 0
@@ -234,22 +278,30 @@ function read_table(j, phase,   line, f, nf, i, key_col, tax_col, name_col, t, l
     if (phase == 2) {
         out_line = key_name[j]
         if (key_col != tax_col) out_line = out_line OFS "TAXID"
-        print out_line, "TAXID_STATUS", "UPDATED_TAXID", "SPECIES_TAXID", "RANK", "TAXDUMP_DATE" > out_file[j]
+        print out_line, "TAXID_STATUS", "UPDATED_TAXID", "RANK", "UPDATED_RANK", "UPDATED_ORGANISM_NAME", "TAXDUMP_DATE" > out_file[j]
     }
     while ((getline line < in_file[j]) > 0) {
         nf = split(line, f, "\t")
         t = f[tax_col]
         lname = (name_col ? tolower(trim(f[name_col])) : "")
+        if (lname == "null") lname = ""
         if (phase == 1) {
             classify(t, lname, 0)
-            if ((status == "DELETED" || status == "INVALID") && lname != "") want[lname] = 1
+            if (status == "DELETED" || status == "INVALID") { if (lname != "") want[lname] = 1 }
+            else need_name[target_of(updated)] = 1
             continue
         }
         classify(t, lname, name_col != 0)
-        sp = (updated != "" ? species_of(updated) : "")
+        target = ""; orig_rank = ""; uname = ""
+        if (updated != "") {
+            target = target_of(updated)
+            orig_rank = (status == "CURRENT" ? rank[t] : (status == "MERGED" ? rank[updated] : ""))
+            uname = (target in sciname ? sciname[target] : "")
+            if (target != updated) n_collapsed[label[j], rank[updated]]++
+        }
         out_line = f[key_col]
         if (key_col != tax_col) out_line = out_line OFS value(t)
-        print out_line, status, value(updated), value(sp), (updated != "" ? value(rank[updated]) : "NULL"), date > out_file[j]
+        print out_line, status, value(target), value(orig_rank), (target != "" ? value(rank[target]) : "NULL"), value(uname), date > out_file[j]
         n_status[label[j], status]++
         statuses[status] = 1
         if (status != "CURRENT" && status != "MERGED")
@@ -285,10 +337,21 @@ BEGIN {
     }
     close(taxdump "/names.dmp")
 
+    # the scientific name of every TaxID that stands for a genome or a candidate of the rescue (second pass)
+    for (lname in cand) { m = split(cand[lname], list, " "); for (i = 1; i <= m; i++) need_name[target_of(list[i])] = 1 }
+    while ((getline line < (taxdump "/names.dmp")) > 0) {
+        split(line, f, /\t\|\t?/)
+        if ((f[1] in need_name) && f[4] == "scientific name") sciname[f[1]] = f[2]
+    }
+    close(taxdump "/names.dmp")
+
     print "TABLE", "KEY", "TAXID", "ORGANISM_NAME", "TAXID_STATUS", "UPDATED_TAXID" > report
     for (j = 1; j <= nj; j++) read_table(j, 2)
     for (j = 1; j <= nj; j++) for (s in statuses) if ((label[j], s) in n_status) print label[j], s, n_status[label[j], s] > counts
     close(counts)
+    # TaxIDs below species that became their species, by the rank of the TaxID
+    for (k in n_collapsed) { split(k, p, SUBSEP); print p[1], p[2], n_collapsed[k] > collapsed }
+    close(collapsed)
 }' || die "The normalization of the TaxIDs failed."
 
 # Rename the derived tables and the report, then write the checkpoint
@@ -299,6 +362,16 @@ mv "${REPORT}.tmp" "${REPORT}"
 
 log "message" "TaxID status per table (CURRENT, MERGED, RESCUED, AMBIGUOUS, UNRESOLVED, DELETED, INVALID):"
 sort -k1,1 -k2,2 "${COUNTS}" | awk -F'\t' '{ printf "    %-24s %-10s %d\n", $1, $2, $3 }' >&2
+if [[ -s "${COLLAPSED}" ]]; then
+    log "message" "TaxIDs below species that became their species (by the rank of the TaxID):"
+    sort -t$'\t' -k1,1 -k2,2 "${COLLAPSED}" | awk -F'\t' '{ printf "    %-24s %-16s %d\n", $1, $2, $3 }' >&2
+fi
+
+# The strains of BacDive merged by the current species (the table the search reads)
+if [[ -f "${BACDIVE_STRAIN_TABLE}" ]]; then
+    pf_bacdive_aggregate_species "${BACDIVE_STRAIN_TABLE}" "${BACDIVE_STATUS_TABLE}" "${BACDIVE_SPECIES_TABLE}" \
+        || die "Could not merge the BacDive strains by species."
+fi
 UNRESOLVED_N="$(awk -F'\t' 'END { print (NR > 0 ? NR - 1 : 0) }' "${REPORT}")"
 if [[ "${UNRESOLVED_N}" -gt 0 ]]; then
     log "warning" "${UNRESOLVED_N} TaxID(s) are not CURRENT or MERGED (rescued by name, ambiguous or unresolved): see ${REPORT}. Unresolved genomes stay in the tables but are not found by the TaxID filters."
@@ -309,6 +382,7 @@ fi
     echo "date=$(date +%F)"
     echo "taxdump_date=${TAXDUMP_DATE}"
     awk -F'\t' '{ printf "status.%s.%s=%d\n", $1, $2, $3 }' "${COUNTS}"
+    awk -F'\t' '{ gsub(/ /, "_", $2); printf "collapsed.%s.%s=%d\n", $1, $2, $3 }' "${COLLAPSED}"
 } > "${TAXID_MARKER}"
 
 log "message" "NCBI TaxID normalization completed successfully!"
