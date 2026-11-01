@@ -559,9 +559,10 @@ pf_completed_marker()    { echo "$1/COMPLETED-DOWNLOAD.txt"; }
 # module changes the tables it writes, its number is increased, and Prokfinder runs the module again: the tables
 # are rebuilt from the files already downloaded (nothing is downloaded again).
 # shellcheck disable=SC2034  # used by the modules
-PF_REFDB_FORMAT_NCBI=4      # 3: NULL-VALUES-NCBI.tsv (values converted to NULL)
+PF_REFDB_FORMAT_NCBI=5      # 3: NULL-VALUES-NCBI.tsv (values converted to NULL)
 #                             4: no NCBI lineage columns (NCBI_<RANK>, NCBI_<RANK>_TAXID: the TaxIDs are normalized in
 #                                <source>-taxid-status.tsv); paired GenBank/RefSeq accession and NCBI_<GENBANK|REFSEQ>_ASSEMBLY_ACCESSION
+#                             5: BioProject columns (ASSEMBLY_BIOPROJECT_LINEAGE_ACCESSION, ASSEMBLY_BIOSAMPLE_BIOPROJECT_ACCESSION)
 # shellcheck disable=SC2034
 PF_REFDB_FORMAT_BACDIVE=4   # 3: NULL-VALUES-BACDIVE.tsv
 #                             4: no ncbi_tax_id_rank column (the rank is in bacdive-taxid-status.tsv)

@@ -1202,7 +1202,7 @@
     }
   ],
   "reference_database_formats": {
-    "NCBI": 4,
+    "NCBI": 5,
     "BACDIVE": 4,
     "GTDB": 4
   },

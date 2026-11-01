@@ -23,6 +23,9 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - The NCBI tables have the paired assembly of the other database (`ASSEMBLY_PAIRED_ASSEMBLY_ACCESSION`,
   `ASSEMBLY_PAIRED_ASSEMBLY_REFSEQ_GENBANK_ARE_DIFFERENT`, and `NCBI_REFSEQ_ASSEMBLY_ACCESSION` in the GenBank table or
   `NCBI_GENBANK_ASSEMBLY_ACCESSION` in the RefSeq table; NULL when there is none or when NCBI says they are different).
+- The NCBI tables have the BioProjects of the assembly (`ASSEMBLY_BIOPROJECT_LINEAGE_ACCESSION`) and of its BioSample
+  (`ASSEMBLY_BIOSAMPLE_BIOPROJECT_ACCESSION`), several accessions joined with `;`; they reach `genome-metadata.tsv`
+  and `GENOME-DATABASE/` (NCBI format 4 → 5).
 - `search-genomes` writes `NCBI_TAXID_STATUS`, `NCBI_UPDATED_TAXID` and `NCBI_SPECIES_TAXID` (the normalized NCBI
   TaxID) in the genome metadata. The NCBI taxdump date is recorded in `versions.tsv` (`ncbi-taxdump`, with its citation).
 

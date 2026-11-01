@@ -96,7 +96,7 @@ require_programs datasets dataformat unzip
 
 ############ SETTINGS ################
 
-FIELDS="accession,organism-name,organism-tax-id,organism-infraspecific-strain,assminfo-level,assminfo-release-date,assminfo-biosample-accession,assminfo-biosample-isolation-source,assminfo-biosample-geo-loc-name,assminfo-biosample-lat-lon,assminfo-biosample-host,assminfo-biosample-collection-date,assmstats-total-sequence-len,assmstats-gc-percent,assmstats-number-of-contigs,assmstats-contig-n50,checkm-completeness,checkm-contamination,assminfo-notes,assminfo-paired-assm-accession,assminfo-paired-assm-refseq-genbank-are-different"
+FIELDS="accession,organism-name,organism-tax-id,organism-infraspecific-strain,assminfo-level,assminfo-release-date,assminfo-biosample-accession,assminfo-biosample-isolation-source,assminfo-biosample-geo-loc-name,assminfo-biosample-lat-lon,assminfo-biosample-host,assminfo-biosample-collection-date,assmstats-total-sequence-len,assmstats-gc-percent,assmstats-number-of-contigs,assmstats-contig-n50,checkm-completeness,checkm-contamination,assminfo-notes,assminfo-paired-assm-accession,assminfo-paired-assm-refseq-genbank-are-different,assminfo-bioproject-lineage-accession,assminfo-biosample-bioproject-accession"
 declare -A DOMAIN_TAXID=( ["BACTERIA"]="2" ["ARCHAEA"]="2157" )
 
 # Chunks by release year: everything released up to 12/31 of FIRST_YEAR goes in a single chunk,
