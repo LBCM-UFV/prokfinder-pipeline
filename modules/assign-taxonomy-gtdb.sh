@@ -325,7 +325,7 @@ if [[ "${GTDBTK_OK}" -eq 1 ]]; then
                 --cpus "${THREADS}"
             run_gtdbtk "${CONSOLE_LOG}" gtdbtk classify --batchfile "${WORK_DIR}/tree_batch.tsv" --genes \
                 --align_dir "${RUN_DIR}/align" --out_dir "${RUN_DIR}/classify" \
-                --cpus "${THREADS}" --pplacer_cpus "$(( THREADS > 1 ? THREADS / 2 : 1 ))" \
+                --cpus "${THREADS}" --pplacer_cpus "1" \ ## Change to only 1 CPU to avoid memory usage scalling
                 ${CLASSIFY_ARGS[@]+"${CLASSIFY_ARGS[@]}"}
             rm -rf "${RUN_DIR}/scratch"
 
