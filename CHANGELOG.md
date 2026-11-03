@@ -62,6 +62,8 @@ Versions 0.1 to 0.4 were not published as GitHub releases; they are reconstructe
 - `setup --from-source` does not use taxonkit and does not download the taxdump (it removes the checkpoint of the
   normalization; run `setup` afterwards). It cannot be given together with `search-genomes` or `download-wf` in the same
   command, as `--from-zenodo`.
+- `download-wf --use-gtdbtk-tree`: pplacer (`gtdbtk classify`) runs with 1 CPU (before, half of `-p`), because its
+  memory grows with the number of CPUs ([GTDB-Tk issue 124](https://github.com/Ecogenomics/GTDBTk/issues/124)).
 
 ### Removed
 - `download-reference-db-ncbi.sh --taxdump-dir` and `download-reference-db-bacdive.sh --taxdump-dir`.
